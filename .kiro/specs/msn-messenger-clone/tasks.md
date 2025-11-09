@@ -1,0 +1,461 @@
+# Implementation Plan
+
+- [x] 1. Initialize project structure and dependencies
+  - Create Tauri + Next.js project with TypeScript
+  - Install and configure TailwindCSS
+  - Set up Supabase client and environment variables
+  - Configure project structure (components, lib, types, styles directories)
+  - _Requirements: 12.1, 12.2, 12.3_
+
+- [ ] 2. Set up Supabase backend infrastructure
+  - Create database schema (users, contacts, messages, conversations, conversation_participants, ai_conversations, files tables)
+  - Implement Row Level Security policies for all tables
+  - Create database indexes for optimized queries
+  - Set up Storage buckets for display pictures and file transfers
+  - Configure Supabase Auth settings
+  - _Requirements: 1.2, 1.4, 13.2_
+
+- [ ] 3. Implement authentication system
+  - [ ] 3.1 Create authentication UI components
+    - Build SignInWindow component with email/password inputs
+    - Build RegistrationWindow component with username, email, password fields
+    - Implement form validation for both components
+    - _Requirements: 1.1, 1.3_
+  - [ ] 3.2 Implement authentication logic
+    - Create auth service wrapper for Supabase Auth
+    - Implement sign-up functionality with user profile creation
+    - Implement sign-in functionality with session management
+    - Implement sign-out functionality
+    - Add session persistence and automatic token refresh
+    - _Requirements: 1.2, 1.4, 1.5_
+  - [ ] 3.3 Create authentication state management
+    - Set up global auth state (Zustand or Context)
+    - Implement protected route logic
+    - Add session restoration on app startup
+    - _Requirements: 1.4_
+
+- [ ] 4. Build main application window and layout
+  - [ ] 4.1 Create MainWindow component structure
+    - Implement window chrome with classic MSN styling
+    - Build top bar with user profile section
+    - Create menu bar (File, Contacts, Actions, Tools, Help)
+    - Add status selector dropdown
+    - Implement search bar
+    - _Requirements: 11.1, 11.2, 11.3_
+  - [ ] 4.2 Implement user profile display
+    - Create profile section showing display picture, name, and status
+    - Add personal message display
+    - Implement edit profile button
+    - _Requirements: 9.4, 3.5_
+  - [ ] 4.3 Configure Tauri window settings
+    - Set window dimensions and minimum size
+    - Configure window decorations
+    - Implement window state persistence
+    - _Requirements: 11.3_
+
+- [ ] 5. Implement user profile and display picture management
+  - [ ] 5.1 Create profile editing UI
+    - Build profile settings modal/window
+    - Add display name input field
+    - Add personal message input field
+    - Create display picture upload interface
+    - _Requirements: 9.5, 3.4_
+  - [ ] 5.2 Implement display picture upload
+    - Create image upload handler with file validation
+    - Implement image resizing to 96x96 pixels
+    - Upload resized image to Supabase Storage
+    - Update user profile with display picture URL
+    - _Requirements: 9.1, 9.2_
+  - [ ] 5.3 Implement profile update logic
+    - Create profile update service
+    - Update user data in Supabase database
+    - Refresh UI with updated profile information
+    - _Requirements: 9.5_
+
+- [ ] 6. Implement presence and status management
+  - [ ] 6.1 Create status selector component
+    - Build dropdown with status options (Online, Away, Busy, Appear Offline)
+    - Add status icons for each option
+    - Implement status change handler
+    - _Requirements: 3.1_
+  - [ ] 6.2 Implement presence update logic
+    - Create presence service for status updates
+    - Update user presence in Supabase database
+    - Implement automatic "Away" status after inactivity
+    - _Requirements: 3.2_
+  - [ ] 6.3 Create custom status message feature
+    - Add custom status message input field
+    - Implement character limit (150 characters)
+    - Save custom message to database
+    - _Requirements: 3.4, 3.5_
+  - [ ] 6.4 Set up real-time presence subscriptions
+    - Subscribe to presence changes for all contacts
+    - Update contact list UI when presence changes
+    - Implement presence change notifications
+    - _Requirements: 3.3_
+
+- [ ] 7. Build contact management system
+  - [ ] 7.1 Create ContactList component
+    - Build scrollable contact list container
+    - Implement grouped contacts (Online, Offline, Blocked)
+    - Add collapsible group headers
+    - Create empty state for no contacts
+    - _Requirements: 2.1, 11.2_
+  - [ ] 7.2 Create ContactItem component
+    - Display contact display picture (96x96px)
+    - Show contact display name
+    - Display personal message
+    - Add presence status indicator
+    - Implement hover effects
+    - _Requirements: 2.1, 9.3_
+  - [ ] 7.3 Implement add contact functionality
+    - Create "Add Contact" dialog with email input
+    - Implement contact search by email
+    - Send contact request to Supabase database
+    - Show confirmation message
+    - _Requirements: 2.2_
+  - [ ] 7.4 Implement contact request handling
+    - Create contact request notification UI
+    - Build accept/decline buttons
+    - Implement accept logic (add to contacts table)
+    - Implement decline logic (delete request)
+    - _Requirements: 2.3, 2.4_
+  - [ ] 7.5 Implement remove contact functionality
+    - Add "Remove Contact" option to context menu
+    - Create confirmation dialog
+    - Delete contact relationship from database
+    - Update contact list UI
+    - _Requirements: 2.5_
+  - [ ] 7.6 Set up real-time contact updates
+    - Subscribe to contact table changes
+    - Update contact list when contacts are added/removed
+    - Update contact status in real-time
+    - _Requirements: 2.1, 3.3_
+
+- [ ] 8. Implement one-on-one chat functionality
+  - [ ] 8.1 Create ChatWindow component
+    - Build chat window layout with title bar
+    - Create message history panel (scrollable)
+    - Build message composition area with text input
+    - Add toolbar for emoticons and formatting
+    - _Requirements: 4.1, 11.4_
+  - [ ] 8.2 Create MessageBubble component
+    - Display sender name and timestamp
+    - Render message content with text formatting
+    - Show delivery status indicator
+    - Implement different styles for sent/received messages
+    - _Requirements: 4.3_
+  - [ ] 8.3 Implement send message functionality
+    - Create message send handler
+    - Insert message into Supabase messages table
+    - Create or retrieve conversation ID
+    - Update conversation participants
+    - Show message in chat window immediately
+    - _Requirements: 4.2_
+  - [ ] 8.4 Implement receive message functionality
+    - Subscribe to new messages for active conversation
+    - Display incoming messages in chat window
+    - Update message delivery status
+    - Scroll to bottom on new message
+    - _Requirements: 4.3, 13.1_
+  - [ ] 8.5 Implement chat history loading
+    - Fetch previous messages from database on chat open
+    - Implement pagination (50 messages per page)
+    - Add "Load More" functionality for older messages
+    - Display messages in chronological order
+    - _Requirements: 4.5_
+  - [ ] 8.6 Implement typing indicators
+    - Send typing status to Supabase Realtime
+    - Subscribe to typing status from contacts
+    - Display "Contact is typing..." indicator
+    - Clear indicator after 3 seconds of inactivity
+    - _Requirements: 13.5_
+
+- [ ] 9. Implement emoticons and rich text formatting
+  - [ ] 9.1 Create emoticon system
+    - Create emoticon data structure with codes and image URLs
+    - Implement 30+ classic MSN emoticons (19x19px)
+    - Create emoticon shortcut mapping (e.g., `:)` → smile)
+    - _Requirements: 5.1_
+  - [ ] 9.2 Build EmoticonPicker component
+    - Create grid layout for emoticon display
+    - Implement emoticon selection handler
+    - Add recently used emoticons section
+    - Create search/filter functionality
+    - _Requirements: 5.2_
+  - [ ] 9.3 Implement emoticon insertion
+    - Insert emoticon at cursor position in message input
+    - Convert emoticon shortcuts to graphics automatically
+    - Store emoticon metadata in message
+    - _Requirements: 5.2, 5.3_
+  - [ ] 9.4 Implement emoticon rendering in messages
+    - Parse message content for emoticon codes
+    - Replace codes with emoticon images
+    - Support animated GIF emoticons
+    - _Requirements: 5.5_
+  - [ ] 9.5 Implement text formatting
+    - Add bold, italic, and color formatting buttons
+    - Apply formatting to selected text
+    - Store formatting metadata in message
+    - Render formatted text in message bubbles
+    - _Requirements: 5.4, 5.5_
+
+- [ ] 10. Implement group chat functionality
+  - [ ] 10.1 Create group chat initiation UI
+    - Build "New Group Chat" dialog
+    - Implement multi-select contact picker
+    - Add group name input field
+    - Create "Start Group Chat" button
+    - _Requirements: 6.1_
+  - [ ] 10.2 Implement group chat creation logic
+    - Create conversation with type "group"
+    - Add all selected participants to conversation_participants table
+    - Send group chat invitations
+    - Open group chat window
+    - _Requirements: 6.2_
+  - [ ] 10.3 Enhance ChatWindow for group chats
+    - Display participant list in sidebar
+    - Show participant count in title bar
+    - Add participant presence indicators
+    - _Requirements: 6.4_
+  - [ ] 10.4 Implement group message delivery
+    - Send messages to all group participants
+    - Subscribe to group conversation messages
+    - Display sender name with each message
+    - _Requirements: 6.3_
+  - [ ] 10.5 Implement leave group functionality
+    - Add "Leave Conversation" button
+    - Update conversation_participants with left_at timestamp
+    - Notify remaining participants
+    - Close chat window
+    - _Requirements: 6.5_
+
+- [ ] 11. Implement file transfer functionality
+  - [ ] 11.1 Create file transfer UI components
+    - Add "Send File" button to chat toolbar
+    - Create file transfer progress indicator
+    - Build file transfer notification component
+    - Display file transfer status in chat window
+    - _Requirements: 11.2, 11.5_
+  - [ ] 11.2 Implement file selection and validation
+    - Create Tauri command for file dialog
+    - Implement file size validation (max 100 MB)
+    - Show file preview with name and size
+    - _Requirements: 11.1_
+  - [ ] 11.3 Implement file upload
+    - Upload file to Supabase Storage
+    - Track upload progress
+    - Create file record in files table
+    - Send file message to conversation
+    - _Requirements: 11.2_
+  - [ ] 11.4 Implement file transfer notifications
+    - Display incoming file transfer notification
+    - Show accept/decline buttons
+    - Update UI based on user action
+    - _Requirements: 11.3_
+  - [ ] 11.5 Implement file download
+    - Download file from Supabase Storage on accept
+    - Show download progress
+    - Save file to designated folder using Tauri command
+    - Open file location on completion
+    - _Requirements: 11.4_
+
+- [ ] 12. Implement notifications and sounds
+  - [ ] 12.1 Create Tauri notification commands
+    - Implement show_notification Rust command
+    - Request notification permissions
+    - Display system notifications with title and body
+    - _Requirements: 8.5_
+  - [ ] 12.2 Implement notification triggers
+    - Show notification on new message when window not focused
+    - Include message preview in notification
+    - Handle notification click to focus chat window
+    - _Requirements: 4.4, 8.5_
+  - [ ] 12.3 Create sound system
+    - Implement play_sound Rust command
+    - Add classic MSN sound files (message, sign-in, sign-out)
+    - Create sound player with volume control
+    - _Requirements: 8.1, 8.2, 8.3_
+  - [ ] 12.4 Implement sound triggers
+    - Play message sound on new message
+    - Play sign-in sound when contact comes online
+    - Play sign-out sound when contact goes offline
+    - _Requirements: 8.1, 8.2, 8.3_
+  - [ ] 12.5 Add notification settings
+    - Create settings UI for notification preferences
+    - Implement enable/disable toggle for sounds
+    - Add volume slider
+    - Add desktop alerts toggle
+    - _Requirements: 8.4_
+
+- [ ] 13. Implement AI chatbot system
+  - [ ] 13.1 Create chatbot personality definitions
+    - Define 3 chatbot personalities with system prompts
+    - Create chatbot avatar images
+    - Store chatbot metadata (name, description, avatar URL)
+    - _Requirements: 10.2_
+  - [ ] 13.2 Build ChatbotList component
+    - Display available chatbots when no contacts online
+    - Show chatbot cards with name, description, and avatar
+    - Add "Start Chat" button for each chatbot
+    - _Requirements: 10.1_
+  - [ ] 13.3 Implement AI service integration
+    - Create AI service wrapper for OpenAI API
+    - Implement message sending with conversation history
+    - Handle API responses and errors
+    - Implement rate limiting (10 requests per minute)
+    - _Requirements: 10.4_
+  - [ ] 13.4 Create AI chat window
+    - Reuse ChatWindow component with AI branding
+    - Add AI response loading indicator
+    - Display AI messages with chatbot avatar
+    - _Requirements: 10.3_
+  - [ ] 13.5 Implement AI conversation persistence
+    - Store AI conversations in ai_conversations table
+    - Save AI messages in messages table with special type
+    - Load AI chat history on window open
+    - _Requirements: 10.5_
+
+- [ ] 14. Implement search and chat history
+  - [ ] 14.1 Create search UI
+    - Build search bar in main window
+    - Add search input with icon
+    - Create search results panel
+    - _Requirements: 15.1_
+  - [ ] 14.2 Implement search functionality
+    - Create search query handler
+    - Search messages table with full-text search
+    - Return results with message content, sender, timestamp
+    - Implement search result pagination
+    - _Requirements: 15.2, 15.3_
+  - [ ] 14.3 Display search results
+    - Show search results in list format
+    - Display message preview with context
+    - Highlight matching text
+    - Add click handler to open conversation
+    - _Requirements: 15.3, 15.4_
+  - [ ] 14.4 Implement search filters
+    - Add filter by contact dropdown
+    - Add date range picker
+    - Add conversation type filter (one-on-one, group, AI)
+    - Apply filters to search query
+    - _Requirements: 15.5_
+
+- [ ] 15. Implement application settings
+  - [ ] 15.1 Create SettingsWindow component
+    - Build tabbed settings interface
+    - Create tabs: General, Privacy, Sounds, Files, Profile
+    - Implement tab navigation
+    - _Requirements: 14.1_
+  - [ ] 15.2 Implement General settings
+    - Add auto-launch toggle with Tauri command
+    - Add start minimized toggle
+    - Save settings to local storage
+    - _Requirements: 14.3_
+  - [ ] 15.3 Implement Sounds settings
+    - Add notification sounds toggle
+    - Add volume slider
+    - Add sound preview buttons
+    - _Requirements: 14.2_
+  - [ ] 15.4 Implement Files settings
+    - Add download location selector with Tauri file dialog
+    - Display current download location
+    - Add "Open Folder" button
+    - _Requirements: 14.4_
+  - [ ] 15.5 Implement settings persistence
+    - Create settings state management
+    - Save settings to local storage
+    - Load settings on app startup
+    - Apply settings across application
+    - _Requirements: 14.5_
+
+- [ ] 16. Implement system tray integration
+  - [ ] 16.1 Create system tray with Tauri
+    - Implement system tray icon
+    - Create tray menu with options (Show, Status, Quit)
+    - Handle tray icon clicks
+    - _Requirements: 12.1, 12.2, 12.3_
+  - [ ] 16.2 Implement minimize to tray
+    - Minimize window to system tray on close
+    - Show window on tray icon click
+    - Update tray icon based on presence status
+    - _Requirements: 12.1, 12.2, 12.3_
+
+- [ ] 17. Implement real-time synchronization and connection management
+  - [ ] 17.1 Create WebSocket connection manager
+    - Establish persistent WebSocket connection to Supabase
+    - Implement connection state tracking
+    - Add connection status indicator in UI
+    - _Requirements: 13.2_
+  - [ ] 17.2 Implement reconnection logic
+    - Detect connection interruptions
+    - Implement exponential backoff reconnection
+    - Attempt reconnection every 5 seconds for up to 5 minutes
+    - Show reconnection UI to user
+    - _Requirements: 13.3_
+  - [ ] 17.3 Implement message synchronization
+    - Queue messages when offline
+    - Send queued messages on reconnection
+    - Fetch missed messages on reconnection
+    - Update message delivery status
+    - _Requirements: 13.4_
+
+- [ ] 18. Implement classic MSN Messenger styling
+  - [ ] 18.1 Create TailwindCSS theme configuration
+    - Define MSN color palette in Tailwind config
+    - Create custom utility classes for MSN styling
+    - Set up font configuration (Tahoma, Arial)
+    - _Requirements: 11.1_
+  - [ ] 18.2 Style main window components
+    - Apply classic MSN window chrome styling
+    - Style contact list with proper spacing and colors
+    - Implement hover and active states
+    - Add presence status color indicators
+    - _Requirements: 11.1, 11.2_
+  - [ ] 18.3 Style chat window components
+    - Apply classic chat window layout
+    - Style message bubbles with proper colors
+    - Implement alternating message colors
+    - Add timestamp styling
+    - _Requirements: 11.4_
+  - [ ] 18.4 Create animations and transitions
+    - Implement contact status change fade (200ms)
+    - Add window open/close slide animation (150ms)
+    - Create message send fade-in (100ms)
+    - Add typing indicator pulsing animation
+    - _Requirements: 11.1_
+
+- [ ] 19. Implement performance optimizations
+  - [ ] 19.1 Optimize contact list rendering
+    - Implement virtual scrolling for large contact lists
+    - Lazy load contact display pictures
+    - Memoize ContactItem components
+    - _Requirements: 2.1_
+  - [ ] 19.2 Optimize message history rendering
+    - Implement virtual scrolling for message history
+    - Lazy load older messages with pagination
+    - Memoize MessageBubble components
+    - _Requirements: 4.5_
+  - [ ] 19.3 Implement caching strategies
+    - Cache user profiles in memory (1 hour TTL)
+    - Cache display pictures locally (24 hour TTL)
+    - Use IndexedDB for offline message queue
+    - _Requirements: 13.4_
+
+- [ ] 20. Build and configure for production
+  - [ ] 20.1 Configure Tauri for production builds
+    - Set up code signing certificates
+    - Configure app icons for all platforms
+    - Set up app metadata (name, version, description)
+    - _Requirements: 12.1, 12.2, 12.3_
+  - [ ] 20.2 Create platform-specific builds
+    - Build Windows installer (.exe and .msi)
+    - Build macOS disk image (.dmg)
+    - Build Linux packages (.AppImage, .deb, .rpm)
+    - _Requirements: 12.1, 12.2, 12.3_
+  - [ ] 20.3 Implement auto-update functionality
+    - Configure Tauri updater
+    - Check for updates on app startup
+    - Download updates in background
+    - Prompt user to restart after update
+    - _Requirements: 12.4_
