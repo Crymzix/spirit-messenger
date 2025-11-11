@@ -7,453 +7,610 @@
   - Configure project structure (components, lib, types, styles directories)
   - _Requirements: 12.1, 12.2, 12.3_
 
-- [ ] 2. Set up Supabase backend infrastructure
-  - Create database schema (users, contacts, messages, conversations, conversation_participants, ai_conversations, files tables)
-  - Implement Row Level Security policies for all tables
+- [x] 2. Set up Supabase database infrastructure
+  - Create database schema (users with is_ai_bot and ai_bot_personality fields, contacts, messages, conversations, conversation_participants, files tables)
+  - Implement Row Level Security policies for read operations only (frontend cannot write)
   - Create database indexes for optimized queries
   - Set up Storage buckets for display pictures and file transfers
-  - Configure Supabase Auth settings
-  - _Requirements: 1.2, 1.4, 13.2_
+  - Configure Supabase project settings and obtain service role key
+  - Seed database with AI bot user accounts (Friendly Assistant, Casual Friend, Creative Companion)
+  - _Requirements: 1.2, 1.4, 13.2, 10.2_
 
-- [ ] 3. Implement authentication system
-  - [ ] 3.1 Create authentication UI components
+- [x] 3. Initialize Backend Service project
+  - Create Node.js/Fastify project with TypeScript
+  - Set up project structure (routes, plugins, services, db, types)
+  - Install dependencies (fastify, @fastify/cors, @fastify/rate-limit, @fastify/multipart, drizzle-orm, postgres, @supabase/supabase-js)
+  - Install dev dependencies (typescript, @types/node, tsx, drizzle-kit)
+  - Configure TypeScript (tsconfig.json)
+  - Configure Drizzle (drizzle.config.ts)
+  - Set up environment variables
+  - Set up Supabase client with service role key
+  - _Requirements: 1.2, 1.4_
+
+- [ ] 4. Implement Backend Service authentication with TypeScript
+  - [ ] 4.1 Create Drizzle schema for users table
+    - Define users table schema with Drizzle ORM including is_ai_bot and ai_bot_personality fields
+    - Create TypeScript types from schema
+    - Generate and run migrations
+    - _Requirements: 1.2, 10.2_
+  - [ ] 4.2 Create authentication endpoints
+    - Implement POST /api/auth/register endpoint using Supabase Auth
+    - Implement POST /api/auth/login endpoint using Supabase Auth
+    - Implement POST /api/auth/logout endpoint
+    - Add TypeScript request/response types
+    - _Requirements: 1.2, 1.4_
+  - [ ] 4.3 Create authentication plugin
+    - Implement Fastify authentication plugin using Supabase Auth
+    - Add token verification using supabase.auth.getUser()
+    - Create user context injection for authenticated requests
+    - Add TypeScript types for authenticated requests
+    - _Requirements: 1.4_
+
+- [ ] 5. Implement frontend authentication system
+  - [ ] 5.1 Create authentication UI components
     - Build SignInWindow component with email/password inputs
     - Build RegistrationWindow component with username, email, password fields
     - Implement form validation for both components
     - _Requirements: 1.1, 1.3_
-  - [ ] 3.2 Implement authentication logic
-    - Create auth service wrapper for Supabase Auth
-    - Implement sign-up functionality with user profile creation
-    - Implement sign-in functionality with session management
+  - [ ] 5.2 Implement authentication logic
+    - Create HTTP client for Backend Service API calls
+    - Implement sign-up functionality calling Backend Service
+    - Implement sign-in functionality with JWT token storage
     - Implement sign-out functionality
-    - Add session persistence and automatic token refresh
+    - Add token persistence in Tauri secure storage
     - _Requirements: 1.2, 1.4, 1.5_
-  - [ ] 3.3 Create authentication state management
+  - [ ] 5.3 Create authentication state management
     - Set up global auth state (Zustand or Context)
     - Implement protected route logic
     - Add session restoration on app startup
+    - Add token refresh logic
     - _Requirements: 1.4_
+  - [ ] 5.4 Set up Supabase client for reads
+    - Initialize Supabase client with anon key (read-only)
+    - Configure client for real-time subscriptions
+    - _Requirements: 13.2_
 
-- [ ] 4. Build main application window and layout
-  - [ ] 4.1 Create MainWindow component structure
+- [ ] 6. Build main application window and layout
+  - [ ] 6.1 Create MainWindow component structure
     - Implement window chrome with classic MSN styling
     - Build top bar with user profile section
     - Create menu bar (File, Contacts, Actions, Tools, Help)
     - Add status selector dropdown
     - Implement search bar
     - _Requirements: 11.1, 11.2, 11.3_
-  - [ ] 4.2 Implement user profile display
+  - [ ] 6.2 Implement user profile display
     - Create profile section showing display picture, name, and status
     - Add personal message display
     - Implement edit profile button
     - _Requirements: 9.4, 3.5_
-  - [ ] 4.3 Configure Tauri window settings
+  - [ ] 6.3 Configure Tauri window settings
     - Set window dimensions and minimum size
     - Configure window decorations
     - Implement window state persistence
     - _Requirements: 11.3_
 
-- [ ] 5. Implement user profile and display picture management
-  - [ ] 5.1 Create profile editing UI
+- [ ] 7. Implement Backend Service user profile endpoints with TypeScript
+  - [ ] 7.1 Create Drizzle queries for user operations
+    - Write type-safe update queries using Drizzle ORM
+    - Create TypeScript service functions for user operations
+    - _Requirements: 9.5, 3.2_
+  - [ ] 7.2 Create user profile endpoints
+    - Implement PUT /api/users/profile endpoint with Fastify schema validation
+    - Implement POST /api/users/display-picture endpoint with @fastify/multipart
+    - Implement PUT /api/users/presence endpoint
+    - Add TypeScript types for all request/response bodies
+    - _Requirements: 9.2, 9.5, 3.2_
+  - [ ] 7.3 Implement image processing
+    - Add image upload handling with @fastify/multipart
+    - Resize images to 96x96 pixels using sharp
+    - Upload to Supabase Storage
+    - Update user record with image URL using Drizzle
+    - _Requirements: 9.1, 9.2_
+
+- [ ] 8. Implement frontend user profile and display picture management
+  - [ ] 8.1 Create profile editing UI
     - Build profile settings modal/window
     - Add display name input field
     - Add personal message input field
     - Create display picture upload interface
     - _Requirements: 9.5, 3.4_
-  - [ ] 5.2 Implement display picture upload
+  - [ ] 8.2 Implement display picture upload
     - Create image upload handler with file validation
-    - Implement image resizing to 96x96 pixels
-    - Upload resized image to Supabase Storage
-    - Update user profile with display picture URL
+    - Send image to Backend Service API
+    - Update local state with returned image URL
+    - Display updated profile picture
     - _Requirements: 9.1, 9.2_
-  - [ ] 5.3 Implement profile update logic
-    - Create profile update service
-    - Update user data in Supabase database
-    - Refresh UI with updated profile information
+  - [ ] 8.3 Implement profile update logic
+    - Create profile update service calling Backend Service API
+    - Send profile updates to Backend Service
+    - Refresh UI with updated profile information from Supabase real-time subscription
     - _Requirements: 9.5_
 
-- [ ] 6. Implement presence and status management
-  - [ ] 6.1 Create status selector component
+- [ ] 9. Implement presence and status management
+  - [ ] 9.1 Create status selector component
     - Build dropdown with status options (Online, Away, Busy, Appear Offline)
     - Add status icons for each option
     - Implement status change handler
     - _Requirements: 3.1_
-  - [ ] 6.2 Implement presence update logic
-    - Create presence service for status updates
-    - Update user presence in Supabase database
+  - [ ] 9.2 Implement presence update logic
+    - Create presence service calling Backend Service API
+    - Send presence updates to Backend Service
     - Implement automatic "Away" status after inactivity
     - _Requirements: 3.2_
-  - [ ] 6.3 Create custom status message feature
+  - [ ] 9.3 Create custom status message feature
     - Add custom status message input field
     - Implement character limit (150 characters)
-    - Save custom message to database
+    - Send custom message to Backend Service
     - _Requirements: 3.4, 3.5_
-  - [ ] 6.4 Set up real-time presence subscriptions
+  - [ ] 9.4 Set up real-time presence subscriptions
     - Subscribe to presence changes for all contacts
     - Update contact list UI when presence changes
     - Implement presence change notifications
     - _Requirements: 3.3_
 
-- [ ] 7. Build contact management system
-  - [ ] 7.1 Create ContactList component
+- [ ] 10. Implement Backend Service contact endpoints with TypeScript
+  - [ ] 10.1 Create Drizzle schema for contacts table
+    - Define contacts table schema with Drizzle ORM
+    - Create TypeScript types from schema
+    - Generate and run migrations
+    - _Requirements: 2.2_
+  - [ ] 10.2 Create contact management endpoints
+    - Implement POST /api/contacts/request endpoint with Fastify schema
+    - Implement POST /api/contacts/accept endpoint
+    - Implement DELETE /api/contacts/:contactId endpoint
+    - Add TypeScript types and validation
+    - Add authorization checks
+    - _Requirements: 2.2, 2.4, 2.5_
+
+- [ ] 11. Build frontend contact management system
+  - [ ] 11.1 Create ContactList component
     - Build scrollable contact list container
     - Implement grouped contacts (Online, Offline, Blocked)
     - Add collapsible group headers
     - Create empty state for no contacts
     - _Requirements: 2.1, 11.2_
-  - [ ] 7.2 Create ContactItem component
+  - [ ] 11.2 Create ContactItem component
     - Display contact display picture (96x96px)
     - Show contact display name
     - Display personal message
     - Add presence status indicator
     - Implement hover effects
     - _Requirements: 2.1, 9.3_
-  - [ ] 7.3 Implement add contact functionality
+  - [ ] 11.3 Implement add contact functionality
     - Create "Add Contact" dialog with email input
-    - Implement contact search by email
-    - Send contact request to Supabase database
+    - Implement contact search by email from Supabase
+    - Send contact request to Backend Service API
     - Show confirmation message
     - _Requirements: 2.2_
-  - [ ] 7.4 Implement contact request handling
+  - [ ] 11.4 Implement contact request handling
     - Create contact request notification UI
     - Build accept/decline buttons
-    - Implement accept logic (add to contacts table)
-    - Implement decline logic (delete request)
+    - Send accept request to Backend Service API
+    - Send decline request to Backend Service API
     - _Requirements: 2.3, 2.4_
-  - [ ] 7.5 Implement remove contact functionality
+  - [ ] 11.5 Implement remove contact functionality
     - Add "Remove Contact" option to context menu
     - Create confirmation dialog
-    - Delete contact relationship from database
-    - Update contact list UI
+    - Send delete request to Backend Service API
+    - Update contact list UI via Supabase real-time subscription
     - _Requirements: 2.5_
-  - [ ] 7.6 Set up real-time contact updates
+  - [ ] 11.6 Set up real-time contact updates
     - Subscribe to contact table changes
     - Update contact list when contacts are added/removed
     - Update contact status in real-time
     - _Requirements: 2.1, 3.3_
 
-- [ ] 8. Implement one-on-one chat functionality
-  - [ ] 8.1 Create ChatWindow component
+- [ ] 12. Implement Backend Service messaging endpoints with TypeScript
+  - [ ] 12.1 Create Drizzle schemas for messaging tables
+    - Define messages, conversations, and conversation_participants schemas
+    - Create TypeScript types from schemas
+    - Generate and run migrations
+    - _Requirements: 4.2_
+  - [ ] 12.2 Create message endpoints
+    - Implement POST /api/messages endpoint with Fastify schema validation
+    - Implement POST /api/conversations endpoint
+    - Add TypeScript types for all request/response bodies
+    - Use Drizzle ORM for database operations
+    - _Requirements: 4.2, 4.3_
+  - [ ] 12.3 Implement typing indicators
+    - Create endpoint or WebSocket handler for typing status
+    - Broadcast typing status to conversation participants
+    - Add TypeScript types for typing events
+    - _Requirements: 13.5_
+
+- [ ] 13. Implement frontend one-on-one chat functionality
+  - [ ] 13.1 Create ChatWindow component
     - Build chat window layout with title bar
     - Create message history panel (scrollable)
     - Build message composition area with text input
     - Add toolbar for emoticons and formatting
     - _Requirements: 4.1, 11.4_
-  - [ ] 8.2 Create MessageBubble component
+  - [ ] 13.2 Create MessageBubble component
     - Display sender name and timestamp
     - Render message content with text formatting
     - Show delivery status indicator
     - Implement different styles for sent/received messages
     - _Requirements: 4.3_
-  - [ ] 8.3 Implement send message functionality
+  - [ ] 13.3 Implement send message functionality
     - Create message send handler
-    - Insert message into Supabase messages table
-    - Create or retrieve conversation ID
-    - Update conversation participants
-    - Show message in chat window immediately
+    - Send message to Backend Service API
+    - Show message optimistically in chat window
+    - Confirm delivery via Supabase real-time subscription
     - _Requirements: 4.2_
-  - [ ] 8.4 Implement receive message functionality
-    - Subscribe to new messages for active conversation
+  - [ ] 13.4 Implement receive message functionality
+    - Subscribe to new messages for active conversation via Supabase Realtime
     - Display incoming messages in chat window
     - Update message delivery status
     - Scroll to bottom on new message
     - _Requirements: 4.3, 13.1_
-  - [ ] 8.5 Implement chat history loading
-    - Fetch previous messages from database on chat open
+  - [ ] 13.5 Implement chat history loading
+    - Fetch previous messages from Supabase on chat open
     - Implement pagination (50 messages per page)
     - Add "Load More" functionality for older messages
     - Display messages in chronological order
     - _Requirements: 4.5_
-  - [ ] 8.6 Implement typing indicators
-    - Send typing status to Supabase Realtime
-    - Subscribe to typing status from contacts
+  - [ ] 13.6 Implement typing indicators
+    - Send typing status to Backend Service or via Supabase Realtime
+    - Subscribe to typing status from contacts via Supabase Realtime
     - Display "Contact is typing..." indicator
     - Clear indicator after 3 seconds of inactivity
     - _Requirements: 13.5_
 
-- [ ] 9. Implement emoticons and rich text formatting
-  - [ ] 9.1 Create emoticon system
+- [ ] 18. Implement emoticons and rich text formatting
+  - [ ] 18.1 Create emoticon system
     - Create emoticon data structure with codes and image URLs
     - Implement 30+ classic MSN emoticons (19x19px)
     - Create emoticon shortcut mapping (e.g., `:)` → smile)
     - _Requirements: 5.1_
-  - [ ] 9.2 Build EmoticonPicker component
+  - [ ] 18.2 Build EmoticonPicker component
     - Create grid layout for emoticon display
     - Implement emoticon selection handler
     - Add recently used emoticons section
     - Create search/filter functionality
     - _Requirements: 5.2_
-  - [ ] 9.3 Implement emoticon insertion
+  - [ ] 18.3 Implement emoticon insertion
     - Insert emoticon at cursor position in message input
     - Convert emoticon shortcuts to graphics automatically
     - Store emoticon metadata in message
     - _Requirements: 5.2, 5.3_
-  - [ ] 9.4 Implement emoticon rendering in messages
+  - [ ] 18.4 Implement emoticon rendering in messages
     - Parse message content for emoticon codes
     - Replace codes with emoticon images
     - Support animated GIF emoticons
     - _Requirements: 5.5_
-  - [ ] 9.5 Implement text formatting
+  - [ ] 18.5 Implement text formatting
     - Add bold, italic, and color formatting buttons
     - Apply formatting to selected text
     - Store formatting metadata in message
     - Render formatted text in message bubbles
     - _Requirements: 5.4, 5.5_
 
-- [ ] 10. Implement group chat functionality
-  - [ ] 10.1 Create group chat initiation UI
+- [ ] 14. Implement Backend Service group chat endpoints with TypeScript
+  - [ ] 14.1 Create group conversation endpoints
+    - Implement POST /api/conversations endpoint for group creation with Fastify schema
+    - Implement POST /api/conversations/:conversationId/leave endpoint
+    - Add participant management logic using Drizzle ORM
+    - Add TypeScript types for group operations
+    - _Requirements: 6.2, 6.5_
+
+- [ ] 15. Implement frontend group chat functionality
+  - [ ] 15.1 Create group chat initiation UI
     - Build "New Group Chat" dialog
     - Implement multi-select contact picker
     - Add group name input field
     - Create "Start Group Chat" button
     - _Requirements: 6.1_
-  - [ ] 10.2 Implement group chat creation logic
-    - Create conversation with type "group"
-    - Add all selected participants to conversation_participants table
-    - Send group chat invitations
-    - Open group chat window
+  - [ ] 15.2 Implement group chat creation logic
+    - Send group creation request to Backend Service API
+    - Open group chat window on success
     - _Requirements: 6.2_
-  - [ ] 10.3 Enhance ChatWindow for group chats
+  - [ ] 15.3 Enhance ChatWindow for group chats
     - Display participant list in sidebar
     - Show participant count in title bar
     - Add participant presence indicators
     - _Requirements: 6.4_
-  - [ ] 10.4 Implement group message delivery
-    - Send messages to all group participants
-    - Subscribe to group conversation messages
+  - [ ] 15.4 Implement group message delivery
+    - Send messages to Backend Service API
+    - Subscribe to group conversation messages via Supabase Realtime
     - Display sender name with each message
     - _Requirements: 6.3_
-  - [ ] 10.5 Implement leave group functionality
+  - [ ] 15.5 Implement leave group functionality
     - Add "Leave Conversation" button
-    - Update conversation_participants with left_at timestamp
-    - Notify remaining participants
+    - Send leave request to Backend Service API
     - Close chat window
     - _Requirements: 6.5_
 
-- [ ] 11. Implement file transfer functionality
-  - [ ] 11.1 Create file transfer UI components
+- [ ] 16. Implement Backend Service file transfer endpoints with TypeScript
+  - [ ] 16.1 Create Drizzle schema for files table
+    - Define files table schema with Drizzle ORM
+    - Create TypeScript types from schema
+    - Generate and run migrations
+    - _Requirements: 11.2_
+  - [ ] 16.2 Create file upload endpoint
+    - Implement POST /api/files/upload endpoint with @fastify/multipart
+    - Add file validation (size, type) with TypeScript
+    - Upload file to Supabase Storage
+    - Create file record using Drizzle ORM
+    - Create message record with file metadata
+    - _Requirements: 11.2, 11.3_
+  - [ ] 16.3 Create file download endpoint
+    - Implement GET /api/files/:fileId/download endpoint
+    - Verify user has access to file using Drizzle queries
+    - Stream file from Supabase Storage
+    - Add TypeScript types for file operations
+    - _Requirements: 11.4_
+
+- [ ] 17. Implement frontend file transfer functionality
+  - [ ] 17.1 Create file transfer UI components
     - Add "Send File" button to chat toolbar
     - Create file transfer progress indicator
     - Build file transfer notification component
     - Display file transfer status in chat window
     - _Requirements: 11.2, 11.5_
-  - [ ] 11.2 Implement file selection and validation
+  - [ ] 17.2 Implement file selection and validation
     - Create Tauri command for file dialog
     - Implement file size validation (max 100 MB)
     - Show file preview with name and size
     - _Requirements: 11.1_
-  - [ ] 11.3 Implement file upload
-    - Upload file to Supabase Storage
+  - [ ] 17.3 Implement file upload
+    - Upload file to Backend Service API
     - Track upload progress
-    - Create file record in files table
-    - Send file message to conversation
+    - Display file message in chat window
     - _Requirements: 11.2_
-  - [ ] 11.4 Implement file transfer notifications
-    - Display incoming file transfer notification
-    - Show accept/decline buttons
+  - [ ] 17.4 Implement file transfer notifications
+    - Receive file transfer notifications via Supabase Realtime
+    - Display notification with accept/decline buttons
     - Update UI based on user action
     - _Requirements: 11.3_
-  - [ ] 11.5 Implement file download
-    - Download file from Supabase Storage on accept
+  - [ ] 17.5 Implement file download
+    - Download file from Backend Service on accept
     - Show download progress
     - Save file to designated folder using Tauri command
     - Open file location on completion
     - _Requirements: 11.4_
 
-- [ ] 12. Implement notifications and sounds
-  - [ ] 12.1 Create Tauri notification commands
+- [ ] 19. Implement notifications and sounds
+  - [ ] 19.1 Create Tauri notification commands
     - Implement show_notification Rust command
     - Request notification permissions
     - Display system notifications with title and body
     - _Requirements: 8.5_
-  - [ ] 12.2 Implement notification triggers
+  - [ ] 19.2 Implement notification triggers
     - Show notification on new message when window not focused
     - Include message preview in notification
     - Handle notification click to focus chat window
     - _Requirements: 4.4, 8.5_
-  - [ ] 12.3 Create sound system
+  - [ ] 19.3 Create sound system
     - Implement play_sound Rust command
     - Add classic MSN sound files (message, sign-in, sign-out)
     - Create sound player with volume control
     - _Requirements: 8.1, 8.2, 8.3_
-  - [ ] 12.4 Implement sound triggers
+  - [ ] 19.4 Implement sound triggers
     - Play message sound on new message
     - Play sign-in sound when contact comes online
     - Play sign-out sound when contact goes offline
     - _Requirements: 8.1, 8.2, 8.3_
-  - [ ] 12.5 Add notification settings
+  - [ ] 19.5 Add notification settings
     - Create settings UI for notification preferences
     - Implement enable/disable toggle for sounds
     - Add volume slider
     - Add desktop alerts toggle
     - _Requirements: 8.4_
 
-- [ ] 13. Implement AI chatbot system
-  - [ ] 13.1 Create chatbot personality definitions
-    - Define 3 chatbot personalities with system prompts
-    - Create chatbot avatar images
-    - Store chatbot metadata (name, description, avatar URL)
+- [ ] 20. Implement Backend Service AI bot integration with TypeScript
+  - [ ] 20.1 Create AI bot personality configuration
+    - Define AI bot personality configurations (system prompts, OpenRouter models)
+    - Create TypeScript types for bot personalities
+    - Map bot user IDs to personality configurations
     - _Requirements: 10.2_
-  - [ ] 13.2 Build ChatbotList component
-    - Display available chatbots when no contacts online
-    - Show chatbot cards with name, description, and avatar
-    - Add "Start Chat" button for each chatbot
-    - _Requirements: 10.1_
-  - [ ] 13.3 Implement AI service integration
-    - Create AI service wrapper for OpenAI API
-    - Implement message sending with conversation history
-    - Handle API responses and errors
-    - Implement rate limiting (10 requests per minute)
+  - [ ] 20.2 Create AI service integration with OpenRouter
+    - Create TypeScript AI service wrapper for OpenRouter API
+    - Implement message generation with conversation history
+    - Handle API responses and errors with proper typing
+    - Implement rate limiting (10 requests per minute per conversation)
+    - Support multiple LLM models (Claude, GPT, Llama)
     - _Requirements: 10.4_
-  - [ ] 13.4 Create AI chat window
-    - Reuse ChatWindow component with AI branding
-    - Add AI response loading indicator
-    - Display AI messages with chatbot avatar
-    - _Requirements: 10.3_
-  - [ ] 13.5 Implement AI conversation persistence
-    - Store AI conversations in ai_conversations table
-    - Save AI messages in messages table with special type
-    - Load AI chat history on window open
-    - _Requirements: 10.5_
+  - [ ] 20.3 Create AI bot endpoints
+    - Implement GET /api/ai/bots endpoint to list available AI bots with Fastify schema
+    - Implement POST /api/ai/add-to-conversation endpoint to add AI bot to conversation
+    - Add TypeScript types for AI bot operations
+    - _Requirements: 10.2, 10.6_
+  - [ ] 20.4 Implement automatic AI bot response generation
+    - Detect when message is sent to conversation with AI bot participants
+    - Fetch conversation history using Drizzle ORM
+    - Generate AI response for each AI bot in conversation using OpenRouter
+    - Create message records from AI bot user accounts using Drizzle ORM
+    - Handle multiple AI bots in same conversation
+    - _Requirements: 10.4, 10.5, 10.7_
 
-- [ ] 14. Implement search and chat history
-  - [ ] 14.1 Create search UI
+- [ ] 21. Implement frontend AI bot system
+  - [ ] 21.1 Display AI bots in contact list
+    - Fetch AI bot users from Backend Service API
+    - Display AI bots in contact list with special badge/icon
+    - Show AI bot personality name and always-online status
+    - Filter AI bots to show only when user has no online contacts
+    - _Requirements: 10.1, 10.2_
+  - [ ] 21.2 Implement AI bot chat initiation
+    - Allow user to start conversation with AI bot like regular contact
+    - Create conversation with AI bot as participant via Backend Service API
+    - Open ChatWindow with AI bot
+    - _Requirements: 10.3_
+  - [ ] 21.3 Enhance ChatWindow for AI bots
+    - Add visual indicator (badge/icon) for AI bot participants
+    - Display AI response loading indicator while bot generates response
+    - Use standard message rendering for AI bot messages
+    - _Requirements: 10.3_
+  - [ ] 21.4 Implement AI bot message handling
+    - Send messages to conversations with AI bots using standard message endpoint
+    - Receive AI bot responses via Supabase Realtime subscriptions
+    - Display AI bot messages identically to human messages
+    - Handle loading states and errors
+    - _Requirements: 10.4, 10.5_
+  - [ ] 21.5 Implement group conversations with AI bots
+    - Allow adding AI bots to group conversations
+    - Display multiple AI bot participants in group chat
+    - Handle responses from multiple AI bots in same conversation
+    - _Requirements: 10.6, 10.7_
+
+- [ ] 22. Implement search and chat history
+  - [ ] 22.1 Create search UI
     - Build search bar in main window
     - Add search input with icon
     - Create search results panel
     - _Requirements: 15.1_
-  - [ ] 14.2 Implement search functionality
+  - [ ] 22.2 Implement search functionality
     - Create search query handler
-    - Search messages table with full-text search
+    - Query Supabase messages table with full-text search
     - Return results with message content, sender, timestamp
     - Implement search result pagination
     - _Requirements: 15.2, 15.3_
-  - [ ] 14.3 Display search results
+  - [ ] 22.3 Display search results
     - Show search results in list format
     - Display message preview with context
     - Highlight matching text
     - Add click handler to open conversation
     - _Requirements: 15.3, 15.4_
-  - [ ] 14.4 Implement search filters
+  - [ ] 22.4 Implement search filters
     - Add filter by contact dropdown
     - Add date range picker
     - Add conversation type filter (one-on-one, group, AI)
-    - Apply filters to search query
+    - Apply filters to Supabase search query
     - _Requirements: 15.5_
 
-- [ ] 15. Implement application settings
-  - [ ] 15.1 Create SettingsWindow component
+- [ ] 23. Implement application settings
+  - [ ] 23.1 Create SettingsWindow component
     - Build tabbed settings interface
     - Create tabs: General, Privacy, Sounds, Files, Profile
     - Implement tab navigation
     - _Requirements: 14.1_
-  - [ ] 15.2 Implement General settings
+  - [ ] 23.2 Implement General settings
     - Add auto-launch toggle with Tauri command
     - Add start minimized toggle
     - Save settings to local storage
     - _Requirements: 14.3_
-  - [ ] 15.3 Implement Sounds settings
+  - [ ] 23.3 Implement Sounds settings
     - Add notification sounds toggle
     - Add volume slider
     - Add sound preview buttons
     - _Requirements: 14.2_
-  - [ ] 15.4 Implement Files settings
+  - [ ] 23.4 Implement Files settings
     - Add download location selector with Tauri file dialog
     - Display current download location
     - Add "Open Folder" button
     - _Requirements: 14.4_
-  - [ ] 15.5 Implement settings persistence
+  - [ ] 23.5 Implement settings persistence
     - Create settings state management
     - Save settings to local storage
     - Load settings on app startup
     - Apply settings across application
     - _Requirements: 14.5_
 
-- [ ] 16. Implement system tray integration
-  - [ ] 16.1 Create system tray with Tauri
+- [ ] 24. Implement system tray integration
+  - [ ] 24.1 Create system tray with Tauri
     - Implement system tray icon
     - Create tray menu with options (Show, Status, Quit)
     - Handle tray icon clicks
     - _Requirements: 12.1, 12.2, 12.3_
-  - [ ] 16.2 Implement minimize to tray
+  - [ ] 24.2 Implement minimize to tray
     - Minimize window to system tray on close
     - Show window on tray icon click
     - Update tray icon based on presence status
     - _Requirements: 12.1, 12.2, 12.3_
 
-- [ ] 17. Implement real-time synchronization and connection management
-  - [ ] 17.1 Create WebSocket connection manager
-    - Establish persistent WebSocket connection to Supabase
+- [ ] 25. Implement real-time synchronization and connection management
+  - [ ] 25.1 Create WebSocket connection manager
+    - Establish persistent WebSocket connection to Supabase for real-time subscriptions
     - Implement connection state tracking
     - Add connection status indicator in UI
     - _Requirements: 13.2_
-  - [ ] 17.2 Implement reconnection logic
+  - [ ] 25.2 Implement reconnection logic
     - Detect connection interruptions
     - Implement exponential backoff reconnection
     - Attempt reconnection every 5 seconds for up to 5 minutes
     - Show reconnection UI to user
     - _Requirements: 13.3_
-  - [ ] 17.3 Implement message synchronization
-    - Queue messages when offline
+  - [ ] 25.3 Implement message synchronization
+    - Queue messages when Backend Service is unreachable
     - Send queued messages on reconnection
-    - Fetch missed messages on reconnection
+    - Fetch missed messages from Supabase on reconnection
     - Update message delivery status
     - _Requirements: 13.4_
 
-- [ ] 18. Implement classic MSN Messenger styling
-  - [ ] 18.1 Create TailwindCSS theme configuration
+- [ ] 26. Implement classic MSN Messenger styling
+  - [ ] 26.1 Create TailwindCSS theme configuration
     - Define MSN color palette in Tailwind config
     - Create custom utility classes for MSN styling
     - Set up font configuration (Tahoma, Arial)
     - _Requirements: 11.1_
-  - [ ] 18.2 Style main window components
+  - [ ] 26.2 Style main window components
     - Apply classic MSN window chrome styling
     - Style contact list with proper spacing and colors
     - Implement hover and active states
     - Add presence status color indicators
     - _Requirements: 11.1, 11.2_
-  - [ ] 18.3 Style chat window components
+  - [ ] 26.3 Style chat window components
     - Apply classic chat window layout
     - Style message bubbles with proper colors
     - Implement alternating message colors
     - Add timestamp styling
     - _Requirements: 11.4_
-  - [ ] 18.4 Create animations and transitions
+  - [ ] 26.4 Create animations and transitions
     - Implement contact status change fade (200ms)
     - Add window open/close slide animation (150ms)
     - Create message send fade-in (100ms)
     - Add typing indicator pulsing animation
     - _Requirements: 11.1_
 
-- [ ] 19. Implement performance optimizations
-  - [ ] 19.1 Optimize contact list rendering
+- [ ] 27. Implement performance optimizations
+  - [ ] 27.1 Optimize contact list rendering
     - Implement virtual scrolling for large contact lists
     - Lazy load contact display pictures
     - Memoize ContactItem components
     - _Requirements: 2.1_
-  - [ ] 19.2 Optimize message history rendering
+  - [ ] 27.2 Optimize message history rendering
     - Implement virtual scrolling for message history
     - Lazy load older messages with pagination
     - Memoize MessageBubble components
     - _Requirements: 4.5_
-  - [ ] 19.3 Implement caching strategies
+  - [ ] 27.3 Implement caching strategies
     - Cache user profiles in memory (1 hour TTL)
     - Cache display pictures locally (24 hour TTL)
     - Use IndexedDB for offline message queue
     - _Requirements: 13.4_
 
-- [ ] 20. Build and configure for production
-  - [ ] 20.1 Configure Tauri for production builds
+- [ ] 28. Deploy Backend Service
+  - [ ] 28.1 Prepare TypeScript Backend Service for deployment
+    - Build TypeScript to JavaScript for production
+    - Set up production environment variables
+    - Configure CORS for production frontend origin
+    - Add health check endpoint
+    - Set up logging and error tracking
+    - _Requirements: 12.1, 12.2, 12.3_
+  - [ ] 28.2 Deploy to hosting platform
+    - Choose deployment platform (Railway, Render, Fly.io)
+    - Configure build command (tsc or tsx)
+    - Configure start command
+    - Deploy Backend Service
+    - Test deployed endpoints
+    - _Requirements: 12.1, 12.2, 12.3_
+  - [ ] 28.3 Configure environment variables in frontend
+    - Set Backend Service API URL in frontend
+    - Update CORS settings
+    - Test frontend-backend communication
+    - _Requirements: 12.4_
+
+- [ ] 29. Build and configure frontend for production
+  - [ ] 29.1 Configure Tauri for production builds
     - Set up code signing certificates
     - Configure app icons for all platforms
     - Set up app metadata (name, version, description)
     - _Requirements: 12.1, 12.2, 12.3_
-  - [ ] 20.2 Create platform-specific builds
+  - [ ] 29.2 Create platform-specific builds
     - Build Windows installer (.exe and .msi)
     - Build macOS disk image (.dmg)
     - Build Linux packages (.AppImage, .deb, .rpm)
     - _Requirements: 12.1, 12.2, 12.3_
-  - [ ] 20.3 Implement auto-update functionality
+  - [ ] 29.3 Implement auto-update functionality
     - Configure Tauri updater
     - Check for updates on app startup
     - Download updates in background

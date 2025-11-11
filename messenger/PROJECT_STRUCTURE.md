@@ -3,7 +3,7 @@
 ## Directory Structure
 
 ```
-msn-messenger/
+spirit-messenger/
 ├── src/
 │   ├── components/      # React components
 │   ├── lib/            # Utility functions, services, and helpers

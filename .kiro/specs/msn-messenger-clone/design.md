@@ -2,16 +2,25 @@
 
 ## Overview
 
-The MSN Messenger Clone is a cross-platform desktop application built with Tauri (Rust backend), Next.js (React frontend), TailwindCSS (styling), and Supabase (backend services). The application replicates the classic MSN Messenger 7.5 experience while leveraging modern technologies for real-time communication, authentication, and data persistence.
+The MSN Messenger Clone is a cross-platform desktop application built with Tauri (Rust backend), React (frontend), TailwindCSS (styling), a separate Backend Service for write operations, and Supabase for real-time data subscriptions. The application replicates the classic MSN Messenger 7.5 experience while leveraging modern technologies for real-time communication, authentication, and data persistence.
+
+The architecture follows a clear separation of concerns:
+- **Write Operations**: All data mutations (authentication, sending messages, updating profiles) go through the Backend Service
+- **Read Operations**: The frontend reads directly from Supabase for optimal real-time performance
+- **Real-time Updates**: Supabase Realtime provides WebSocket-based subscriptions for instant updates
 
 ### Technology Stack
 
-- **Frontend**: Next.js 14+ (React 18+), TailwindCSS 3+
+- **Frontend**: React 18+ with Vite, TailwindCSS 3+
 - **Desktop Framework**: Tauri 2.x (Rust)
-- **Backend Services**: Supabase (PostgreSQL, Realtime, Auth, Storage)
-- **AI Integration**: OpenAI API or similar for chatbot functionality
+- **Backend Service**: Node.js with Fastify (high-performance web framework)
+- **ORM**: Drizzle ORM (type-safe database operations)
+- **Authentication**: Supabase Auth (user management and JWT tokens)
+- **Database**: Supabase PostgreSQL with Realtime subscriptions
+- **Storage**: Supabase Storage (accessed via Backend Service for uploads)
+- **AI Integration**: OpenRouter API for multi-LLM access (via Backend Service)
 - **State Management**: Zustand or React Context
-- **Real-time Communication**: Supabase Realtime (WebSocket-based)
+- **Real-time Communication**: Supabase Realtime (WebSocket-based) for reads
 
 ## Architecture
 
@@ -20,13 +29,20 @@ The MSN Messenger Clone is a cross-platform desktop application built with Tauri
 ```mermaid
 graph TB
     subgraph "Desktop Application (Tauri)"
-        UI[Next.js UI Layer]
+        UI[React UI Layer]
         Rust[Rust Core Layer]
         UI <--> Rust
     end
     
-    subgraph "Supabase Backend"
-        Auth[Supabase Auth]
+    subgraph "Backend Service"
+        API[REST API]
+        AuthLogic[Auth Logic]
+        BizLogic[Business Logic]
+        FileHandler[File Handler]
+        AIHandler[AI Handler]
+    end
+    
+    subgraph "Supabase"
         DB[(PostgreSQL Database)]
         Realtime[Realtime Engine]
         Storage[Storage Buckets]
@@ -36,35 +52,49 @@ graph TB
         AI[AI Service API]
     end
     
-    UI --> Auth
-    UI --> DB
-    UI --> Realtime
-    UI --> Storage
-    Rust --> Storage
-    UI --> AI
+    UI -->|Write Operations| API
+    UI -->|Read Subscriptions| Realtime
+    UI -->|Read Queries| DB
+    API --> DB
+    API --> Storage
+    API --> AI
+    Realtime -.->|Push Updates| UI
+    
+    style API fill:#4CAF50
+    style Realtime fill:#2196F3
+    style DB fill:#2196F3
 ```
 
 ### Application Layers
 
-1. **Presentation Layer (Next.js + TailwindCSS)**
+1. **Presentation Layer (React + TailwindCSS)**
    - React components replicating MSN Messenger UI
    - State management for UI interactions
-   - Real-time updates via Supabase subscriptions
+   - Real-time updates via Supabase subscriptions (reads only)
+   - HTTP client for Backend Service API calls (writes only)
 
 2. **Application Layer (Tauri Rust)**
    - Native system integrations (notifications, file system, system tray)
-   - File transfer handling
+   - Local file handling
    - Local storage and caching
    - Window management
 
-3. **Backend Layer (Supabase)**
-   - User authentication and authorization
-   - Real-time message delivery
-   - Data persistence
-   - File storage
+3. **Backend Service Layer (Node.js/Express)**
+   - RESTful API endpoints for all write operations
+   - Authentication and authorization
+   - Business logic validation
+   - File upload handling to Supabase Storage
+   - AI chatbot integration
+   - Database write operations
 
-4. **AI Layer (External API)**
-   - Chatbot conversation handling
+4. **Data Layer (Supabase)**
+   - PostgreSQL database for data persistence
+   - Real-time subscriptions for instant updates
+   - Storage buckets for files and images
+   - Row Level Security for data access control
+
+5. **AI Layer (External API)**
+   - Chatbot conversation handling (accessed via Backend Service)
    - Response generation
 
 ## Components and Interfaces
@@ -131,16 +161,17 @@ graph TB
 - Search/filter functionality
 - Recently used section
 
-#### 4. AI Chatbot Components
+#### 4. AI Bot Components
 
-**ChatbotList**
-- Available chatbot cards
-- Chatbot personality descriptions
-- "Start Chat" buttons
+**AI Bots in Contact List**
+- AI Bots appear as regular contacts with special badge/icon
+- Display AI Bot personality name and status
+- Same interaction pattern as human contacts
 
-**ChatbotWindow**
-- Identical to ChatWindow but with AI branding
-- Response loading indicator
+**AI Bot Indicator**
+- Visual badge or icon to distinguish AI Bots from human users
+- Shown in contact list and chat windows
+- Response loading indicator during AI message generation
 
 #### 5. Settings Components
 
@@ -223,14 +254,19 @@ CREATE TABLE conversation_participants (
 );
 ```
 
-#### AI Chatbot Conversations Table
+#### AI Bot Users Table Extension
 ```sql
-CREATE TABLE ai_conversations (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  chatbot_type TEXT NOT NULL, -- personality identifier
-  created_at TIMESTAMP DEFAULT NOW()
-);
+-- AI Bots are stored in the users table with a special flag
+-- Add a column to identify AI bot accounts
+ALTER TABLE users ADD COLUMN is_ai_bot BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN ai_bot_personality TEXT; -- personality identifier for AI bots
+
+-- Example AI bot users:
+-- INSERT INTO users (email, username, display_name, is_ai_bot, ai_bot_personality, presence_status)
+-- VALUES 
+--   ('friendly-assistant@aibot.local', 'FriendlyAssistant', 'Friendly Assistant', TRUE, 'friendly_assistant', 'online'),
+--   ('casual-friend@aibot.local', 'CasualFriend', 'Casual Friend', TRUE, 'casual_friend', 'online'),
+--   ('creative-companion@aibot.local', 'CreativeCompanion', 'Creative Companion', TRUE, 'creative_companion', 'online');
 ```
 
 #### Files Table
@@ -273,28 +309,137 @@ async fn get_app_data_dir() -> Result<String, String>
 async fn set_auto_launch(enabled: bool) -> Result<(), String>
 ```
 
-### Supabase Client API
+### Backend Service API
 
-#### Authentication
+#### Authentication Endpoints
 ```typescript
-// Sign up
-const { data, error } = await supabase.auth.signUp({
+// POST /api/auth/register
+{
   email: string,
   password: string,
-  options: {
-    data: { username: string, display_name: string }
-  }
-})
+  username: string,
+  display_name: string
+}
+// Returns: { token: string, user: User }
 
-// Sign in
-const { data, error } = await supabase.auth.signInWithPassword({
+// POST /api/auth/login
+{
   email: string,
   password: string
-})
+}
+// Returns: { token: string, user: User }
 
-// Sign out
-const { error } = await supabase.auth.signOut()
+// POST /api/auth/logout
+// Headers: Authorization: Bearer <token>
+// Returns: { success: boolean }
 ```
+
+#### User Endpoints
+```typescript
+// PUT /api/users/profile
+// Headers: Authorization: Bearer <token>
+{
+  display_name?: string,
+  personal_message?: string
+}
+// Returns: { user: User }
+
+// POST /api/users/display-picture
+// Headers: Authorization: Bearer <token>
+// Body: FormData with image file
+// Returns: { display_picture_url: string }
+
+// PUT /api/users/presence
+// Headers: Authorization: Bearer <token>
+{
+  presence_status: 'online' | 'away' | 'busy' | 'appear_offline'
+}
+// Returns: { success: boolean }
+```
+
+#### Contact Endpoints
+```typescript
+// POST /api/contacts/request
+// Headers: Authorization: Bearer <token>
+{
+  contact_email: string
+}
+// Returns: { contact_request: ContactRequest }
+
+// POST /api/contacts/accept
+// Headers: Authorization: Bearer <token>
+{
+  request_id: string
+}
+// Returns: { contact: Contact }
+
+// DELETE /api/contacts/:contactId
+// Headers: Authorization: Bearer <token>
+// Returns: { success: boolean }
+```
+
+#### Message Endpoints
+```typescript
+// POST /api/messages
+// Headers: Authorization: Bearer <token>
+{
+  conversation_id: string,
+  content: string,
+  message_type: 'text' | 'file',
+  metadata?: object
+}
+// Returns: { message: Message }
+
+// POST /api/conversations
+// Headers: Authorization: Bearer <token>
+{
+  type: 'one_on_one' | 'group',
+  participant_ids: string[],
+  name?: string
+}
+// Returns: { conversation: Conversation }
+
+// POST /api/conversations/:conversationId/leave
+// Headers: Authorization: Bearer <token>
+// Returns: { success: boolean }
+```
+
+#### File Transfer Endpoints
+```typescript
+// POST /api/files/upload
+// Headers: Authorization: Bearer <token>
+// Body: FormData with file
+{
+  conversation_id: string,
+  filename: string
+}
+// Returns: { file: File, message: Message }
+
+// GET /api/files/:fileId/download
+// Headers: Authorization: Bearer <token>
+// Returns: File stream
+```
+
+#### AI Bot Endpoints
+```typescript
+// AI bots use the same message endpoints as regular users
+// The Backend Service detects when a message is sent to an AI bot
+// and automatically generates a response via OpenRouter
+
+// GET /api/ai/bots
+// Headers: Authorization: Bearer <token>
+// Returns: { bots: User[] } - List of available AI bot users
+
+// POST /api/ai/add-to-conversation
+// Headers: Authorization: Bearer <token>
+{
+  conversation_id: string,
+  bot_user_id: string
+}
+// Returns: { success: boolean, participant: ConversationParticipant }
+```
+
+### Supabase Client API (Read Operations Only)
 
 #### Real-time Subscriptions
 ```typescript
@@ -316,49 +461,48 @@ const messagesChannel = supabase
     (payload) => handleNewMessage(payload)
   )
   .subscribe()
+
+// Subscribe to contact requests
+const contactsChannel = supabase
+  .channel('contacts')
+  .on('postgres_changes',
+    { event: '*', schema: 'public', table: 'contacts',
+      filter: `user_id=eq.${userId}` },
+    (payload) => handleContactChange(payload)
+  )
+  .subscribe()
 ```
 
-#### Database Operations
+#### Database Read Operations
 ```typescript
-// Add contact
+// Get contacts
 const { data, error } = await supabase
   .from('contacts')
-  .insert({ user_id, contact_user_id, status: 'pending' })
+  .select('*, contact_user:users!contact_user_id(*)')
+  .eq('user_id', userId)
+  .eq('status', 'accepted')
 
-// Send message
+// Get messages
 const { data, error } = await supabase
   .from('messages')
-  .insert({
-    conversation_id,
-    sender_id,
-    content,
-    message_type: 'text',
-    metadata: { emoticons: [], formatting: {} }
-  })
+  .select('*, sender:users!sender_id(*)')
+  .eq('conversation_id', conversationId)
+  .order('created_at', { ascending: true })
+  .limit(50)
 
-// Update presence
+// Get conversations
 const { data, error } = await supabase
-  .from('users')
-  .update({ presence_status, updated_at: new Date() })
-  .eq('id', userId)
-```
+  .from('conversation_participants')
+  .select('conversation:conversations(*)')
+  .eq('user_id', userId)
+  .is('left_at', null)
 
-#### Storage Operations
-```typescript
-// Upload display picture
-const { data, error } = await supabase.storage
-  .from('display-pictures')
-  .upload(`${userId}/avatar.png`, file)
-
-// Upload file for transfer
-const { data, error } = await supabase.storage
-  .from('file-transfers')
-  .upload(`${conversationId}/${filename}`, file)
-
-// Download file
-const { data, error } = await supabase.storage
-  .from('file-transfers')
-  .download(path)
+// Search messages
+const { data, error } = await supabase
+  .from('messages')
+  .select('*, sender:users!sender_id(*)')
+  .textSearch('content', searchQuery)
+  .limit(50)
 ```
 
 ## Data Models
@@ -374,6 +518,8 @@ interface User {
   personalMessage: string;
   displayPictureUrl: string;
   presenceStatus: 'online' | 'away' | 'busy' | 'appear_offline' | 'offline';
+  isAiBot: boolean;
+  aiBotPersonality?: string; // Only present for AI bots
   lastSeen: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -415,12 +561,13 @@ interface Conversation {
   updatedAt: Date;
 }
 
-interface ChatbotPersonality {
+interface AIBotPersonality {
   id: string;
   name: string;
   description: string;
   avatarUrl: string;
   systemPrompt: string;
+  openRouterModel: string; // e.g., "anthropic/claude-3-haiku", "openai/gpt-3.5-turbo"
 }
 
 interface AppSettings {
@@ -634,33 +781,41 @@ const reconnectWithBackoff = async (attempt: number = 0) => {
 ## Security Considerations
 
 ### Authentication Security
-- Passwords hashed with bcrypt (handled by Supabase Auth)
-- JWT tokens for session management
-- Automatic token refresh
+- Passwords hashed by Supabase Auth (bcrypt)
+- JWT tokens for session management (generated by Supabase Auth)
+- Token expiration and refresh logic handled by Supabase
 - Secure token storage in Tauri's secure storage
+- Backend Service validates all tokens using Supabase Auth before processing requests
 
 ### Data Privacy
-- End-to-end encryption for file transfers (optional enhancement)
-- Secure WebSocket connections (WSS)
-- User data isolation via Row Level Security (RLS) in Supabase
+- All write operations authenticated through Backend Service
+- Backend Service uses Supabase service role key (not exposed to frontend)
+- Frontend uses anon key only for read operations
+- Secure WebSocket connections (WSS) for Supabase Realtime
+- User data isolation via Row Level Security (RLS) in Supabase for read operations
 
 ### Supabase RLS Policies
 
+Since the frontend only performs read operations, RLS policies focus on read access:
+
 ```sql
--- Users can only read their own data
-CREATE POLICY "Users can view own profile"
+-- Users can read their own profile and profiles of their contacts
+CREATE POLICY "Users can view profiles"
   ON users FOR SELECT
-  USING (auth.uid() = id);
+  USING (
+    id = auth.uid() OR
+    EXISTS (
+      SELECT 1 FROM contacts
+      WHERE (user_id = auth.uid() AND contact_user_id = users.id)
+         OR (contact_user_id = auth.uid() AND user_id = users.id)
+      AND status = 'accepted'
+    )
+  );
 
--- Users can only update their own data
-CREATE POLICY "Users can update own profile"
-  ON users FOR UPDATE
-  USING (auth.uid() = id);
-
--- Users can only see accepted contacts
+-- Users can see their own contacts
 CREATE POLICY "Users can view own contacts"
   ON contacts FOR SELECT
-  USING (auth.uid() = user_id OR auth.uid() = contact_user_id);
+  USING (user_id = auth.uid() OR contact_user_id = auth.uid());
 
 -- Users can only see messages in their conversations
 CREATE POLICY "Users can view own messages"
@@ -670,8 +825,240 @@ CREATE POLICY "Users can view own messages"
       SELECT 1 FROM conversation_participants
       WHERE conversation_id = messages.conversation_id
       AND user_id = auth.uid()
+      AND left_at IS NULL
     )
   );
+
+-- Users can see conversations they're part of
+CREATE POLICY "Users can view own conversations"
+  ON conversations FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM conversation_participants
+      WHERE conversation_id = conversations.id
+      AND user_id = auth.uid()
+    )
+  );
+
+-- Users can see conversation participants for their conversations
+CREATE POLICY "Users can view conversation participants"
+  ON conversation_participants FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM conversation_participants cp
+      WHERE cp.conversation_id = conversation_participants.conversation_id
+      AND cp.user_id = auth.uid()
+    )
+  );
+
+-- Note: All INSERT, UPDATE, DELETE operations are disabled for frontend
+-- These operations are only performed by Backend Service using service role key
+```
+
+### Backend Service Security
+
+```typescript
+// Input validation with Fastify schema
+const messageSchema = {
+  body: {
+    type: 'object',
+    required: ['content', 'conversation_id'],
+    properties: {
+      content: { type: 'string', minLength: 1, maxLength: 5000 },
+      conversation_id: { type: 'string', format: 'uuid' },
+      message_type: { type: 'string', enum: ['text', 'file'] },
+      metadata: { type: 'object' }
+    }
+  }
+};
+
+fastify.post('/api/messages', {
+  schema: messageSchema,
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  // Handler logic
+});
+
+// Rate limiting with @fastify/rate-limit
+import rateLimit from '@fastify/rate-limit';
+
+await fastify.register(rateLimit, {
+  max: 100,
+  timeWindow: '15 minutes'
+});
+
+// CORS configuration with @fastify/cors
+import cors from '@fastify/cors';
+
+await fastify.register(cors, {
+  origin: process.env.CORS_ORIGIN || 'tauri://localhost',
+  credentials: true
+});
+```
+
+## Backend Service Implementation
+
+### Technology Choice
+
+The Backend Service will be built with TypeScript and:
+- **Fastify**: High-performance Node.js web framework with excellent TypeScript support
+- **Drizzle ORM**: Lightweight, type-safe ORM for database operations
+- **Supabase Auth**: Built-in authentication system for user management
+- **TypeScript**: Full type safety across the entire backend codebase
+
+### Project Structure
+
+```
+backend/
+├── src/
+│   ├── routes/
+│   │   ├── auth.ts
+│   │   ├── users.ts
+│   │   ├── contacts.ts
+│   │   ├── messages.ts
+│   │   ├── files.ts
+│   │   └── ai.ts
+│   ├── plugins/
+│   │   ├── auth.ts
+│   │   ├── cors.ts
+│   │   └── rateLimit.ts
+│   ├── services/
+│   │   ├── userService.ts
+│   │   ├── messageService.ts
+│   │   ├── fileService.ts
+│   │   └── aiService.ts
+│   ├── db/
+│   │   ├── schema.ts
+│   │   ├── client.ts
+│   │   └── migrations/
+│   ├── lib/
+│   │   └── supabase.ts
+│   ├── types/
+│   │   └── index.ts
+│   └── index.ts
+├── drizzle.config.ts
+├── package.json
+└── tsconfig.json
+```
+
+### Authentication Flow
+
+```typescript
+// Supabase Auth-based authentication
+// Backend uses Supabase Auth for user management
+// Frontend receives Supabase session tokens
+
+// Fastify plugin for protected routes
+import fp from 'fastify-plugin';
+import { FastifyRequest, FastifyReply } from 'fastify';
+
+export default fp(async (fastify) => {
+  fastify.decorate('authenticate', async (request: FastifyRequest, reply: FastifyReply) => {
+    const token = request.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+    
+    try {
+      const { data: { user }, error } = await fastify.supabase.auth.getUser(token);
+      
+      if (error || !user) {
+        return reply.status(403).send({ error: 'Invalid token' });
+      }
+      
+      request.user = user;
+    } catch (error) {
+      return reply.status(403).send({ error: 'Invalid token' });
+    }
+  });
+});
+```
+
+### Database Access
+
+The Backend Service uses Drizzle ORM for type-safe database operations and Supabase client for authentication:
+
+```typescript
+// Drizzle client setup
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
+
+const connectionString = process.env.DATABASE_URL!;
+const client = postgres(connectionString);
+export const db = drizzle(client);
+
+// Supabase client for auth (service role key)
+import { createClient } from '@supabase/supabase-js';
+
+export const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY! // Service role key for backend
+);
+```
+
+### Drizzle Schema Example
+
+```typescript
+import { pgTable, uuid, text, timestamp, varchar, jsonb, boolean } from 'drizzle-orm/pg-core';
+
+export const users = pgTable('users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: text('email').notNull().unique(),
+  username: text('username').notNull().unique(),
+  displayName: text('display_name'),
+  personalMessage: text('personal_message'),
+  displayPictureUrl: text('display_picture_url'),
+  presenceStatus: varchar('presence_status', { length: 20 }).default('offline'),
+  isAiBot: boolean('is_ai_bot').default(false),
+  aiBotPersonality: text('ai_bot_personality'), // e.g., 'friendly_assistant', 'casual_friend'
+  lastSeen: timestamp('last_seen'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+});
+
+export const messages = pgTable('messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  conversationId: uuid('conversation_id').notNull(),
+  senderId: uuid('sender_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  content: text('content').notNull(),
+  messageType: varchar('message_type', { length: 20 }).default('text'),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow(),
+  deliveredAt: timestamp('delivered_at'),
+  readAt: timestamp('read_at')
+});
+```
+
+### Deployment Options
+
+**Low-Cost Deployment Options:**
+1. **Railway.app**: $5/month, easy deployment, automatic scaling
+2. **Fly.io**: Free tier available, pay-as-you-go
+3. **Render**: Free tier available, automatic deployments
+4. **DigitalOcean App Platform**: $5/month, managed service
+5. **AWS Lambda + API Gateway**: Pay per request, very cheap for low traffic
+6. **Google Cloud Run**: Pay per request, generous free tier
+
+**Recommended: Railway.app or Render**
+- Simple deployment from Git repository
+- Automatic HTTPS
+- Environment variable management
+- Reasonable pricing for small-scale applications
+
+### Environment Variables
+
+```env
+# Backend Service
+PORT=3000
+NODE_ENV=production
+DATABASE_URL=postgresql://user:password@host:port/database
+SUPABASE_URL=your-supabase-url
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_ANON_KEY=your-anon-key
+OPENROUTER_API_KEY=your-openrouter-key
+APP_URL=https://your-app-url.com
+CORS_ORIGIN=tauri://localhost
 ```
 
 ## Deployment and Distribution
@@ -679,11 +1066,22 @@ CREATE POLICY "Users can view own messages"
 ### Build Process
 
 ```bash
-# Development
-npm run tauri dev
+# Frontend Development
+cd msn-messenger
+npm run dev
 
-# Production build
+# Backend Development
+cd backend
+npm run dev
+
+# Production build (Frontend)
+cd msn-messenger
 npm run tauri build
+
+# Production build (Backend)
+cd backend
+npm run build
+npm start
 ```
 
 ### Platform-Specific Builds
@@ -731,52 +1129,61 @@ npm run tauri build
 - IndexedDB for offline message queue
 - Service worker for asset caching
 
-## AI Chatbot Implementation
+## AI Bot Implementation
 
-### Chatbot Personalities
+### AI Bot Personalities
+
+AI Bots are implemented as regular user accounts with special flags. Each bot has:
 
 1. **Friendly Assistant**
    - Helpful and supportive
    - Answers questions and provides advice
-   - System prompt: "You are a friendly and helpful assistant..."
+   - System prompt: "You are a friendly and helpful assistant in a casual messenger chat..."
+   - OpenRouter Model: `anthropic/claude-3-haiku` or `openai/gpt-3.5-turbo`
 
 2. **Casual Friend**
    - Conversational and relaxed
    - Discusses hobbies, entertainment, daily life
-   - System prompt: "You are a casual friend who enjoys chatting..."
+   - System prompt: "You are a casual friend who enjoys chatting about everyday topics..."
+   - OpenRouter Model: `meta-llama/llama-3-8b-instruct`
 
 3. **Creative Companion**
    - Imaginative and artistic
    - Helps with creative projects and brainstorming
-   - System prompt: "You are a creative companion who loves art..."
+   - System prompt: "You are a creative companion who loves art and imagination..."
+   - OpenRouter Model: `anthropic/claude-3-haiku`
 
-### AI Integration
+### AI Integration with OpenRouter
 
 ```typescript
-// AI service wrapper
+// AI service wrapper using OpenRouter
 class AIService {
-  async sendMessage(
-    chatbotType: string,
-    message: string,
+  private readonly OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+  
+  async generateResponse(
+    botUserId: string,
+    conversationId: string,
     conversationHistory: Message[]
   ): Promise<string> {
-    const systemPrompt = this.getSystemPrompt(chatbotType);
+    // Get bot personality from database
+    const bot = await this.getBotPersonality(botUserId);
     const messages = this.formatHistory(conversationHistory);
     
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch(this.OPENROUTER_API_URL, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'HTTP-Referer': process.env.APP_URL,
+        'X-Title': 'MSN Messenger Clone',
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model: bot.openRouterModel,
         messages: [
-          { role: 'system', content: systemPrompt },
-          ...messages,
-          { role: 'user', content: message }
+          { role: 'system', content: bot.systemPrompt },
+          ...messages
         ],
-        max_tokens: 150,
+        max_tokens: 200,
         temperature: 0.8
       })
     });
@@ -784,13 +1191,79 @@ class AIService {
     const data = await response.json();
     return data.choices[0].message.content;
   }
+  
+  // Detect when a message is sent to an AI bot and auto-respond
+  async handleMessage(message: Message, conversationId: string): Promise<void> {
+    const participants = await this.getConversationParticipants(conversationId);
+    const aiBots = participants.filter(p => p.isAiBot);
+    
+    // Generate responses from all AI bots in the conversation
+    for (const bot of aiBots) {
+      const history = await this.getConversationHistory(conversationId);
+      const response = await this.generateResponse(bot.id, conversationId, history);
+      
+      // Create message from AI bot
+      await this.createMessage({
+        conversationId,
+        senderId: bot.id,
+        content: response,
+        messageType: 'text'
+      });
+    }
+  }
 }
 ```
 
+### Message Flow with AI Bots
+
+1. User sends message to conversation containing AI bot(s)
+2. Backend Service receives message via POST /api/messages
+3. Backend Service persists message to database
+4. Backend Service detects AI bot participants in conversation
+5. For each AI bot:
+   - Fetch conversation history
+   - Call OpenRouter API with bot's personality and model
+   - Create response message from AI bot user account
+   - Persist AI bot's message to database
+6. Frontend receives all messages via Supabase Realtime subscriptions
+
 ### Rate Limiting
-- Limit AI requests to 10 per minute per user
-- Show loading indicator during AI response generation
-- Cache common responses for faster replies
+- Limit AI bot responses to 10 per minute per conversation
+- Show typing indicator while AI bot generates response
+- Implement exponential backoff for OpenRouter API failures
+- Cache bot personalities to reduce database queries
+
+## Code Standards and Conventions
+
+### File Naming Conventions
+
+All TypeScript files in both the frontend (MSN Messenger Application) and Backend Service MUST follow Kebab Case naming convention:
+
+**Kebab Case Format:**
+- All lowercase letters
+- Words separated by hyphens
+- File extension included
+
+**Examples:**
+- ✅ `user-profile.ts`
+- ✅ `chat-window.tsx`
+- ✅ `message-service.ts`
+- ✅ `auth-plugin.ts`
+- ✅ `contact-list.tsx`
+- ❌ `UserProfile.ts` (PascalCase - incorrect)
+- ❌ `chatWindow.tsx` (camelCase - incorrect)
+- ❌ `message_service.ts` (snake_case - incorrect)
+
+**Applies to:**
+- React component files (.tsx)
+- TypeScript utility files (.ts)
+- Service files (.ts)
+- Type definition files (.ts)
+- Route files (.ts)
+- Plugin files (.ts)
+- Test files (.test.ts, .spec.ts)
+
+**Note:** This convention applies to file names only. Internal code (classes, functions, variables) should follow standard TypeScript conventions (PascalCase for classes, camelCase for functions/variables).
 
 ## Future Enhancements
 

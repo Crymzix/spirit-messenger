@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document outlines the requirements for building a desktop application that replicates the functionality and user interface of the original MSN Messenger. The application will be built using Tauri (Rust-based framework) for cross-platform desktop support, Next.js with TailwindCSS for the UI, and Supabase for backend chat functionality. The system will include core messaging features, contact management, presence indicators, and AI chatbot companions for users without contacts.
+This document outlines the requirements for building a desktop application that replicates the functionality and user interface of the original MSN Messenger. The application will be built using Tauri (Rust-based framework) for cross-platform desktop support, React with TailwindCSS for the UI, a separate Backend Service for handling write operations, and Supabase for real-time data subscriptions and read operations. The system will include core messaging features, contact management, presence indicators, and AI chatbot companions for users without contacts. The architecture separates concerns by routing all write operations through the Backend Service while allowing the frontend to read directly from Supabase for optimal real-time performance.
 
 ## Glossary
 
@@ -11,10 +11,13 @@ This document outlines the requirements for building a desktop application that 
 - **Contact**: Another User that has been added to a User's contact list
 - **Presence Status**: The availability state of a User (Online, Away, Busy, Appear Offline)
 - **Chat Session**: An active conversation between two or more Users
-- **AI Chatbot**: An artificial intelligence-powered conversational agent available to Users
-- **Supabase Backend**: The backend service providing real-time messaging and data storage
+- **AI Bot**: An artificial intelligence-powered user account that participates in conversations like a regular User
+- **OpenRouter**: A unified API service that provides access to multiple LLM providers for AI Bot responses
+- **Backend Service**: A separate server application that handles all write operations including authentication, message sending, and data mutations
+- **Supabase Database**: The PostgreSQL database providing data storage and real-time subscriptions for read operations
 - **Tauri Runtime**: The Rust-based framework providing native desktop capabilities
 - **Contact List**: The collection of Contacts associated with a User's account
+- **Kebab Case**: A naming convention where words are lowercase and separated by hyphens (e.g., user-profile.ts, chat-window.tsx)
 
 ## Requirements
 
@@ -25,10 +28,10 @@ This document outlines the requirements for building a desktop application that 
 #### Acceptance Criteria
 
 1. THE MSN Messenger Application SHALL provide a registration interface that collects username, email address, and password
-2. WHEN a User submits valid registration credentials, THE MSN Messenger Application SHALL create a new account in the Supabase Backend
+2. WHEN a User submits valid registration credentials, THE MSN Messenger Application SHALL send the credentials to the Backend Service which creates a new account
 3. THE MSN Messenger Application SHALL provide a sign-in interface that accepts email address and password
-4. WHEN a User submits valid sign-in credentials, THE MSN Messenger Application SHALL authenticate the User through the Supabase Backend and grant access to the application
-5. WHEN a User selects the sign-out option, THE MSN Messenger Application SHALL terminate the authenticated session and return to the sign-in interface
+4. WHEN a User submits valid sign-in credentials, THE MSN Messenger Application SHALL authenticate the User through the Backend Service and receive an authentication token
+5. WHEN a User selects the sign-out option, THE MSN Messenger Application SHALL send a sign-out request to the Backend Service, terminate the authenticated session, and return to the sign-in interface
 
 ### Requirement 2: Contact Management
 
@@ -36,11 +39,11 @@ This document outlines the requirements for building a desktop application that 
 
 #### Acceptance Criteria
 
-1. THE MSN Messenger Application SHALL display the Contact List showing all Contacts with their current Presence Status
-2. WHEN a User initiates the add contact action with a valid email address, THE MSN Messenger Application SHALL send a contact request to the specified User
+1. THE MSN Messenger Application SHALL read and display the Contact List from the Supabase Database showing all Contacts with their current Presence Status
+2. WHEN a User initiates the add contact action with a valid email address, THE MSN Messenger Application SHALL send a contact request to the Backend Service
 3. WHEN a User receives a contact request, THE MSN Messenger Application SHALL display a notification with options to accept or decline
-4. WHEN a User accepts a contact request, THE MSN Messenger Application SHALL add the requesting User to the Contact List
-5. WHEN a User selects the remove contact action for a Contact, THE MSN Messenger Application SHALL remove that Contact from the Contact List
+4. WHEN a User accepts a contact request, THE MSN Messenger Application SHALL send the acceptance to the Backend Service which adds the requesting User to the Contact List
+5. WHEN a User selects the remove contact action for a Contact, THE MSN Messenger Application SHALL send the removal request to the Backend Service which removes that Contact from the Contact List
 
 ### Requirement 3: Presence and Status Management
 
@@ -49,10 +52,10 @@ This document outlines the requirements for building a desktop application that 
 #### Acceptance Criteria
 
 1. THE MSN Messenger Application SHALL allow a User to select from predefined Presence Status options (Online, Away, Busy, Appear Offline)
-2. WHEN a User changes their Presence Status, THE MSN Messenger Application SHALL update the status in the Supabase Backend within 2 seconds
-3. WHEN a Contact changes their Presence Status, THE MSN Messenger Application SHALL update the displayed status in the Contact List within 5 seconds
+2. WHEN a User changes their Presence Status, THE MSN Messenger Application SHALL send the status update to the Backend Service which updates the Supabase Database within 2 seconds
+3. WHEN a Contact changes their Presence Status, THE MSN Messenger Application SHALL receive the update via Supabase real-time subscription and update the displayed status in the Contact List within 5 seconds
 4. THE MSN Messenger Application SHALL allow a User to set a custom status message of up to 150 characters
-5. WHEN a User sets a custom status message, THE MSN Messenger Application SHALL display the message alongside the User's Presence Status to all Contacts
+5. WHEN a User sets a custom status message, THE MSN Messenger Application SHALL send the message to the Backend Service which stores it and displays it alongside the User's Presence Status to all Contacts
 
 ### Requirement 4: One-on-One Chat Functionality
 
@@ -60,11 +63,11 @@ This document outlines the requirements for building a desktop application that 
 
 #### Acceptance Criteria
 
-1. WHEN a User selects a Contact from the Contact List, THE MSN Messenger Application SHALL open a Chat Session window
-2. WHEN a User types a message and sends it during a Chat Session, THE MSN Messenger Application SHALL transmit the message through the Supabase Backend to the recipient within 1 second
-3. WHEN a User receives a message, THE MSN Messenger Application SHALL display the message in the Chat Session window with timestamp and sender identification
+1. WHEN a User selects a Contact from the Contact List, THE MSN Messenger Application SHALL open a Chat Session window and load message history from the Supabase Database
+2. WHEN a User types a message and sends it during a Chat Session, THE MSN Messenger Application SHALL send the message to the Backend Service which persists it to the Supabase Database within 1 second
+3. WHEN a User receives a message, THE MSN Messenger Application SHALL receive it via Supabase real-time subscription and display the message in the Chat Session window with timestamp and sender identification
 4. WHEN a User receives a message while the Chat Session window is not focused, THE MSN Messenger Application SHALL display a desktop notification
-5. THE MSN Messenger Application SHALL persist chat history in the Supabase Backend and display previous messages when a Chat Session is opened
+5. THE MSN Messenger Application SHALL read chat history from the Supabase Database and display previous messages when a Chat Session is opened
 
 ### Requirement 5: Emoticons and Rich Text
 
@@ -85,10 +88,10 @@ This document outlines the requirements for building a desktop application that 
 #### Acceptance Criteria
 
 1. THE MSN Messenger Application SHALL allow a User to initiate a group Chat Session by selecting multiple Contacts
-2. WHEN a User creates a group Chat Session, THE MSN Messenger Application SHALL send invitations to all selected Contacts
-3. WHEN a User sends a message in a group Chat Session, THE MSN Messenger Application SHALL deliver the message to all participants within 2 seconds
-4. THE MSN Messenger Application SHALL display all participants' names and Presence Status in the group Chat Session window
-5. WHEN a participant leaves a group Chat Session, THE MSN Messenger Application SHALL notify all remaining participants
+2. WHEN a User creates a group Chat Session, THE MSN Messenger Application SHALL send the group creation request to the Backend Service which creates the conversation and sends invitations to all selected Contacts
+3. WHEN a User sends a message in a group Chat Session, THE MSN Messenger Application SHALL send the message to the Backend Service which persists it and delivers it to all participants within 2 seconds via Supabase real-time subscriptions
+4. THE MSN Messenger Application SHALL read and display all participants' names and Presence Status from the Supabase Database in the group Chat Session window
+5. WHEN a participant leaves a group Chat Session, THE MSN Messenger Application SHALL send the leave request to the Backend Service which updates the conversation and notifies all remaining participants via Supabase real-time subscriptions
 
 ### Requirement 7: File Transfer
 
@@ -97,10 +100,10 @@ This document outlines the requirements for building a desktop application that 
 #### Acceptance Criteria
 
 1. WHEN a User initiates a file transfer during a Chat Session, THE MSN Messenger Application SHALL allow selection of files up to 100 MB in size
-2. WHEN a User sends a file, THE MSN Messenger Application SHALL display a transfer progress indicator showing percentage completion
-3. WHEN a User receives a file transfer request, THE MSN Messenger Application SHALL display a notification with options to accept or decline
-4. WHEN a User accepts a file transfer, THE MSN Messenger Application SHALL download the file through the Supabase Backend and save it to a designated folder
-5. THE MSN Messenger Application SHALL display file transfer status (pending, in progress, completed, failed) in the Chat Session window
+2. WHEN a User sends a file, THE MSN Messenger Application SHALL upload the file to the Backend Service which stores it and displays a transfer progress indicator showing percentage completion
+3. WHEN a User receives a file transfer request, THE MSN Messenger Application SHALL receive the notification via Supabase real-time subscription and display options to accept or decline
+4. WHEN a User accepts a file transfer, THE MSN Messenger Application SHALL send the acceptance to the Backend Service and download the file from the Backend Service to a designated folder
+5. THE MSN Messenger Application SHALL read file transfer status from the Supabase Database and display status (pending, in progress, completed, failed) in the Chat Session window
 
 ### Requirement 8: Audio and Visual Notifications
 
@@ -121,22 +124,24 @@ This document outlines the requirements for building a desktop application that 
 #### Acceptance Criteria
 
 1. THE MSN Messenger Application SHALL allow a User to upload a display picture in JPEG or PNG format up to 5 MB
-2. WHEN a User uploads a display picture, THE MSN Messenger Application SHALL resize the image to 96x96 pixels and store it in the Supabase Backend
-3. THE MSN Messenger Application SHALL display each Contact's display picture in the Contact List
-4. THE MSN Messenger Application SHALL display the User's own display picture in the application header
-5. THE MSN Messenger Application SHALL allow a User to edit profile information including display name and personal message
+2. WHEN a User uploads a display picture, THE MSN Messenger Application SHALL resize the image to 96x96 pixels and send it to the Backend Service which stores it
+3. THE MSN Messenger Application SHALL read and display each Contact's display picture from the Supabase Database in the Contact List
+4. THE MSN Messenger Application SHALL read and display the User's own display picture from the Supabase Database in the application header
+5. THE MSN Messenger Application SHALL allow a User to edit profile information including display name and personal message and send updates to the Backend Service
 
-### Requirement 10: AI Chatbot Companions
+### Requirement 10: AI Bot Companions
 
-**User Story:** As a user with no contacts online, I want to chat with AI chatbots, so that I can still have engaging conversations.
+**User Story:** As a user with no contacts online, I want to chat with AI bots, so that I can still have engaging conversations.
 
 #### Acceptance Criteria
 
-1. WHEN a User has zero Contacts with Online Presence Status, THE MSN Messenger Application SHALL display available AI Chatbots in a dedicated section
-2. THE MSN Messenger Application SHALL provide at least 3 different AI Chatbot personalities with distinct conversation styles
-3. WHEN a User initiates a Chat Session with an AI Chatbot, THE MSN Messenger Application SHALL establish a conversation interface identical to User-to-User chats
-4. WHEN a User sends a message to an AI Chatbot, THE MSN Messenger Application SHALL generate and display a response within 5 seconds
-5. THE MSN Messenger Application SHALL persist AI Chatbot conversation history in the same manner as User-to-User chats
+1. WHEN a User has zero Contacts with Online Presence Status, THE MSN Messenger Application SHALL display available AI Bots in the Contact List with a distinctive visual indicator
+2. THE MSN Messenger Application SHALL provide at least 3 different AI Bot personalities with distinct conversation styles, each represented as a User account
+3. WHEN a User initiates a Chat Session with an AI Bot, THE MSN Messenger Application SHALL create a standard Conversation with the AI Bot as a participant
+4. WHEN a User sends a message to an AI Bot in a Conversation, THE MSN Messenger Application SHALL send the message to the Backend Service which forwards it to OpenRouter and returns a response within 5 seconds
+5. THE MSN Messenger Application SHALL read AI Bot conversation history from the Supabase Database using the standard Messages table, treating AI Bot messages identically to User messages
+6. THE MSN Messenger Application SHALL allow multiple AI Bots to participate in a single group Conversation alongside human Users
+7. WHEN an AI Bot is added to a group Conversation, THE Backend Service SHALL use OpenRouter to generate contextually appropriate responses based on all participants' messages
 
 ### Requirement 11: Classic MSN Messenger UI Replication
 
@@ -168,11 +173,11 @@ This document outlines the requirements for building a desktop application that 
 
 #### Acceptance Criteria
 
-1. WHEN a User sends a message, THE MSN Messenger Application SHALL display a delivery confirmation within 2 seconds
-2. THE MSN Messenger Application SHALL establish a persistent WebSocket connection to the Supabase Backend for real-time updates
+1. WHEN a User sends a message, THE MSN Messenger Application SHALL receive a delivery confirmation from the Backend Service within 2 seconds
+2. THE MSN Messenger Application SHALL establish a persistent WebSocket connection to the Supabase Database for real-time read subscriptions
 3. WHEN the WebSocket connection is interrupted, THE MSN Messenger Application SHALL attempt reconnection every 5 seconds for up to 5 minutes
-4. WHEN the WebSocket connection is restored, THE MSN Messenger Application SHALL synchronize any missed messages or status updates
-5. THE MSN Messenger Application SHALL display typing indicators when a Contact is composing a message in an active Chat Session
+4. WHEN the WebSocket connection is restored, THE MSN Messenger Application SHALL synchronize any missed messages or status updates from the Supabase Database
+5. THE MSN Messenger Application SHALL receive typing indicators via Supabase real-time subscriptions when a Contact is composing a message in an active Chat Session
 
 ### Requirement 14: Application Settings and Preferences
 
@@ -193,7 +198,19 @@ This document outlines the requirements for building a desktop application that 
 #### Acceptance Criteria
 
 1. THE MSN Messenger Application SHALL provide a search interface that accepts text queries
-2. WHEN a User submits a search query, THE MSN Messenger Application SHALL return matching messages from all Chat Sessions within 3 seconds
+2. WHEN a User submits a search query, THE MSN Messenger Application SHALL query the Supabase Database and return matching messages from all Chat Sessions within 3 seconds
 3. THE MSN Messenger Application SHALL display search results with message content, sender, recipient, and timestamp
 4. WHEN a User selects a search result, THE MSN Messenger Application SHALL open the relevant Chat Session and highlight the matching message
-5. THE MSN Messenger Application SHALL allow filtering search results by Contact, date range, or Chat Session type
+5. THE MSN Messenger Application SHALL allow filtering search results by Contact, date range, or Chat Session type when querying the Supabase Database
+
+### Requirement 16: Code Standards and Conventions
+
+**User Story:** As a developer, I want consistent code naming conventions, so that the codebase is maintainable and follows best practices.
+
+#### Acceptance Criteria
+
+1. THE MSN Messenger Application SHALL name all TypeScript files using Kebab Case format
+2. THE Backend Service SHALL name all TypeScript files using Kebab Case format
+3. WHEN a developer creates a new TypeScript file, THE file name SHALL use lowercase letters with hyphens separating words
+4. THE MSN Messenger Application SHALL apply Kebab Case naming to component files, utility files, service files, and type definition files
+5. THE Backend Service SHALL apply Kebab Case naming to route files, service files, plugin files, and type definition files
