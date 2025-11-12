@@ -12,6 +12,7 @@ import {
   useAuthInitialized,
 } from "./lib/hooks/auth-hooks";
 import { useAuthStore } from "./lib/store/auth-store";
+import { Loading } from "./components/loading";
 
 type AuthView = 'signin' | 'register' | 'main';
 
@@ -26,7 +27,6 @@ function App() {
   const signUpMutation = useSignUp();
   const signOutMutation = useSignOut();
 
-  // Initialize auth store on app startup
   useEffect(() => {
     const initAuth = async () => {
       await useAuthStore.getState().initialize();
@@ -34,7 +34,6 @@ function App() {
     initAuth();
   }, []);
 
-  // Update view based on authentication state
   useEffect(() => {
     if (isAuthInitialized && isAuthenticated) {
       setCurrentView('main');
@@ -71,19 +70,12 @@ function App() {
     setCurrentView('signin');
   };
 
-  // Show loading state while initializing
   if (!isAuthInitialized || isAuthLoading) {
     return (
-      <div className="min-h-screen bg-msn-bg flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-msn-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-msn">Initializing...</p>
-        </div>
-      </div>
+      <Loading />
     );
   }
 
-  // Render authentication views
   if (currentView === 'signin') {
     return (
       <SignInWindow

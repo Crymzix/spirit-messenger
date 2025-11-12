@@ -6,7 +6,7 @@ interface TitleBarProps {
   icon?: React.ReactNode;
 }
 
-export function TitleBar({ title = 'MSN Messenger', showIcon = false, icon }: TitleBarProps) {
+export function TitleBar({ title = 'MSN Messenger', showIcon = true, icon }: TitleBarProps) {
   const handleMinimize = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const appWindow = getCurrentWindow();
@@ -38,12 +38,8 @@ export function TitleBar({ title = 'MSN Messenger', showIcon = false, icon }: Ti
     >
       <div className="flex items-center gap-2 title-bar-text" data-tauri-drag-region>
         {showIcon && (
-          <div className="w-5 h-5 flex items-center justify-center" data-tauri-drag-region>
-            {icon || (
-              <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white">
-                <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z" />
-              </svg>
-            )}
+          <div className="size-6 flex items-center justify-center" data-tauri-drag-region>
+            <img src='/msn-logo.png' />
           </div>
         )}
         <span className="title-bar-text" data-tauri-drag-region>

@@ -18,7 +18,7 @@ const schema = {
     properties: {
         PORT: {
             type: 'number',
-            default: 6666
+            default: 1056
         },
         NODE_ENV: {
             type: 'string',

@@ -86,30 +86,25 @@ export function RegistrationWindow({ onRegister, onSwitchToSignIn }: Registratio
 
     return (
         <Layout
-            title="MSN Messenger - Registration"
-            icon={
-                <div className="w-4 h-4 bg-white rounded-sm flex items-center justify-center text-[#0066CC] text-xs font-bold">
-                    M
-                </div>
-            }
+            title="Spirit Messenger"
         >
-            <div className="flex items-center justify-center min-h-full bg-[#5A7EBF]">
-                <div className="w-[400px] bg-[#ECE9D8] rounded-lg shadow-lg overflow-hidden border-2 border-[#0066CC]">
-                    <div className="p-6">
+            <>
+                {/* Window Content */}
+                <div className="flex-1 flex flex-col items-center">
                     <div className="text-center mb-6">
-                        <h1 className="text-2xl font-bold text-[#0066CC] mb-2">Create Account</h1>
-                        <p className="text-xs text-gray-600">Join MSN Messenger today</p>
+                        <h1 className="!text-2xl font-bold text-[#0066CC] mb-2">Create Account</h1>
+                        <p className="text-md text-gray-600">Join Spirit Messenger today</p>
                     </div>
 
                     {generalError && (
-                        <div className="mb-4 p-3 bg-red-100 border border-red-400 rounded text-xs text-red-700">
+                        <div className="mb-4 p-2 bg-[#FFE6E6] border border-[#FF9999] rounded text-sm text-red-700">
                             {generalError}
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                    <form onSubmit={handleSubmit} className='flex flex-col gap-4'>
                         <div>
-                            <label htmlFor="username" className="block text-xs font-bold mb-1 text-gray-700">
+                            <label htmlFor="username" className="block text-sm font-bold text-[#24245D] mb-1">
                                 Username:
                             </label>
                             <input
@@ -126,12 +121,12 @@ export function RegistrationWindow({ onRegister, onSwitchToSignIn }: Registratio
                                 disabled={isLoading}
                             />
                             {errors.username && (
-                                <p className="mt-1 text-xs text-red-600">{errors.username}</p>
+                                <p className="mt-1 text-sm text-red-600">{errors.username}</p>
                             )}
                         </div>
 
                         <div>
-                            <label htmlFor="email" className="block text-xs font-bold mb-1 text-gray-700">
+                            <label htmlFor="email" className="block text-sm font-bold text-[#24245D] mb-1">
                                 Email address:
                             </label>
                             <input
@@ -148,12 +143,12 @@ export function RegistrationWindow({ onRegister, onSwitchToSignIn }: Registratio
                                 disabled={isLoading}
                             />
                             {errors.email && (
-                                <p className="mt-1 text-xs text-red-600">{errors.email}</p>
+                                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
                             )}
                         </div>
 
                         <div>
-                            <label htmlFor="password" className="block text-xs font-bold mb-1 text-gray-700">
+                            <label htmlFor="password" className="block text-sm font-bold text-[#24245D] mb-1">
                                 Password:
                             </label>
                             <input
@@ -170,12 +165,12 @@ export function RegistrationWindow({ onRegister, onSwitchToSignIn }: Registratio
                                 disabled={isLoading}
                             />
                             {errors.password && (
-                                <p className="mt-1 text-xs text-red-600">{errors.password}</p>
+                                <p className="mt-1 text-sm text-red-600">{errors.password}</p>
                             )}
                         </div>
 
                         <div>
-                            <label htmlFor="confirmPassword" className="block text-xs font-bold mb-1 text-gray-700">
+                            <label htmlFor="confirmPassword" className="block text-sm font-bold text-[#24245D] mb-1">
                                 Confirm Password:
                             </label>
                             <input
@@ -192,34 +187,45 @@ export function RegistrationWindow({ onRegister, onSwitchToSignIn }: Registratio
                                 disabled={isLoading}
                             />
                             {errors.confirmPassword && (
-                                <p className="mt-1 text-xs text-red-600">{errors.confirmPassword}</p>
+                                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
                             )}
                         </div>
 
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full bg-[#0066CC] hover:bg-[#0055AA] disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded text-xs transition-colors duration-150 shadow-sm"
+                            className="!px-5 !py-2 !bg-white border-2 self-center my-6 !border-[#003c74] rounded shadow-md hover:from-[#FAFAFA] hover:to-[#E0E0E0] disabled:opacity-50 disabled:cursor-not-allowed !bg-gradient-to-t from-[#CCE4FF]"
+                            style={{
+                                boxShadow: '0 -1px 3px rgba(0,0,0,0.4), inset 0 0 0 1px #E2A42E, inset 1px 1px 0 rgba(255,255,255,0.8), inset -1px -1px 0 rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.3)'
+                            }}
                         >
-                            {isLoading ? 'Creating account...' : 'Create Account'}
+                            <span className="text-md font-bold text-[#11207e]">
+                                {isLoading ? 'Creating account...' : 'Create Account'}
+                            </span>
                         </button>
                     </form>
-
-                    <div className="mt-6 pt-4 border-t border-gray-300 text-center">
-                        <p className="text-xs text-gray-600 mb-2">
-                            Already have an account?
-                        </p>
-                        <button
-                            onClick={onSwitchToSignIn}
-                            disabled={isLoading}
-                            className="text-[#0066CC] hover:text-[#0055AA] font-bold text-xs underline disabled:text-gray-400"
-                        >
-                            Sign in here
-                        </button>
-                    </div>
-                    </div>
                 </div>
-            </div>
+
+                <div className="flex flex-col py-6 border-t border-gray-300 items-center">
+                    <label
+                        className="text-[#2F22DA] mb-2 hover:text-[#0033AA]"
+                    >
+                        Already have an account?
+                    </label>
+                    <button
+                        type="submit"
+                        onClick={onSwitchToSignIn}
+                        className="!px-5 !py-2 !bg-white border-2 !border-[#003c74] rounded shadow-md hover:from-[#FAFAFA] hover:to-[#E0E0E0] disabled:opacity-50 disabled:cursor-not-allowed !bg-gradient-to-t from-[#CCE4FF]"
+                        style={{
+                            boxShadow: '0 -1px 3px rgba(0,0,0,0.4), inset 0 0 0 1px #E2A42E, inset 1px 1px 0 rgba(255,255,255,0.8), inset -1px -1px 0 rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.3)'
+                        }}
+                    >
+                        <span className="text-md font-bold text-[#11207e]">
+                            Sign in here
+                        </span>
+                    </button>
+                </div>
+            </>
         </Layout>
     );
 }
