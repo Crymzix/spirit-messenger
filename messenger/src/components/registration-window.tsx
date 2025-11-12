@@ -88,12 +88,15 @@ export function RegistrationWindow({ onRegister, onSwitchToSignIn }: Registratio
         <Layout
             title="Spirit Messenger"
         >
-            <>
+            <div className="flex flex-col h-full gap-8 mt-8">
                 {/* Window Content */}
                 <div className="flex-1 flex flex-col items-center">
                     <div className="text-center mb-6">
-                        <h1 className="!text-2xl font-bold text-[#0066CC] mb-2">Create Account</h1>
-                        <p className="text-md text-gray-600">Join Spirit Messenger today</p>
+                        <h1
+                            className="!text-2xl font-ms font-bold text-[#0066CC] mb-2 font-msn">Create Account</h1>
+                        <p
+                            style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                            className="text-md text-gray-600">Join Spirit Messenger today</p>
                     </div>
 
                     {generalError && (
@@ -116,7 +119,7 @@ export function RegistrationWindow({ onRegister, onSwitchToSignIn }: Registratio
                                     if (errors.username) setErrors({ ...errors, username: undefined });
                                 }}
                                 className={`w-full px-3 py-2 border ${errors.username ? 'border-red-500' : 'border-gray-400'
-                                    } rounded text-xs focus:outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC]`}
+                                    } rounded text-md focus:outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC]`}
                                 placeholder="Choose a username"
                                 disabled={isLoading}
                             />
@@ -138,7 +141,7 @@ export function RegistrationWindow({ onRegister, onSwitchToSignIn }: Registratio
                                     if (errors.email) setErrors({ ...errors, email: undefined });
                                 }}
                                 className={`w-full px-3 py-2 border ${errors.email ? 'border-red-500' : 'border-gray-400'
-                                    } rounded text-xs focus:outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC]`}
+                                    } rounded text-md focus:outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC]`}
                                 placeholder="example@hotmail.com"
                                 disabled={isLoading}
                             />
@@ -160,7 +163,7 @@ export function RegistrationWindow({ onRegister, onSwitchToSignIn }: Registratio
                                     if (errors.password) setErrors({ ...errors, password: undefined });
                                 }}
                                 className={`w-full px-3 py-2 border ${errors.password ? 'border-red-500' : 'border-gray-400'
-                                    } rounded text-xs focus:outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC]`}
+                                    } rounded text-md focus:outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC]`}
                                 placeholder="Create a password"
                                 disabled={isLoading}
                             />
@@ -182,7 +185,7 @@ export function RegistrationWindow({ onRegister, onSwitchToSignIn }: Registratio
                                     if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: undefined });
                                 }}
                                 className={`w-full px-3 py-2 border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-400'
-                                    } rounded text-xs focus:outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC]`}
+                                    } rounded text-md focus:outline-none focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC]`}
                                 placeholder="Confirm your password"
                                 disabled={isLoading}
                             />
@@ -225,7 +228,7 @@ export function RegistrationWindow({ onRegister, onSwitchToSignIn }: Registratio
                         </span>
                     </button>
                 </div>
-            </>
+            </div>
         </Layout>
     );
 }

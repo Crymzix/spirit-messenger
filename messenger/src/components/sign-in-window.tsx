@@ -60,7 +60,7 @@ export function SignInWindow({ onSignIn, onSwitchToRegister }: SignInWindowProps
 
     return (
         <Layout title="Spirit Messenger">
-            <>
+            <div className="flex flex-col h-full gap-8 mt-8">
                 {/* Window Content */}
                 <div className="flex-1 flex flex-col items-center">
                     {generalError && (
@@ -97,7 +97,7 @@ export function SignInWindow({ onSignIn, onSwitchToRegister }: SignInWindowProps
                                     type="text"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="flex-1 px-2 py-1 border border-gray-400 rounded text-sm bg-white focus:outline-none focus:border-[#0055E5]"
+                                    className="flex-1 px-2 py-1 border border-gray-400 rounded text-md bg-white focus:outline-none focus:border-[#0055E5]"
                                     placeholder="person@passport.com"
                                     disabled={isLoading}
                                 />
@@ -113,7 +113,7 @@ export function SignInWindow({ onSignIn, onSwitchToRegister }: SignInWindowProps
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-2 py-1 border border-gray-400 rounded text-sm !bg-transparent focus:outline-none focus:border-[#0055E5]"
+                                className="w-full px-2 py-1 border border-gray-400 rounded text-md !bg-transparent focus:outline-none focus:border-[#0055E5]"
                                 placeholder="********"
                                 disabled={isLoading}
                             />
@@ -245,7 +245,7 @@ export function SignInWindow({ onSignIn, onSwitchToRegister }: SignInWindowProps
                 <div className="px-4 py-2 flex items-center gap-2">
                     <span className="text-sm font-bold text-gray-700">Spirit Network</span>
                 </div>
-            </>
+            </div>
         </Layout >
     );
 }

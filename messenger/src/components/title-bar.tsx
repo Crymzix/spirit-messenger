@@ -6,7 +6,7 @@ interface TitleBarProps {
   icon?: React.ReactNode;
 }
 
-export function TitleBar({ title = 'MSN Messenger', showIcon = true, icon }: TitleBarProps) {
+export function TitleBar({ title = 'MSN Messenger', showIcon = true }: TitleBarProps) {
   const handleMinimize = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const appWindow = getCurrentWindow();

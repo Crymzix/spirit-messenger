@@ -27,6 +27,9 @@ export interface AuthUser {
   email: string;
   username: string;
   displayName: string;
+  personalMessage?: string;
+  displayPictureUrl?: string;
+  presenceStatus?: string;
 }
 
 export interface AuthResponse {

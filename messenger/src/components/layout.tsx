@@ -9,7 +9,7 @@ interface LayoutProps {
   icon?: ReactNode;
 }
 
-export function Layout({ children, title = 'MSN Messenger', showIcon = true, icon }: LayoutProps) {
+export function Layout({ children, title = 'Spirit Messenger', showIcon = true, icon }: LayoutProps) {
   return (
     <div className="window w-full h-screen flex flex-col">
       <TitleBar title={title} showIcon={showIcon} icon={icon} />
@@ -49,7 +49,7 @@ export function Layout({ children, title = 'MSN Messenger', showIcon = true, ico
               <img src="/background-logo.webp" className='opacity-15 w-64 mt-auto ml-auto mb-10 mr-4' />
             </div>
 
-            <div className="flex flex-col h-full z-10 gap-8">
+            <div className="flex flex-col h-full z-10">
               {/* MSN Messenger Logo */}
               <div className="flex items-center gap-2 px-2">
                 <img src="/spirit-logo.png" className='h-9' />

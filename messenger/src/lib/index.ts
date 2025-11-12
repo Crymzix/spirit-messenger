@@ -14,3 +14,8 @@ export {
 export { useAuthStore } from './store/auth-store';
 export { queryClient } from './query-client';
 export { supabase } from './supabase';
+export {
+    saveWindowState,
+    restoreWindowState,
+    initializeWindowStatePersistence,
+} from './window-state';

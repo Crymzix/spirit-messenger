@@ -68,19 +68,19 @@
     - _Requirements: 1.4, 16.1, 16.3_
 
 - [ ] 6. Build main application window and layout
-  - [ ] 6.1 Create main-window.tsx component structure
+  - [x] 6.1 Create main-window.tsx component structure
     - Implement window chrome with classic MSN styling
     - Build top bar with user profile section
     - Create menu bar (File, Contacts, Actions, Tools, Help)
     - Add status selector dropdown
     - Implement search bar
     - _Requirements: 11.1, 11.2, 11.3, 16.1, 16.3_
-  - [ ] 6.2 Implement user profile display
+  - [x] 6.2 Implement user profile display
     - Create user-profile.tsx component showing display picture, name, and status
     - Add personal message display
     - Implement edit profile button
     - _Requirements: 9.4, 3.5, 16.1, 16.3_
-  - [ ] 6.3 Configure Tauri window settings
+  - [x] 6.3 Configure Tauri window settings
     - Set window dimensions and minimum size in tauri.conf.json
     - Configure window decorations
     - Implement window state persistence using localStorage

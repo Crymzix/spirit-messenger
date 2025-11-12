@@ -1,7 +1,7 @@
 [package]
 name = "spirit-messenger"
 version = "0.1.0"
-description = "A spiritual predecessor to MSN Messenger"
+description = "A spiritual successor to MSN Messenger"
 authors = ["Chris Li"]
 edition = "2021"
 
