@@ -10,15 +10,35 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
-        "title": "spirit-messenger",
-        "width": 800,
-        "height": 600
+        "title": "Spirit Messenger",
+        "width": 400,
+        "height": 800,
+        "decorations": false,
+        "transparent": true
       }
     ],
+    "withGlobalTauri": true,
     "security": {
-      "csp": null
+      "csp": null,
+      "capabilities": [
+        {
+          "identifier": "main-capability",
+          "windows": [
+            "main"
+          ],
+          "permissions": [
+            "core:window:allow-close",
+            "core:window:allow-minimize",
+            "core:window:allow-maximize",
+            "core:window:allow-unmaximize",
+            "core:window:allow-is-maximized",
+            "core:window:allow-start-dragging"
+          ]
+        }
+      ]
     }
   },
   "bundle": {

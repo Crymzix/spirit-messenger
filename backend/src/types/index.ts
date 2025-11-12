@@ -70,3 +70,26 @@ export interface ApiResponse<T = any> {
     data?: T;
     error?: string;
 }
+
+// Authentication types
+export interface RegisterRequest {
+    email: string;
+    password: string;
+    username: string;
+    displayName: string;
+}
+
+export interface LoginRequest {
+    email: string;
+    password: string;
+}
+
+export interface AuthResponse {
+    token: string;
+    user: {
+        id: string;
+        email: string;
+        username: string;
+        displayName: string | null;
+    };
+}

@@ -1,5 +1,5 @@
 import { pgTable, uuid, text, timestamp, varchar, jsonb, bigint, index, boolean, pgPolicy } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
+import { InferInsertModel, InferSelectModel, sql } from 'drizzle-orm';
 
 // Users table schema
 export const users = pgTable('users', {
@@ -157,3 +157,21 @@ export const files = pgTable('files', {
         `,
     }),
 ]);
+
+export type SelectUser = InferSelectModel<typeof users>;
+export type InsertUser = InferInsertModel<typeof users>;
+
+export type SelectContact = InferSelectModel<typeof contacts>;
+export type InsertContact = InferInsertModel<typeof contacts>;
+
+export type SelectConversation = InferSelectModel<typeof conversations>;
+export type InsertConversation = InferInsertModel<typeof conversations>;
+
+export type SelectConversationParticipant = InferSelectModel<typeof conversationParticipants>;
+export type InsertConversationParticipant = InferInsertModel<typeof conversationParticipants>;
+
+export type SelectMessage = InferSelectModel<typeof messages>;
+export type InsertMessage = InferInsertModel<typeof messages>;
+
+export type SelectFile = InferSelectModel<typeof files>;
+export type InsertFile = InferInsertModel<typeof files>;

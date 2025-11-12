@@ -5,6 +5,7 @@
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafb);
 }
+
 :root {
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
   font-size: 16px;
@@ -12,7 +13,7 @@
   font-weight: 400;
 
   color: #0f0f0f;
-  background-color: #f6f6f6;
+  background-color: transparent;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -44,6 +45,14 @@
 .row {
   display: flex;
   justify-content: center;
+}
+
+html {
+  background: transparent;
+}
+
+body {
+  background: transparent;
 }
 
 a {
@@ -81,6 +90,7 @@ button {
 button:hover {
   border-color: #396cd8;
 }
+
 button:active {
   border-color: #396cd8;
   background-color: #e8e8e8;
@@ -93,6 +103,28 @@ button {
 
 #greet-input {
   margin-right: 5px;
+}
+
+/* Title bar button overrides - let XP.css handle these */
+.title-bar button,
+.title-bar-controls button {
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  background-color: transparent;
+  box-shadow: none;
+  min-width: auto;
+}
+
+.title-bar button:hover,
+.title-bar-controls button:hover {
+  border-color: transparent;
+}
+
+.title-bar button:active,
+.title-bar-controls button:active {
+  border-color: transparent;
+  background-color: transparent;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -110,6 +142,7 @@ button {
     color: #ffffff;
     background-color: #0f0f0f98;
   }
+
   button:active {
     background-color: #0f0f0f69;
   }

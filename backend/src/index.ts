@@ -55,6 +55,10 @@ await fastify.register(rateLimitPlugin);
 await fastify.register(multipartPlugin);
 await fastify.register(authPlugin);
 
+// Register routes
+const authRoutes = await import('./routes/auth.js');
+await fastify.register(authRoutes.default, { prefix: '/api/auth' });
+
 // Health check endpoint
 fastify.get('/health', async () => {
     return {
