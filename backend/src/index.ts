@@ -59,6 +59,9 @@ await fastify.register(authPlugin);
 const authRoutes = await import('./routes/auth.js');
 await fastify.register(authRoutes.default, { prefix: '/api/auth' });
 
+const usersRoutes = await import('./routes/users.js');
+await fastify.register(usersRoutes.default, { prefix: '/api/users' });
+
 // Health check endpoint
 fastify.get('/health', async () => {
     return {

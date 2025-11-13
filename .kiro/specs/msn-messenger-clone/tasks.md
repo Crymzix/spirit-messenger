@@ -87,19 +87,19 @@
     - _Requirements: 11.3_
 
 - [ ] 7. Implement Backend Service user profile endpoints with TypeScript
-  - [ ] 7.1 Create user service
+  - [x] 7.1 Create user service
     - Create user-service.ts with type-safe update queries using Drizzle ORM
     - Implement functions for profile updates, presence updates, and display picture management
     - Add proper error handling and validation
     - _Requirements: 9.5, 3.2, 16.2, 16.5_
-  - [ ] 7.2 Create user profile routes
+  - [x] 7.2 Create user profile routes
     - Create users.ts route file with PUT /api/users/profile endpoint
     - Implement POST /api/users/display-picture endpoint with @fastify/multipart
     - Implement PUT /api/users/presence endpoint
     - Add Fastify schema validation for all endpoints
     - Register routes in index.ts
     - _Requirements: 9.2, 9.5, 3.2, 16.2, 16.5_
-  - [ ] 7.3 Implement image processing
+  - [x] 7.3 Implement image processing
     - Install sharp package for image processing
     - Add image upload handling with @fastify/multipart
     - Resize images to 96x96 pixels using sharp
@@ -108,7 +108,7 @@
     - _Requirements: 9.1, 9.2_
 
 - [ ] 8. Implement frontend user profile and display picture management
-  - [ ] 8.1 Create profile editing UI
+  - [x] 8.1 Create profile editing UI
     - Build profile-settings.tsx modal/window component
     - Add display name input field
     - Add personal message input field

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useUser } from '../lib/store/auth-store';
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 type PresenceStatus = 'online' | 'away' | 'busy' | 'appear_offline';
 
@@ -16,7 +17,7 @@ const statusOptions: { value: PresenceStatus; label: string; color: string }[] =
     { value: 'appear_offline', label: 'Appear Offline', color: 'bg-gray-400' },
 ];
 
-export function UserProfile({ presenceStatus, onStatusChange, onEditProfile }: UserProfileProps) {
+export function UserProfile({ presenceStatus, onStatusChange }: UserProfileProps) {
     const user = useUser();
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -44,6 +45,34 @@ export function UserProfile({ presenceStatus, onStatusChange, onEditProfile }: U
         setIsStatusDropdownOpen(false);
     };
 
+    const handleProfilePictureEdit = () => {
+        setIsStatusDropdownOpen(false);
+        // In dev mode, use the full dev server URL; in production, use the relative path
+        const isDev = window.location.hostname === 'localhost';
+        const url = isDev
+            ? 'http://localhost:1420/profile-picture-upload.html'
+            : '/profile-picture-upload.html';
+
+        const profileWindow = new WebviewWindow('profile-picture-upload', {
+            url,
+            title: 'My Display Picture',
+            width: 400,
+            height: 500,
+            resizable: false,
+            decorations: false,
+            transparent: true,
+            center: true,
+        });
+
+        profileWindow.once('tauri://created', () => {
+            console.log('Profile settings window created');
+        });
+
+        profileWindow.once('tauri://error', (e) => {
+            console.error('Error creating window:', e);
+        });
+    }
+
     return (
         <div className="bg-gradient-to-t from-[#E4EFFE] relative mt-4">
             <div className='bg-gradient-to-b from-[#FEFEFE] h-12 w-full absolute z-20 top-0'>
@@ -67,6 +96,16 @@ export function UserProfile({ presenceStatus, onStatusChange, onEditProfile }: U
                                 />
                             )}
                         </div>
+                        <div
+                            className="absolute bg-gradient-to-b from-[#96AEC0] top-24 h-3 w-24"
+                            style={{
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                clipPath: 'polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%)',
+                                filter: 'blur(1px)',
+                                zIndex: 0
+                            }}
+                        />
                     </div>
                     <div className='flex flex-col'>
                         {/* Display Name */}
@@ -102,14 +141,16 @@ export function UserProfile({ presenceStatus, onStatusChange, onEditProfile }: U
 
                                 {/* Dropdown Menu */}
                                 {isStatusDropdownOpen && (
-                                    <div className="absolute top-full left-0 mt-1 bg-white border border-gray-400 shadow-lg rounded min-w-[140px] z-50">
+                                    <div className="absolute top-full left-0 mt-1 bg-white border border-gray-400 shadow-lg min-w-72 z-50">
                                         {statusOptions.map((option) => (
                                             <div
                                                 key={option.value}
                                                 onClick={() => handleStatusChange(option.value)}
-                                                className="w-full flex items-center gap-2 px-3 py-1.5 text-[10px] hover:bg-msn-light-blue transition-colors text-left"
+                                                className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-msn-light-blue transition-colors text-left"
                                             >
-                                                <span className={`w-2 h-2 rounded-full ${option.color}`}></span>
+                                                <div className='w-4 flex items-center'>
+                                                    <span className={`w-2 h-2 rounded-full ${option.color}`}></span>
+                                                </div>
                                                 <span
                                                     style={{ fontFamily: 'Pixelated MS Sans Serif' }}
                                                 >
@@ -117,6 +158,19 @@ export function UserProfile({ presenceStatus, onStatusChange, onEditProfile }: U
                                                 </span>
                                             </div>
                                         ))}
+                                        <div className='h-[1px] w-full bg-gray-400'></div>
+                                        <div
+                                            key="display-picture"
+                                            onClick={() => handleProfilePictureEdit()}
+                                            className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-msn-light-blue transition-colors text-left whitespace-nowrap"
+                                        >
+                                            <div className='w-4' />
+                                            <span
+                                                style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                            >
+                                                Change display picture...
+                                            </span>
+                                        </div>
                                     </div>
                                 )}
                             </div>

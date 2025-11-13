@@ -5,3 +5,5 @@ export { TitleBar } from './title-bar';
 export { Layout } from './layout';
 export { MainWindow } from './main-window';
 export { UserProfile } from './user-profile';
+export { ProfileSettings } from './profile-settings';
+export { ProfilePictureUpload } from './profile-picture-upload'

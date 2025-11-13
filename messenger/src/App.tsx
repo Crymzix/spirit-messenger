@@ -12,7 +12,6 @@ import {
 } from "./lib/hooks/auth-hooks";
 import { useAuthStore } from "./lib/store/auth-store";
 import { Loading } from "./components/loading";
-import { initializeWindowStatePersistence, restoreWindowState } from "./lib/window-state";
 
 type AuthView = 'signin' | 'register' | 'main';
 
@@ -31,14 +30,6 @@ function App() {
       await useAuthStore.getState().initialize();
     };
     initAuth();
-
-    // Initialize window state persistence
-    const cleanup = initializeWindowStatePersistence();
-
-    // Restore window state on app startup
-    restoreWindowState();
-
-    return cleanup;
   }, []);
 
   useEffect(() => {

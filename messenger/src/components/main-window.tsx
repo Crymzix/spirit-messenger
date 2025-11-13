@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useUser } from '../lib/store/auth-store';
 import { Layout } from './layout';
 import { UserProfile } from './user-profile';
+import { ProfileSettings } from './profile-settings';
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 interface MainWindowProps {
     onSignOut?: () => void;
@@ -13,15 +15,15 @@ export function MainWindow({ onSignOut }: MainWindowProps) {
     const user = useUser();
     const [presenceStatus, setPresenceStatus] = useState<PresenceStatus>('online');
     const [searchQuery, setSearchQuery] = useState('');
+    const [isProfileSettingsOpen, setIsProfileSettingsOpen] = useState(false);
 
     const handleStatusChange = (status: PresenceStatus) => {
         setPresenceStatus(status);
         // TODO: Send status update to Backend Service (will be implemented in task 9.2)
     };
 
-    const handleEditProfile = () => {
-        // TODO: Open profile settings modal (will be implemented in task 8.1)
-        console.log('Edit profile clicked');
+    const handleEditProfile = async () => {
+        // TODO
     };
 
     const handleSearch = (e: React.FormEvent) => {
@@ -39,6 +41,12 @@ export function MainWindow({ onSignOut }: MainWindowProps) {
                     presenceStatus={presenceStatus}
                     onStatusChange={handleStatusChange}
                     onEditProfile={handleEditProfile}
+                />
+
+                {/* Profile Settings Modal */}
+                <ProfileSettings
+                    isOpen={isProfileSettingsOpen}
+                    onClose={() => setIsProfileSettingsOpen(false)}
                 />
 
                 {/* Search Bar */}

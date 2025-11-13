@@ -35,6 +35,28 @@
             "core:window:allow-maximize",
             "core:window:allow-unmaximize",
             "core:window:allow-is-maximized",
+            "core:window:allow-start-dragging",
+            "core:window:allow-create",
+            "core:event:allow-listen",
+            "core:event:default",
+            "core:webview:allow-create-webview-window",
+            "core:window:allow-outer-size",
+            "core:window:default",
+            "core:window:allow-set-size",
+            "core:window:allow-set-position"
+          ]
+        },
+        {
+          "identifier": "profile-picture-upload-capability",
+          "windows": [
+            "profile-picture-upload"
+          ],
+          "permissions": [
+            "core:window:allow-close",
+            "core:window:allow-minimize",
+            "core:window:allow-maximize",
+            "core:window:allow-unmaximize",
+            "core:window:allow-is-maximized",
             "core:window:allow-start-dragging"
           ]
         }
