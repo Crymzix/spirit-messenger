@@ -50,7 +50,7 @@ async function createStorageBuckets() {
         const { error: dpError } = await supabase
             .storage
             .createBucket('display-pictures', {
-                public: false,
+                public: true,
                 fileSizeLimit: 5 * 1024 * 1024, // 5MB
                 allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif']
             });

@@ -11,6 +11,13 @@ export {
     useAuthInitialized,
     useProtectedRoute,
 } from './hooks/auth-hooks';
+export {
+    useUpdateProfile,
+    useUploadDisplayPicture,
+    useProfilePictures,
+    useSetDisplayPicture,
+    useRemoveDisplayPicture,
+} from './hooks/profile-hooks';
 export { useAuthStore } from './store/auth-store';
 export { queryClient } from './query-client';
 export { supabase } from './supabase';

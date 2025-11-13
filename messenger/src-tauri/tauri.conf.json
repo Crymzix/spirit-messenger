@@ -57,7 +57,10 @@
             "core:window:allow-maximize",
             "core:window:allow-unmaximize",
             "core:window:allow-is-maximized",
-            "core:window:allow-start-dragging"
+            "core:window:allow-start-dragging",
+            "core:window:allow-create",
+            "core:event:allow-listen",
+            "core:event:default"
           ]
         },
         {
@@ -71,7 +74,10 @@
             "core:window:allow-maximize",
             "core:window:allow-unmaximize",
             "core:window:allow-is-maximized",
-            "core:window:allow-start-dragging"
+            "core:window:allow-start-dragging",
+            "core:window:allow-create",
+            "core:event:allow-listen",
+            "core:event:default"
           ]
         }
       ]

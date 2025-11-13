@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 /// Represents a user in the authentication system
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -112,20 +112,30 @@ fn get_token(state: tauri::State<AppState>) -> Option<String> {
 
 /// Set the authentication data (user and token)
 #[tauri::command]
-fn set_auth(state: tauri::State<AppState>, user: AuthUser, token: String) -> Result<(), String> {
-    *state.auth_data.lock().unwrap() = Some(AuthData { user, token });
-    state.save_to_disk()
+fn set_auth(app: tauri::AppHandle, state: tauri::State<AppState>, user: AuthUser, token: String) -> Result<(), String> {
+    *state.auth_data.lock().unwrap() = Some(AuthData { user: user.clone(), token });
+    state.save_to_disk()?;
+
+    // Emit event to all windows
+    let _ = app.emit("auth-changed", user);
+
+    Ok(())
 }
 
 /// Update the current user's data
 #[tauri::command]
-fn update_user(state: tauri::State<AppState>, user_updates: AuthUser) -> Result<(), String> {
+fn update_user(app: tauri::AppHandle, state: tauri::State<AppState>, user_updates: AuthUser) -> Result<(), String> {
     let mut auth_data = state.auth_data.lock().unwrap();
 
     if let Some(data) = auth_data.as_mut() {
-        data.user = user_updates;
+        data.user = user_updates.clone();
         drop(auth_data); // Release the lock before saving
-        state.save_to_disk()
+        state.save_to_disk()?;
+
+        // Emit event to all windows
+        let _ = app.emit("auth-changed", user_updates);
+
+        Ok(())
     } else {
         Err("No user is currently authenticated".to_string())
     }
@@ -133,9 +143,14 @@ fn update_user(state: tauri::State<AppState>, user_updates: AuthUser) -> Result<
 
 /// Clear the authentication data (sign out)
 #[tauri::command]
-fn clear_auth(state: tauri::State<AppState>) -> Result<(), String> {
+fn clear_auth(app: tauri::AppHandle, state: tauri::State<AppState>) -> Result<(), String> {
     *state.auth_data.lock().unwrap() = None;
-    state.save_to_disk()
+    state.save_to_disk()?;
+
+    // Emit event to all windows to clear auth
+    let _ = app.emit("auth-cleared", ());
+
+    Ok(())
 }
 
 /// Check if user is authenticated

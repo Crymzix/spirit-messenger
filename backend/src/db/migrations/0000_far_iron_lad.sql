@@ -1,10 +1,3 @@
-CREATE TABLE "ai_conversations" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" uuid NOT NULL,
-	"chatbot_type" text NOT NULL,
-	"created_at" timestamp DEFAULT now()
-);
---> statement-breakpoint
 CREATE TABLE "contacts" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,

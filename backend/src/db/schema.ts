@@ -35,6 +35,24 @@ export const users = pgTable('users', {
     }),
 ]);
 
+export const userProfilePictures = pgTable('user_profile_pictures', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    fileName: text('file_name').notNull(),
+    pictureUrl: text('picture_url').notNull(),
+    storagePath: text('storage_path').notNull(),
+    uploadedAt: timestamp('uploaded_at').defaultNow(),
+}, (table) => [
+    index('idx_user_profile_pictures_user_id').on(table.userId),
+    index('idx_user_profile_pictures_uploaded_at').on(table.uploadedAt.desc()),
+    pgPolicy('users_can_view_own_profile_pictures', {
+        for: 'select',
+        to: 'public',
+        using: sql`user_id = auth.uid()`,
+    }),
+]);
+
+
 // Contacts table schema
 export const contacts = pgTable('contacts', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -175,3 +193,6 @@ export type InsertMessage = InferInsertModel<typeof messages>;
 
 export type SelectFile = InferSelectModel<typeof files>;
 export type InsertFile = InferInsertModel<typeof files>;
+
+export type SelectUserProfilePicture = InferSelectModel<typeof userProfilePictures>;
+export type InsertUserProfilePicture = InferInsertModel<typeof userProfilePictures>;

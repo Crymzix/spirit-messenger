@@ -91,5 +91,8 @@ export interface AuthResponse {
         email: string;
         username: string;
         displayName: string | null;
+        personalMessage?: string | null;
+        displayPictureUrl?: string | null;
+        presenceStatus?: string | null;
     };
 }

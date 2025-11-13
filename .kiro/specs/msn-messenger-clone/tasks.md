@@ -115,13 +115,13 @@
     - Create display-picture-upload.tsx component
     - Style with classic MSN design
     - _Requirements: 9.5, 3.4, 17.1, 16.3_
-  - [ ] 8.2 Implement display picture upload
+  - [x] 8.2 Implement display picture upload
     - Create image upload handler with file validation in profile-service.ts
     - Send image to Backend Service API
     - Update local state with returned image URL
     - Display updated profile picture
     - _Requirements: 9.1, 9.2, 17.1, 16.3_
-  - [ ] 8.3 Implement profile update logic
+  - [x] 8.3 Implement profile update logic
     - Create profile-service.ts calling Backend Service API
     - Send profile updates to Backend Service
     - Subscribe to user profile changes via Supabase Realtime

@@ -1,0 +1,1 @@
+ALTER TABLE "user_profile_pictures" ADD COLUMN "file_name" text NOT NULL;

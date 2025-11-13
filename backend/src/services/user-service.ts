@@ -1,6 +1,6 @@
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { users, SelectUser } from '../db/schema.js';
+import { users, SelectUser, userProfilePictures, SelectUserProfilePicture, InsertUserProfilePicture } from '../db/schema.js';
 
 /**
  * User Service
@@ -10,6 +10,7 @@ import { users, SelectUser } from '../db/schema.js';
 export interface UpdateProfileData {
     displayName?: string;
     personalMessage?: string;
+    displayPictureUrl?: string | null;
 }
 
 export interface UpdatePresenceData {
@@ -44,9 +45,9 @@ export async function updateUserProfile(
             throw new UserServiceError('User ID is required', 'INVALID_USER_ID', 400);
         }
 
-        if (!data.displayName && !data.personalMessage) {
+        if (!data.displayName && !data.personalMessage && !data.displayPictureUrl) {
             throw new UserServiceError(
-                'At least one field (displayName or personalMessage) must be provided',
+                'At least one field (displayName, personalMessage, or displayPictureUrl) must be provided',
                 'NO_UPDATE_DATA',
                 400
             );
@@ -80,6 +81,23 @@ export async function updateUserProfile(
             }
         }
 
+        // Validate display picture URL if provided
+        if (data.displayPictureUrl !== undefined && data.displayPictureUrl !== null) {
+            if (typeof data.displayPictureUrl !== 'string') {
+                throw new UserServiceError('Display picture URL must be a string or null', 'INVALID_DISPLAY_PICTURE_URL', 400);
+            }
+            // Basic URL validation - allow both absolute URLs and relative paths
+            // Relative paths start with / or .
+            const isRelativePath = data.displayPictureUrl.startsWith('/') || data.displayPictureUrl.startsWith('./');
+            if (!isRelativePath) {
+                try {
+                    new URL(data.displayPictureUrl);
+                } catch {
+                    throw new UserServiceError('Display picture URL must be a valid URL or relative path', 'INVALID_URL_FORMAT', 400);
+                }
+            }
+        }
+
         // Update user profile
         const updateData: Partial<SelectUser> = {
             updatedAt: new Date(),
@@ -91,6 +109,10 @@ export async function updateUserProfile(
 
         if (data.personalMessage !== undefined) {
             updateData.personalMessage = data.personalMessage;
+        }
+
+        if (data.displayPictureUrl !== undefined) {
+            updateData.displayPictureUrl = data.displayPictureUrl;
         }
 
         const [updatedUser] = await db
@@ -277,6 +299,89 @@ export async function getUserByEmail(email: string): Promise<SelectUser | null> 
         throw new UserServiceError(
             'Failed to get user by email',
             'GET_USER_BY_EMAIL_FAILED',
+            500
+        );
+    }
+}
+
+/**
+ * Save a user profile picture to the database
+ */
+export async function saveUserProfilePicture(
+    userId: string,
+    fileName: string,
+    pictureUrl: string,
+    storagePath: string
+): Promise<SelectUserProfilePicture> {
+    try {
+        if (!userId) {
+            throw new UserServiceError('User ID is required', 'INVALID_USER_ID', 400);
+        }
+
+        if (!fileName) {
+            throw new UserServiceError('File name is required', 'MISSING_FILE_NAME', 400);
+        }
+
+        if (!pictureUrl) {
+            throw new UserServiceError('Picture URL is required', 'MISSING_PICTURE_URL', 400);
+        }
+
+        if (!storagePath) {
+            throw new UserServiceError('Storage path is required', 'MISSING_STORAGE_PATH', 400);
+        }
+
+        const pictureData: InsertUserProfilePicture = {
+            userId,
+            fileName,
+            pictureUrl,
+            storagePath,
+        };
+
+        const [savedPicture] = await db
+            .insert(userProfilePictures)
+            .values(pictureData)
+            .returning();
+
+        if (!savedPicture) {
+            throw new UserServiceError('Failed to save profile picture', 'SAVE_PICTURE_FAILED', 500);
+        }
+
+        return savedPicture;
+    } catch (error) {
+        if (error instanceof UserServiceError) {
+            throw error;
+        }
+        throw new UserServiceError(
+            'Failed to save profile picture',
+            'SAVE_PICTURE_FAILED',
+            500
+        );
+    }
+}
+
+/**
+ * Get all profile pictures for a user, ordered by upload date (newest first)
+ */
+export async function getUserProfilePictures(userId: string): Promise<SelectUserProfilePicture[]> {
+    try {
+        if (!userId) {
+            throw new UserServiceError('User ID is required', 'INVALID_USER_ID', 400);
+        }
+
+        const pictures = await db
+            .select()
+            .from(userProfilePictures)
+            .where(eq(userProfilePictures.userId, userId))
+            .orderBy(desc(userProfilePictures.uploadedAt));
+
+        return pictures;
+    } catch (error) {
+        if (error instanceof UserServiceError) {
+            throw error;
+        }
+        throw new UserServiceError(
+            'Failed to get profile pictures',
+            'GET_PICTURES_FAILED',
             500
         );
     }

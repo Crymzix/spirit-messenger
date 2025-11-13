@@ -5,11 +5,18 @@ import {
     updateUserProfile,
     updateUserPresence,
     updateUserDisplayPicture,
+    getUserProfilePictures,
+    saveUserProfilePicture,
     UserServiceError,
     UpdateProfileData,
     UpdatePresenceData,
 } from '../services/user-service.js';
 import type { ApiResponse, UserProfile } from '../types/index.js';
+import type { SelectUserProfilePicture } from '../db/schema.js';
+
+interface ProfilePicturesResponse {
+    pictures: SelectUserProfilePicture[];
+}
 
 const usersRoutes: FastifyPluginAsync = async (fastify) => {
     // PUT /api/users/profile
@@ -25,11 +32,13 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
                     type: 'object',
                     properties: {
                         displayName: { type: 'string', minLength: 1, maxLength: 100 },
-                        personalMessage: { type: 'string', maxLength: 150 }
+                        personalMessage: { type: 'string', maxLength: 150 },
+                        displayPictureUrl: { type: 'string' }
                     },
                     anyOf: [
                         { required: ['displayName'] },
-                        { required: ['personalMessage'] }
+                        { required: ['personalMessage'] },
+                        { required: ['displayPictureUrl'] }
                     ]
                 }
             }
@@ -44,12 +53,13 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
                 }
 
                 const userId = request.user.id;
-                const { displayName, personalMessage } = request.body;
+                const { displayName, personalMessage, displayPictureUrl } = request.body;
 
                 // Update user profile using service
                 const updatedUser = await updateUserProfile(userId, {
                     displayName,
-                    personalMessage
+                    personalMessage,
+                    displayPictureUrl
                 });
 
                 return reply.status(200).send({
@@ -153,9 +163,13 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
                     });
                 }
 
+                // Get original filename without extension
+                const originalFileName = data.filename.replace(/\.[^/.]+$/, '');
+
                 // Generate unique filename (always use .jpg after processing)
-                const filename = `${userId}-${Date.now()}.jpg`;
-                const storagePath = `display-pictures/${filename}`;
+                // Storage path format: {userId}/{filename} to match RLS policy expectations
+                const filename = `${Date.now()}.jpg`;
+                const storagePath = `${userId}/${filename}`;
 
                 // Upload processed image to Supabase Storage
                 const { error: uploadError } = await supabase.storage
@@ -179,6 +193,9 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
                     .getPublicUrl(storagePath);
 
                 const displayPictureUrl = urlData.publicUrl;
+
+                // Save the uploaded picture to user_profile_pictures table
+                await saveUserProfilePicture(userId, originalFileName, displayPictureUrl, storagePath);
 
                 // Update user record with new display picture URL
                 const updatedUser = await updateUserDisplayPicture(userId, {
@@ -260,6 +277,109 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
                             lastSeen: updatedUser.lastSeen,
                             createdAt: updatedUser.createdAt || new Date(),
                             updatedAt: updatedUser.updatedAt || new Date()
+                        }
+                    }
+                });
+            } catch (error) {
+                if (error instanceof UserServiceError) {
+                    return reply.status(error.statusCode).send({
+                        success: false,
+                        error: error.message
+                    });
+                }
+
+                fastify.log.error(error);
+                return reply.status(500).send({
+                    success: false,
+                    error: 'Internal server error'
+                });
+            }
+        }
+    );
+
+    // GET /api/users/profile-pictures
+    fastify.get<{
+        Reply: ApiResponse<ProfilePicturesResponse>;
+    }>(
+        '/profile-pictures',
+        {
+            preHandler: fastify.authenticate
+        },
+        async (request, reply) => {
+            try {
+                if (!request.user) {
+                    return reply.status(401).send({
+                        success: false,
+                        error: 'Unauthorized'
+                    });
+                }
+
+                const userId = request.user.id;
+
+                // Get all profile pictures for the user
+                const pictures = await getUserProfilePictures(userId);
+
+                return reply.status(200).send({
+                    success: true,
+                    data: {
+                        pictures
+                    }
+                });
+            } catch (error) {
+                if (error instanceof UserServiceError) {
+                    return reply.status(error.statusCode).send({
+                        success: false,
+                        error: error.message
+                    });
+                }
+
+                fastify.log.error(error);
+                return reply.status(500).send({
+                    success: false,
+                    error: 'Internal server error'
+                });
+            }
+        }
+    );
+
+    // DELETE /api/users/display-picture
+    fastify.delete<{
+        Reply: ApiResponse<{ user: UserProfile }>;
+    }>(
+        '/display-picture',
+        {
+            preHandler: fastify.authenticate
+        },
+        async (request, reply) => {
+            try {
+                if (!request.user) {
+                    return reply.status(401).send({
+                        success: false,
+                        error: 'Unauthorized'
+                    });
+                }
+
+                const userId = request.user.id;
+
+                // Set display picture URL to null
+                const updatedUser = await updateUserProfile(userId, {
+                    displayPictureUrl: null as any
+                });
+
+                return reply.status(200).send({
+                    success: true,
+                    data: {
+                        user: {
+                            id: updatedUser.id,
+                            email: updatedUser.email,
+                            username: updatedUser.username,
+                            displayName: updatedUser.displayName,
+                            personalMessage: updatedUser.personalMessage,
+                            displayPictureUrl: updatedUser.displayPictureUrl,
+                            presenceStatus: updatedUser.presenceStatus as 'online' | 'away' | 'busy' | 'appear_offline' | 'offline',
+                            lastSeen: updatedUser.lastSeen,
+                            createdAt: updatedUser.createdAt!,
+                            updatedAt: updatedUser.updatedAt!
                         }
                     }
                 });

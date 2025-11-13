@@ -90,7 +90,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
                             id: newUser.id,
                             email: newUser.email,
                             username: newUser.username,
-                            displayName: newUser.displayName
+                            displayName: newUser.displayName,
+                            personalMessage: newUser.personalMessage || '',
+                            displayPictureUrl: newUser.displayPictureUrl || '',
+                            presenceStatus: newUser.presenceStatus || 'offline'
                         }
                     }
                 });
@@ -161,7 +164,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
                             id: userProfile.id,
                             email: userProfile.email,
                             username: userProfile.username,
-                            displayName: userProfile.displayName
+                            displayName: userProfile.displayName,
+                            personalMessage: userProfile.personalMessage || '',
+                            displayPictureUrl: userProfile.displayPictureUrl || '',
+                            presenceStatus: userProfile.presenceStatus || 'offline'
                         }
                     }
                 });

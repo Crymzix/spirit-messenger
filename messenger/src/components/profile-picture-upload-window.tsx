@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { TitleBar } from "./title-bar";
-import { useUser } from "@/lib";
+import { useUser, useUploadDisplayPicture, useProfilePictures, useSetDisplayPicture, useRemoveDisplayPicture } from "@/lib";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 const DEFAULT_PICTURES = [
@@ -18,58 +18,115 @@ const DEFAULT_PICTURES = [
 ];
 
 export function ProfilePictureUploadWindow() {
-    const user = useUser()
+    const user = useUser();
+    const uploadDisplayPictureMutation = useUploadDisplayPicture();
+    const setDisplayPictureMutation = useSetDisplayPicture();
+    const removeDisplayPictureMutation = useRemoveDisplayPicture();
+    const { data: uploadedPictures = [], isLoading: isLoadingPictures } = useProfilePictures();
+
     const [selectedPicture, setSelectedPicture] = useState(user?.displayPictureUrl || DEFAULT_PICTURES[0].url);
-    const [isUploading, setIsUploading] = useState(false);
-    const [uploadError, setUploadError] = useState<string | null>(null);
+    const [previewFile, setPreviewFile] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const isProcessing = uploadDisplayPictureMutation.isPending || setDisplayPictureMutation.isPending || removeDisplayPictureMutation.isPending;
+
+    // Combine default pictures with uploaded pictures
+    const allPictures = [
+        ...DEFAULT_PICTURES.map(p => ({ ...p, type: 'default' as const })),
+        ...uploadedPictures.map(p => ({ url: p.pictureUrl, name: p.fileName, type: 'uploaded' as const, id: p.id }))
+    ];
+
+    const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
         // Validate file type
         if (!file.type.startsWith('image/')) {
-            setUploadError('Please select an image file (JPEG or PNG)');
             return;
         }
 
         // Validate file size (max 5MB)
         const maxSize = 5 * 1024 * 1024; // 5MB in bytes
         if (file.size > maxSize) {
-            setUploadError('Image size must be less than 5MB');
             return;
         }
 
-        setIsUploading(true);
-        setUploadError(null);
+        // Create a local preview URL
+        const objectUrl = URL.createObjectURL(file);
+        setPreviewUrl(objectUrl);
+        setPreviewFile(file);
+        setSelectedPicture(objectUrl);
 
-        try {
-            // TODO: Upload to Backend Service API (will be implemented in task 8.2)
-            // For now, create a local preview URL
-            const previewUrl = URL.createObjectURL(file);
-            setSelectedPicture(previewUrl);
-            //onUploadComplete(previewUrl);
-
-            console.log('File selected for upload:', file.name, file.size, file.type);
-        } catch (error) {
-            setUploadError(error instanceof Error ? error.message : 'Failed to upload image');
-        } finally {
-            setIsUploading(false);
-        }
+        // Clear the file input value so the same file can be selected again
+        event.target.value = '';
     };
 
-    const handleDefaultPictureSelect = (pictureUrl: string) => {
+    const handlePictureSelect = (pictureUrl: string) => {
+        // Clear any preview file when selecting from the list
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+            setPreviewUrl(null);
+            setPreviewFile(null);
+        }
         setSelectedPicture(pictureUrl);
-        //onUploadComplete(pictureUrl);
     };
 
     const handleBrowseClick = () => {
         fileInputRef.current?.click();
     };
 
-    const handleClose = async (e: React.MouseEvent) => {
+    const handleRemoveClick = () => {
+        const appWindow = getCurrentWindow();
+
+        removeDisplayPictureMutation.mutate(undefined, {
+            onSuccess: () => {
+                // Clean up preview if it exists
+                if (previewUrl) {
+                    URL.revokeObjectURL(previewUrl);
+                    setPreviewUrl(null);
+                    setPreviewFile(null);
+                }
+                // Close the window
+                appWindow.close();
+            },
+        });
+    };
+
+    const handleOk = async () => {
+        const appWindow = getCurrentWindow();
+
+        // If there's a preview file, upload it first
+        if (previewFile) {
+            uploadDisplayPictureMutation.mutate(previewFile, {
+                onSuccess: () => {
+                    // Clean up preview URL
+                    if (previewUrl) {
+                        URL.revokeObjectURL(previewUrl);
+                    }
+                    // Close the window
+                    appWindow.close();
+                },
+            });
+        } else if (selectedPicture && selectedPicture !== user?.displayPictureUrl) {
+            // Update user's selected profile picture from the list
+            setDisplayPictureMutation.mutate(selectedPicture, {
+                onSuccess: () => {
+                    appWindow.close();
+                },
+            });
+        } else {
+            // No changes, just close the window
+            await appWindow.close();
+        }
+    };
+
+    const handleCloseClick = async (e: React.MouseEvent) => {
         e.stopPropagation();
+        // Clean up preview URL if it exists
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+        }
         const appWindow = getCurrentWindow();
         await appWindow.close();
     };
@@ -89,28 +146,32 @@ export function ProfilePictureUploadWindow() {
                             </div>
                             <div className="max-h-[200px] w-full overflow-y-scroll">
                                 <div className="space-y-[1px]">
-                                    {DEFAULT_PICTURES.map((picture, index) => (
-                                        <div
-                                            key={index}
-                                            onClick={() => handleDefaultPictureSelect(picture.url)}
-                                            className={`flex items-center gap-1 w-full h-full hover:border-msn-blue ${selectedPicture === picture.url ? 'bg-[#285CC1] text-white' : ''
-                                                }`}
-                                        >
-                                            <div className="relative size-18">
-                                                <img
-                                                    src={picture.url}
-                                                    alt={picture.name}
-                                                    className="size-18 object-cover"
-                                                />
-                                                {selectedPicture === picture.url && (
-                                                    <div className="absolute inset-0 bg-[#285CC1] mix-blend-multiply opacity-40" />
-                                                )}
+                                    {isLoadingPictures ? (
+                                        <div className="p-4 text-center text-gray-500">Loading...</div>
+                                    ) : (
+                                        allPictures.map((picture, index) => (
+                                            <div
+                                                key={picture.type === 'uploaded' ? picture.id : index}
+                                                onClick={() => handlePictureSelect(picture.url)}
+                                                className={`flex items-center gap-1 w-full h-full hover:border-msn-blue cursor-pointer ${selectedPicture === picture.url ? 'bg-[#285CC1] text-white' : ''
+                                                    }`}
+                                            >
+                                                <div className="relative size-18 flex-shrink-0">
+                                                    <img
+                                                        src={picture.url}
+                                                        alt={picture.name}
+                                                        className="size-18 object-cover"
+                                                    />
+                                                    {selectedPicture === picture.url && (
+                                                        <div className="absolute inset-0 bg-[#285CC1] mix-blend-multiply opacity-40" />
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 min-w-0 truncate">
+                                                    {picture.name}
+                                                </div>
                                             </div>
-                                            <div>
-                                                {picture.name}
-                                            </div>
-                                        </div>
-                                    ))}
+                                        ))
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -118,14 +179,15 @@ export function ProfilePictureUploadWindow() {
                         <div className="flex flex-col gap-2 flex-1">
                             <button
                                 onClick={handleBrowseClick}
-                                disabled={isUploading}
+                                disabled={isProcessing}
                                 className="self-start"
                             >
-                                {isUploading ? 'Uploading...' : 'Browse...'}
+                                Browse...
                             </button>
 
                             <button
-                                disabled={isUploading}
+                                onClick={handleRemoveClick}
+                                disabled={isProcessing || !user?.displayPictureUrl}
                                 className="self-start"
                             >
                                 Remove
@@ -148,7 +210,7 @@ export function ProfilePictureUploadWindow() {
                                     <img
                                         src={selectedPicture}
                                         alt="Display picture"
-                                        className="w-full h-full object-contain"
+                                        className="w-full h-full object-cover"
                                     />
                                 </div>
                             </div>
@@ -156,11 +218,15 @@ export function ProfilePictureUploadWindow() {
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <button>
-                            OK
+                        <button
+                            onClick={handleOk}
+                            disabled={isProcessing}
+                        >
+                            {isProcessing ? (previewFile ? 'Uploading...' : 'Saving...') : 'OK'}
                         </button>
                         <button
-                            onClick={handleClose}
+                            onClick={handleCloseClick}
+                            disabled={isProcessing}
                         >
                             Cancel
                         </button>
@@ -175,10 +241,16 @@ export function ProfilePictureUploadWindow() {
                         className="hidden"
                     />
 
-                    {/* Upload Error */}
-                    {uploadError && (
+                    {/* Upload/Save/Remove Error */}
+                    {(uploadDisplayPictureMutation.isError || setDisplayPictureMutation.isError || removeDisplayPictureMutation.isError) && (
                         <div className="bg-red-100 border border-red-400 text-red-700 px-2 py-1.5 rounded text-sm">
-                            {uploadError}
+                            {uploadDisplayPictureMutation.isError && uploadDisplayPictureMutation.error instanceof Error
+                                ? uploadDisplayPictureMutation.error.message
+                                : setDisplayPictureMutation.isError && setDisplayPictureMutation.error instanceof Error
+                                    ? setDisplayPictureMutation.error.message
+                                    : removeDisplayPictureMutation.isError && removeDisplayPictureMutation.error instanceof Error
+                                        ? removeDisplayPictureMutation.error.message
+                                        : 'Failed to update profile picture'}
                         </div>
                     )}
                 </div>

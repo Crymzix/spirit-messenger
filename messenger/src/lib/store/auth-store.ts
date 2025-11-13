@@ -6,6 +6,7 @@
 
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { supabase } from '../supabase';
 import type { AuthUser } from '../services/auth-service';
 
@@ -188,6 +189,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         try {
             // Restore session from Tauri backend
             await get().restoreSession();
+
+            // Listen for auth changes from other windows
+            await listen<AuthUser>('auth-changed', (event) => {
+                console.log('Auth changed event received:', event.payload);
+                const currentToken = get().token;
+                set({
+                    user: event.payload,
+                    isAuthenticated: true,
+                    // Keep the existing token if we have one
+                    token: currentToken,
+                });
+            });
+
+            // Listen for auth cleared from other windows
+            await listen('auth-cleared', () => {
+                console.log('Auth cleared event received');
+                set({
+                    user: null,
+                    token: null,
+                    isAuthenticated: false,
+                });
+            });
 
             // Set up Supabase auth state listener
             supabase.auth.onAuthStateChange(async (event, session) => {

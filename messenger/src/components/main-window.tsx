@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useUser } from '../lib/store/auth-store';
+import { useProfileSubscription } from '../lib/hooks/profile-hooks';
 import { Layout } from './layout';
 import { UserProfile } from './user-profile';
 
@@ -13,6 +14,9 @@ export function MainWindow({ onSignOut }: MainWindowProps) {
     const user = useUser();
     const [presenceStatus, setPresenceStatus] = useState<PresenceStatus>('online');
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Subscribe to real-time profile changes via Supabase
+    useProfileSubscription();
 
     const handleStatusChange = (status: PresenceStatus) => {
         setPresenceStatus(status);

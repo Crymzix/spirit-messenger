@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { TitleBar } from "./title-bar";
-import { useAuthStore, useUser } from "@/lib";
+import { useUser } from "@/lib";
+import { useUpdateProfile } from "@/lib/hooks/profile-hooks";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 const OPTIONS = [
@@ -12,35 +13,27 @@ const OPTIONS = [
 
 export function OptionsWindow() {
     const user = useUser();
-    const updateUser = useAuthStore((state) => state.updateUser);
+    const updateProfileMutation = useUpdateProfile();
 
     const [displayName, setDisplayName] = useState(user?.displayName || '');
     const [personalMessage, setPersonalMessage] = useState(user?.personalMessage || '');
-    const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const [selectedOption, setSelectedOption] = useState(OPTIONS[0]);
 
     const handleSave = async () => {
-        setIsSaving(true);
         setError(null);
 
         try {
-            // TODO: Call Backend Service API to update profile (will be implemented in task 8.3)
-            // For now, just update local state
-            updateUser({
+            await updateProfileMutation.mutateAsync({
                 displayName: displayName.trim() || user?.username || '',
                 personalMessage: personalMessage.trim(),
             });
-
-            console.log('Profile updated:', { displayName, personalMessage });
 
             const appWindow = getCurrentWindow();
             await appWindow.close();
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to update profile');
-        } finally {
-            setIsSaving(false);
         }
     };
 
@@ -114,11 +107,13 @@ export function OptionsWindow() {
                     <button
                         onClick={handleSave}
                         className="ml-auto"
+                        disabled={updateProfileMutation.isPending}
                     >
-                        {isSaving ? 'Saving...' : 'OK'}
+                        {updateProfileMutation.isPending ? 'Saving...' : 'OK'}
                     </button>
                     <button
                         onClick={handleClose}
+                        disabled={updateProfileMutation.isPending}
                     >
                         Cancel
                     </button>
