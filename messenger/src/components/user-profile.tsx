@@ -65,10 +65,38 @@ export function UserProfile({ presenceStatus, onStatusChange }: UserProfileProps
         });
 
         profileWindow.once('tauri://created', () => {
-            console.log('Profile settings window created');
+            console.log('Display Picture window created');
         });
 
         profileWindow.once('tauri://error', (e) => {
+            console.error('Error creating window:', e);
+        });
+    }
+
+    const handleOptions = () => {
+        setIsStatusDropdownOpen(false);
+        // In dev mode, use the full dev server URL; in production, use the relative path
+        const isDev = window.location.hostname === 'localhost';
+        const url = isDev
+            ? 'http://localhost:1420/options.html'
+            : '/options.html';
+
+        const optionsWindow = new WebviewWindow('options', {
+            url,
+            title: 'Options',
+            width: 480,
+            height: 600,
+            resizable: false,
+            decorations: false,
+            transparent: true,
+            center: true,
+        });
+
+        optionsWindow.once('tauri://created', () => {
+            console.log('Options window created');
+        });
+
+        optionsWindow.once('tauri://error', (e) => {
             console.error('Error creating window:', e);
         });
     }
@@ -161,7 +189,7 @@ export function UserProfile({ presenceStatus, onStatusChange }: UserProfileProps
                                         <div className='h-[1px] w-full bg-gray-400'></div>
                                         <div
                                             key="display-picture"
-                                            onClick={() => handleProfilePictureEdit()}
+                                            onClick={handleProfilePictureEdit}
                                             className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-msn-light-blue transition-colors text-left whitespace-nowrap"
                                         >
                                             <div className='w-4' />
@@ -169,6 +197,31 @@ export function UserProfile({ presenceStatus, onStatusChange }: UserProfileProps
                                                 style={{ fontFamily: 'Pixelated MS Sans Serif' }}
                                             >
                                                 Change display picture...
+                                            </span>
+                                        </div>
+                                        <div
+                                            key="display-name"
+                                            onClick={handleOptions}
+                                            className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-msn-light-blue transition-colors text-left whitespace-nowrap"
+                                        >
+                                            <div className='w-4' />
+                                            <span
+                                                style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                            >
+                                                Change display name...
+                                            </span>
+                                        </div>
+                                        <div className='h-[1px] w-full bg-gray-400'></div>
+                                        <div
+                                            key="options"
+                                            onClick={handleOptions}
+                                            className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-msn-light-blue transition-colors text-left whitespace-nowrap"
+                                        >
+                                            <div className='w-4' />
+                                            <span
+                                                style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                            >
+                                                Options
                                             </span>
                                         </div>
                                     </div>

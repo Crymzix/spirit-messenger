@@ -7,9 +7,6 @@
 import { apiPost } from '../api-client';
 import { useAuthStore } from '../store/auth-store';
 
-const TOKEN_STORAGE_KEY = 'msn_auth_token';
-const USER_STORAGE_KEY = 'msn_user_data';
-
 export interface RegisterData {
   email: string;
   password: string;
@@ -49,8 +46,8 @@ export async function signUp(data: RegisterData): Promise<{
   const response = await apiPost<AuthResponse>('/api/auth/register', data);
 
   if (response.success && response.data) {
-    // Update Zustand store (which also handles localStorage)
-    useAuthStore.getState().setAuth(response.data.user, response.data.token);
+    // Update Zustand store (which also handles Tauri backend storage)
+    await useAuthStore.getState().setAuth(response.data.user, response.data.token);
 
     return {
       success: true,
@@ -77,8 +74,8 @@ export async function signIn(data: LoginData): Promise<{
   const response = await apiPost<AuthResponse>('/api/auth/login', data);
 
   if (response.success && response.data) {
-    // Update Zustand store (which also handles localStorage)
-    useAuthStore.getState().setAuth(response.data.user, response.data.token);
+    // Update Zustand store (which also handles Tauri backend storage)
+    await useAuthStore.getState().setAuth(response.data.user, response.data.token);
 
     return {
       success: true,
@@ -100,7 +97,7 @@ export async function signOut(): Promise<{
   success: boolean;
   error?: string;
 }> {
-  const token = getStoredToken();
+  const token = useAuthStore.getState().token;
 
   if (token) {
     // Call backend logout endpoint
@@ -115,8 +112,8 @@ export async function signOut(): Promise<{
     }
   }
 
-  // Clear Zustand store (which also handles localStorage)
-  useAuthStore.getState().clearAuth();
+  // Clear Zustand store (which also handles Tauri backend storage)
+  await useAuthStore.getState().clearAuth();
 
   return {
     success: true,
@@ -125,50 +122,40 @@ export async function signOut(): Promise<{
 
 /**
  * Get the stored authentication token
+ * @deprecated Use useAuthStore().token instead
  */
 export function getStoredToken(): string | null {
-  return localStorage.getItem(TOKEN_STORAGE_KEY);
+  return useAuthStore.getState().token;
 }
 
 /**
  * Get the stored user data
+ * @deprecated Use useAuthStore().user instead
  */
 export function getStoredUser(): AuthUser | null {
-  const userData = localStorage.getItem(USER_STORAGE_KEY);
-  if (!userData) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(userData) as AuthUser;
-  } catch (error) {
-    console.error('Failed to parse stored user data:', error);
-    return null;
-  }
+  return useAuthStore.getState().user;
 }
 
 /**
  * Check if user is authenticated
+ * @deprecated Use useAuthStore().isAuthenticated instead
  */
 export function isAuthenticated(): boolean {
-  return getStoredToken() !== null && getStoredUser() !== null;
+  return useAuthStore.getState().isAuthenticated;
 }
 
 /**
- * Clear all authentication data from localStorage
+ * Clear all authentication data
+ * @deprecated Use signOut() instead
  */
-export function clearAuthData(): void {
-  localStorage.removeItem(TOKEN_STORAGE_KEY);
-  localStorage.removeItem(USER_STORAGE_KEY);
+export async function clearAuthData(): Promise<void> {
+  await useAuthStore.getState().clearAuth();
 }
 
 /**
  * Update stored user data
+ * @deprecated Use useAuthStore().updateUser() instead
  */
-export function updateStoredUser(user: Partial<AuthUser>): void {
-  const currentUser = getStoredUser();
-  if (currentUser) {
-    const updatedUser = { ...currentUser, ...user };
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
-  }
+export async function updateStoredUser(user: Partial<AuthUser>): Promise<void> {
+  await useAuthStore.getState().updateUser(user);
 }

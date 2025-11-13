@@ -213,6 +213,34 @@ CREATE TABLE contacts (
 );
 ```
 
+#### Contact Groups Table
+```sql
+CREATE TABLE contact_groups (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  display_order INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_contact_groups_user ON contact_groups(user_id, display_order);
+```
+
+#### Contact Group Memberships Table
+```sql
+CREATE TABLE contact_group_memberships (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  group_id UUID REFERENCES contact_groups(id) ON DELETE CASCADE,
+  contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(group_id, contact_id)
+);
+
+CREATE INDEX idx_group_memberships_group ON contact_group_memberships(group_id);
+CREATE INDEX idx_group_memberships_contact ON contact_group_memberships(contact_id);
+```
+
 #### Messages Table
 ```sql
 CREATE TABLE messages (
@@ -378,6 +406,50 @@ async fn set_auto_launch(enabled: bool) -> Result<(), String>
 // Returns: { success: boolean }
 ```
 
+#### Contact Group Endpoints
+```typescript
+// POST /api/contact-groups
+// Headers: Authorization: Bearer <token>
+{
+  name: string
+}
+// Returns: { group: ContactGroup }
+
+// GET /api/contact-groups
+// Headers: Authorization: Bearer <token>
+// Returns: { groups: ContactGroup[] }
+
+// PUT /api/contact-groups/:groupId
+// Headers: Authorization: Bearer <token>
+{
+  name?: string,
+  display_order?: number
+}
+// Returns: { group: ContactGroup }
+
+// DELETE /api/contact-groups/:groupId
+// Headers: Authorization: Bearer <token>
+// Returns: { success: boolean }
+
+// POST /api/contact-groups/:groupId/contacts
+// Headers: Authorization: Bearer <token>
+{
+  contact_id: string
+}
+// Returns: { membership: ContactGroupMembership }
+
+// DELETE /api/contact-groups/:groupId/contacts/:contactId
+// Headers: Authorization: Bearer <token>
+// Returns: { success: boolean }
+
+// PUT /api/contact-groups/reorder
+// Headers: Authorization: Bearer <token>
+{
+  group_orders: Array<{ group_id: string, display_order: number }>
+}
+// Returns: { success: boolean }
+```
+
 #### Message Endpoints
 ```typescript
 // POST /api/messages
@@ -530,6 +602,22 @@ interface Contact {
   userId: string;
   contactUser: User;
   status: 'pending' | 'accepted' | 'blocked';
+  createdAt: Date;
+}
+
+interface ContactGroup {
+  id: string;
+  userId: string;
+  name: string;
+  displayOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface ContactGroupMembership {
+  id: string;
+  groupId: string;
+  contactId: string;
   createdAt: Date;
 }
 
@@ -851,6 +939,22 @@ CREATE POLICY "Users can view conversation participants"
     )
   );
 
+-- Users can view their own contact groups
+CREATE POLICY "Users can view own contact groups"
+  ON contact_groups FOR SELECT
+  USING (user_id = auth.uid());
+
+-- Users can view memberships for their own groups
+CREATE POLICY "Users can view own group memberships"
+  ON contact_group_memberships FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM contact_groups
+      WHERE contact_groups.id = contact_group_memberships.group_id
+      AND contact_groups.user_id = auth.uid()
+    )
+  );
+
 -- Note: All INSERT, UPDATE, DELETE operations are disabled for frontend
 -- These operations are only performed by Backend Service using service role key
 ```
@@ -1027,6 +1131,22 @@ export const messages = pgTable('messages', {
   createdAt: timestamp('created_at').defaultNow(),
   deliveredAt: timestamp('delivered_at'),
   readAt: timestamp('read_at')
+});
+
+export const contactGroups = pgTable('contact_groups', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  displayOrder: integer('display_order').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+});
+
+export const contactGroupMemberships = pgTable('contact_group_memberships', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  groupId: uuid('group_id').notNull().references(() => contactGroups.id, { onDelete: 'cascade' }),
+  contactId: uuid('contact_id').notNull().references(() => contacts.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').defaultNow()
 });
 ```
 

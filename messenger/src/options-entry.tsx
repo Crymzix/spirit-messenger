@@ -4,7 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/query-client";
 import { useAuthStore } from "./lib/store/auth-store";
 import "./index.css";
-import { ProfilePictureUploadWindow } from "./components";
+import { OptionsWindow } from "./components";
 
 function App() {
     const [isInitialized, setIsInitialized] = useState(false);
@@ -20,7 +20,7 @@ function App() {
         return <div>Loading...</div>;
     }
 
-    return <ProfilePictureUploadWindow />;
+    return <OptionsWindow />;
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

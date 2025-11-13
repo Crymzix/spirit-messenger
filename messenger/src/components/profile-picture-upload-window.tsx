@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { TitleBar } from "./title-bar";
 import { useUser } from "@/lib";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 const DEFAULT_PICTURES = [
     { url: '/default-profile-pictures/friendly_dog.png', name: 'Friendly Dog' },
@@ -16,7 +17,7 @@ const DEFAULT_PICTURES = [
     { url: '/default-profile-pictures/soccer_ball.png', name: 'Soccer Ball' },
 ];
 
-export function ProfilePictureUpload() {
+export function ProfilePictureUploadWindow() {
     const user = useUser()
     const [selectedPicture, setSelectedPicture] = useState(user?.displayPictureUrl || DEFAULT_PICTURES[0].url);
     const [isUploading, setIsUploading] = useState(false);
@@ -67,6 +68,12 @@ export function ProfilePictureUpload() {
         fileInputRef.current?.click();
     };
 
+    const handleClose = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const appWindow = getCurrentWindow();
+        await appWindow.close();
+    };
+
     return (
         <div className="window w-full h-screen flex flex-col">
             <TitleBar title="My Display Picture" />
@@ -86,7 +93,7 @@ export function ProfilePictureUpload() {
                                         <div
                                             key={index}
                                             onClick={() => handleDefaultPictureSelect(picture.url)}
-                                            className={`flex items-center gap-1 w-full h-full hover:border-msn-blue ${selectedPicture === picture.url ? 'bg-[#2455B6] text-white' : ''
+                                            className={`flex items-center gap-1 w-full h-full hover:border-msn-blue ${selectedPicture === picture.url ? 'bg-[#285CC1] text-white' : ''
                                                 }`}
                                         >
                                             <div className="relative size-18">
@@ -96,7 +103,7 @@ export function ProfilePictureUpload() {
                                                     className="size-18 object-cover"
                                                 />
                                                 {selectedPicture === picture.url && (
-                                                    <div className="absolute inset-0 bg-[#2455B6] mix-blend-multiply opacity-40" />
+                                                    <div className="absolute inset-0 bg-[#285CC1] mix-blend-multiply opacity-40" />
                                                 )}
                                             </div>
                                             <div>
@@ -152,7 +159,9 @@ export function ProfilePictureUpload() {
                         <button>
                             OK
                         </button>
-                        <button>
+                        <button
+                            onClick={handleClose}
+                        >
                             Cancel
                         </button>
                     </div>

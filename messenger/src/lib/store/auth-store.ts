@@ -1,14 +1,13 @@
 /**
  * Global authentication state management using Zustand
  * Handles auth state, session restoration, and token refresh
+ * Uses Tauri backend for persistent storage across windows
  */
 
 import { create } from 'zustand';
+import { invoke } from '@tauri-apps/api/core';
 import { supabase } from '../supabase';
 import type { AuthUser } from '../services/auth-service';
-
-const TOKEN_STORAGE_KEY = 'msn_auth_token';
-const USER_STORAGE_KEY = 'msn_user_data';
 
 interface AuthState {
     user: AuthUser | null;
@@ -18,9 +17,9 @@ interface AuthState {
     isInitialized: boolean;
 
     // Actions
-    setAuth: (user: AuthUser, token: string) => void;
-    clearAuth: () => void;
-    updateUser: (user: Partial<AuthUser>) => void;
+    setAuth: (user: AuthUser, token: string) => Promise<void>;
+    clearAuth: () => Promise<void>;
+    updateUser: (user: Partial<AuthUser>) => Promise<void>;
     restoreSession: () => Promise<void>;
     refreshToken: () => Promise<boolean>;
     initialize: () => Promise<void>;
@@ -28,6 +27,7 @@ interface AuthState {
 
 /**
  * Global authentication store
+ * Uses Tauri backend for persistent storage across windows and app restarts
  */
 export const useAuthStore = create<AuthState>((set, get) => ({
     user: null,
@@ -38,76 +38,95 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     /**
      * Set authentication data
+     * Stores in Tauri backend (persists to disk)
      */
-    setAuth: (user: AuthUser, token: string) => {
-        // Store in localStorage
-        localStorage.setItem(TOKEN_STORAGE_KEY, token);
-        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+    setAuth: async (user: AuthUser, token: string) => {
+        try {
+            // Store in Tauri backend
+            await invoke('set_auth', { user, token });
 
-        // Update state
-        set({
-            user,
-            token,
-            isAuthenticated: true,
-        });
-    },
-
-    /**
-     * Clear authentication data
-     */
-    clearAuth: () => {
-        // Clear localStorage
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        localStorage.removeItem(USER_STORAGE_KEY);
-
-        // Clear state
-        set({
-            user: null,
-            token: null,
-            isAuthenticated: false,
-        });
-    },
-
-    /**
-     * Update user data
-     */
-    updateUser: (userData: Partial<AuthUser>) => {
-        const currentUser = get().user;
-        if (currentUser) {
-            const updatedUser = { ...currentUser, ...userData };
-
-            // Update localStorage
-            localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
-
-            // Update state
-            set({ user: updatedUser });
+            // Update local state
+            set({
+                user,
+                token,
+                isAuthenticated: true,
+            });
+        } catch (error) {
+            console.error('Failed to set auth data:', error);
+            throw error;
         }
     },
 
     /**
-     * Restore session from localStorage
+     * Clear authentication data
+     * Removes from Tauri backend and local state
+     */
+    clearAuth: async () => {
+        try {
+            // Clear from Tauri backend
+            await invoke('clear_auth');
+
+            // Clear local state
+            set({
+                user: null,
+                token: null,
+                isAuthenticated: false,
+            });
+        } catch (error) {
+            console.error('Failed to clear auth data:', error);
+            // Still clear local state even if backend fails
+            set({
+                user: null,
+                token: null,
+                isAuthenticated: false,
+            });
+        }
+    },
+
+    /**
+     * Update user data
+     * Updates both backend and local state
+     */
+    updateUser: async (userData: Partial<AuthUser>) => {
+        const currentUser = get().user;
+        if (currentUser) {
+            const updatedUser = { ...currentUser, ...userData };
+
+            try {
+                // Update in Tauri backend
+                await invoke('update_user', { userUpdates: updatedUser });
+
+                // Update local state
+                set({ user: updatedUser });
+            } catch (error) {
+                console.error('Failed to update user:', error);
+                throw error;
+            }
+        }
+    },
+
+    /**
+     * Restore session from Tauri backend
      */
     restoreSession: async () => {
         set({ isLoading: true });
 
         try {
-            const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
-            const storedUserData = localStorage.getItem(USER_STORAGE_KEY);
+            // Get user and token from Tauri backend
+            const user = await invoke<AuthUser | null>('get_user');
+            const token = await invoke<string | null>('get_token');
 
-            if (!storedToken || !storedUserData) {
+            if (!user || !token) {
                 set({ isLoading: false });
                 return;
             }
 
-            // Parse stored user data
-            const user = JSON.parse(storedUserData) as AuthUser;
-
             // Verify token with Supabase
-            const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(storedToken);
+            const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(token);
 
             if (error || !supabaseUser) {
                 // Token is invalid, clear auth data
-                get().clearAuth();
+                await get().clearAuth();
                 set({ isLoading: false });
                 return;
             }
@@ -115,13 +134,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             // Token is valid, restore session
             set({
                 user,
-                token: storedToken,
+                token,
                 isAuthenticated: true,
                 isLoading: false,
             });
         } catch (error) {
             console.error('Failed to restore session:', error);
-            get().clearAuth();
+            await get().clearAuth();
             set({ isLoading: false });
         }
     },
@@ -135,23 +154,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
             if (error || !data.session) {
                 console.error('Token refresh failed:', error);
-                get().clearAuth();
+                await get().clearAuth();
                 return false;
             }
 
-            // Update token in state and storage
+            // Update token in state and backend
             const newToken = data.session.access_token;
             const currentUser = get().user;
 
             if (currentUser) {
-                localStorage.setItem(TOKEN_STORAGE_KEY, newToken);
+                await invoke('set_auth', { user: currentUser, token: newToken });
                 set({ token: newToken });
             }
 
             return true;
         } catch (error) {
             console.error('Token refresh error:', error);
-            get().clearAuth();
+            await get().clearAuth();
             return false;
         }
     },
@@ -167,7 +186,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ isLoading: true });
 
         try {
-            // Restore session from localStorage
+            // Restore session from Tauri backend
             await get().restoreSession();
 
             // Set up Supabase auth state listener
@@ -175,19 +194,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 console.log('Auth state changed:', event);
 
                 if (event === 'SIGNED_OUT') {
-                    get().clearAuth();
+                    await get().clearAuth();
                 } else if (event === 'TOKEN_REFRESHED' && session) {
                     // Update token when Supabase auto-refreshes
                     const currentUser = get().user;
                     if (currentUser) {
-                        localStorage.setItem(TOKEN_STORAGE_KEY, session.access_token);
+                        await invoke('set_auth', {
+                            user: currentUser,
+                            token: session.access_token
+                        });
                         set({ token: session.access_token });
                     }
                 } else if (event === 'SIGNED_IN' && session) {
                     // Handle sign-in event if needed
                     const currentUser = get().user;
                     if (currentUser) {
-                        localStorage.setItem(TOKEN_STORAGE_KEY, session.access_token);
+                        await invoke('set_auth', {
+                            user: currentUser,
+                            token: session.access_token
+                        });
                         set({ token: session.access_token });
                     }
                 }

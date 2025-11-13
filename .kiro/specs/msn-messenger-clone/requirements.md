@@ -203,7 +203,24 @@ This document outlines the requirements for building a desktop application that 
 4. WHEN a User selects a search result, THE MSN Messenger Application SHALL open the relevant Chat Session and highlight the matching message
 5. THE MSN Messenger Application SHALL allow filtering search results by Contact, date range, or Chat Session type when querying the Supabase Database
 
-### Requirement 16: Code Standards and Conventions
+### Requirement 16: Custom Contact Groups
+
+**User Story:** As a user, I want to organize my contacts into custom groups, so that I can categorize and manage my contacts more effectively.
+
+#### Acceptance Criteria
+
+1. THE MSN Messenger Application SHALL allow a User to create custom contact groups with names up to 50 characters
+2. WHEN a User creates a new contact group, THE MSN Messenger Application SHALL send the group creation request to the Backend Service which persists the group to the Supabase Database
+3. THE MSN Messenger Application SHALL allow a User to add Contacts to one or more custom groups
+4. WHEN a User adds a Contact to a group, THE MSN Messenger Application SHALL send the assignment to the Backend Service which updates the Supabase Database
+5. THE MSN Messenger Application SHALL read and display custom contact groups from the Supabase Database in the Contact List with collapsible group headers
+6. THE MSN Messenger Application SHALL allow a User to rename custom contact groups by sending the update to the Backend Service
+7. WHEN a User deletes a custom contact group, THE MSN Messenger Application SHALL send the deletion request to the Backend Service which removes the group without removing the Contacts
+8. THE MSN Messenger Application SHALL allow a User to reorder custom contact groups using drag-and-drop
+9. THE MSN Messenger Application SHALL display Contacts within each custom group sorted alphabetically by display name
+10. THE MSN Messenger Application SHALL allow a User to remove a Contact from a custom group by sending the removal request to the Backend Service
+
+### Requirement 17: Code Standards and Conventions
 
 **User Story:** As a developer, I want consistent code naming conventions, so that the codebase is maintainable and follows best practices.
 
