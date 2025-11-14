@@ -1,12 +1,12 @@
 import { useState, FormEvent } from 'react';
-import { Layout } from './layout';
+import { Layout } from '../layout';
 
 interface RegistrationWindowProps {
     onRegister: (username: string, email: string, password: string) => Promise<void>;
     onSwitchToSignIn: () => void;
 }
 
-export function RegistrationWindow({ onRegister, onSwitchToSignIn }: RegistrationWindowProps) {
+export function RegistrationScreen({ onRegister, onSwitchToSignIn }: RegistrationWindowProps) {
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');

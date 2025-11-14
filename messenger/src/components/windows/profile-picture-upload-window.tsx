@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { TitleBar } from "./title-bar";
+import { TitleBar } from "../title-bar";
 import { useUser, useUploadDisplayPicture, useProfilePictures, useSetDisplayPicture, useRemoveDisplayPicture } from "@/lib";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 

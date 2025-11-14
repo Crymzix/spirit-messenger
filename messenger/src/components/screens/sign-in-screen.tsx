@@ -1,5 +1,5 @@
 import { useState, FormEvent, useEffect } from 'react';
-import { Layout } from './layout';
+import { Layout } from '../layout';
 
 interface SignInWindowProps {
     onSignIn: (email: string, password: string) => Promise<void>;
@@ -20,7 +20,7 @@ const defaultProfilePictures = [
     '/default-profile-pictures/soccer_ball.png',
 ];
 
-export function SignInWindow({ onSignIn, onSwitchToRegister }: SignInWindowProps) {
+export function SignInScreen({ onSignIn, onSwitchToRegister }: SignInWindowProps) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [status, setStatus] = useState('Online');

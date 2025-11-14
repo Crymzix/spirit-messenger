@@ -1,19 +1,19 @@
 import { useState } from 'react';
-import { useUser } from '../lib/store/auth-store';
-import { useProfileSubscription } from '../lib/hooks/profile-hooks';
-import { usePendingContactRequests } from '../lib/hooks/contact-hooks';
-import { Layout } from './layout';
-import { UserProfile } from './user-profile';
-import { ContactList } from './contact-list';
-import { AddContactDialog } from './add-contact-dialog';
-import { ContactRequestNotification } from './contact-request-notification';
+import { useUser } from '../../lib/store/auth-store';
+import { useProfileSubscription } from '../../lib/hooks/profile-hooks';
+import { usePendingContactRequests } from '../../lib/hooks/contact-hooks';
+import { Layout } from '../layout';
+import { UserProfile } from '../user-profile';
+import { ContactList } from '../contact-list';
+import { AddContactDialog } from '../add-contact-dialog';
+import { ContactRequestNotification } from '../contact-request-notification';
 import { PresenceStatus, Contact } from '@/types';
 
-interface MainWindowProps {
+interface ContactsScreenProps {
     onSignOut?: () => void;
 }
 
-export function MainWindow({ onSignOut }: MainWindowProps) {
+export function ContactsScreen({ onSignOut }: ContactsScreenProps) {
     const user = useUser();
     const [presenceStatus, setPresenceStatus] = useState<PresenceStatus>(user?.presenceStatus || 'online');
     const [searchQuery, setSearchQuery] = useState('');
@@ -46,25 +46,6 @@ export function MainWindow({ onSignOut }: MainWindowProps) {
                     onStatusChange={onStatusChange}
                     onEditProfile={handleEditProfile}
                 />
-
-                {/* Search Bar */}
-                <div className="p-2 border-b border-gray-300 bg-gray-50">
-                    <form onSubmit={handleSearch} className="relative">
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search contacts..."
-                            className="w-full px-3 py-1.5 text-[11px] border border-gray-400 rounded focus:outline-none focus:border-msn-blue"
-                        />
-                        <button
-                            type="submit"
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-msn-blue text-[10px]"
-                        >
-                            🔍
-                        </button>
-                    </form>
-                </div>
 
                 {/* Pending Contact Requests */}
                 {pendingRequests.length > 0 && (

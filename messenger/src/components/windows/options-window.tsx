@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { TitleBar } from "./title-bar";
+import { TitleBar } from "../title-bar";
 import { useUser } from "@/lib";
 import { useUpdateProfile } from "@/lib/hooks/profile-hooks";
 import { getCurrentWindow } from "@tauri-apps/api/window";
