@@ -45,7 +45,7 @@ export async function updateUserProfile(
             throw new UserServiceError('User ID is required', 'INVALID_USER_ID', 400);
         }
 
-        if (!data.displayName && !data.personalMessage && !data.displayPictureUrl) {
+        if (data.displayName === undefined && data.personalMessage === undefined && data.displayPictureUrl === undefined) {
             throw new UserServiceError(
                 'At least one field (displayName, personalMessage, or displayPictureUrl) must be provided',
                 'NO_UPDATE_DATA',

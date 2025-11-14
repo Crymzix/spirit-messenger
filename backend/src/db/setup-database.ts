@@ -31,7 +31,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !DATABASE_URL) {
 // Initialize Supabase client with service role key
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: {
-        autoRefreshToken: false,
+        autoRefreshToken: true,
         persistSession: false
     }
 });

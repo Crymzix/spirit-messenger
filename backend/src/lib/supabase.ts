@@ -19,7 +19,7 @@ export const getSupabase = (): SupabaseClient => {
             process.env.SUPABASE_SERVICE_ROLE_KEY,
             {
                 auth: {
-                    autoRefreshToken: false,
+                    autoRefreshToken: true,
                     persistSession: false,
                 },
             }

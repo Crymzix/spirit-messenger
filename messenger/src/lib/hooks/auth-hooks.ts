@@ -1,8 +1,3 @@
-/**
- * React Query hooks for authentication
- * Integrates with Zustand auth store for global state management
- */
-
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiPost } from '../api-client';
 import { useAuthStore } from '../store/auth-store';
@@ -52,7 +47,7 @@ export function useSignUp() {
         },
         onSuccess: (data) => {
             // Update Zustand store
-            useAuthStore.getState().setAuth(data.user, data.token);
+            useAuthStore.getState().setAuth(data.user, data.token, data.refreshToken);
 
             // Update query cache
             queryClient.setQueryData(['currentUser'], data.user);
@@ -78,7 +73,7 @@ export function useSignIn() {
         },
         onSuccess: (data) => {
             // Update Zustand store
-            useAuthStore.getState().setAuth(data.user, data.token);
+            useAuthStore.getState().setAuth(data.user, data.token, data.refreshToken);
 
             // Update query cache
             queryClient.setQueryData(['currentUser'], data.user);

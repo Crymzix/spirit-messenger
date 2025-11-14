@@ -3,24 +3,21 @@ import { useUser } from '../lib/store/auth-store';
 import { useProfileSubscription } from '../lib/hooks/profile-hooks';
 import { Layout } from './layout';
 import { UserProfile } from './user-profile';
+import { PresenceStatus } from '@/types';
 
 interface MainWindowProps {
     onSignOut?: () => void;
 }
 
-type PresenceStatus = 'online' | 'away' | 'busy' | 'appear_offline';
-
 export function MainWindow({ onSignOut }: MainWindowProps) {
     const user = useUser();
-    const [presenceStatus, setPresenceStatus] = useState<PresenceStatus>('online');
+    const [presenceStatus, setPresenceStatus] = useState<PresenceStatus>(user?.presenceStatus || 'online');
     const [searchQuery, setSearchQuery] = useState('');
 
-    // Subscribe to real-time profile changes via Supabase
     useProfileSubscription();
 
-    const handleStatusChange = (status: PresenceStatus) => {
+    const onStatusChange = (status: PresenceStatus) => {
         setPresenceStatus(status);
-        // TODO: Send status update to Backend Service (will be implemented in task 9.2)
     };
 
     const handleEditProfile = async () => {
@@ -40,7 +37,7 @@ export function MainWindow({ onSignOut }: MainWindowProps) {
                 {/* User Profile Section */}
                 <UserProfile
                     presenceStatus={presenceStatus}
-                    onStatusChange={handleStatusChange}
+                    onStatusChange={onStatusChange}
                     onEditProfile={handleEditProfile}
                 />
 

@@ -4,6 +4,54 @@
 
 This directory contains the authentication logic for the MSN Messenger Clone frontend application. The authentication system uses **React Query** (@tanstack/react-query) for state management, providing automatic caching, background refetching, and optimistic updates.
 
+## Architecture Pattern
+
+The codebase follows a layered architecture with clear separation of concerns:
+
+### Layers
+
+1. **Services Layer** (`services/`)
+   - Contains pure functions that make API calls
+   - Accept tokens and data as parameters
+   - Return promises with typed responses
+   - Should NOT access global state directly
+   - Example: `setUserPresenceStatus(status, token)`
+
+2. **Hooks Layer** (`hooks/`)
+   - React Query hooks that wrap service functions
+   - Automatically retrieve tokens from `useAuthStore`
+   - Handle loading states, errors, and cache updates
+   - Update Zustand store when mutations succeed
+   - Example: `useSetPresenceStatus()`
+
+3. **Components Layer** (`components/`)
+   - UI components that use hooks
+   - Should NEVER import from `services/` directly
+   - Always use hooks for API operations
+   - Example: `const setPresenceStatus = useSetPresenceStatus()`
+
+### Token Management Pattern
+
+**❌ DON'T** call service functions directly from components:
+```typescript
+// BAD: Passing token manually
+const token = useAuthStore(state => state.token);
+await setUserPresenceStatus(status, token);
+```
+
+**✅ DO** use React Query hooks:
+```typescript
+// GOOD: Hook handles token internally
+const setPresenceStatus = useSetPresenceStatus();
+await setPresenceStatus.mutateAsync(status);
+```
+
+This pattern ensures:
+- Consistent token retrieval across the app
+- Automatic cache invalidation and updates
+- Built-in loading and error states
+- Type safety and reduced boilerplate
+
 ## Files
 
 ### `api-client.ts`
@@ -32,6 +80,23 @@ Core authentication utilities for token and user data management.
 - `isAuthenticated()` - Checks if user is authenticated
 - `clearAuthData()` - Clears all authentication data
 - `updateStoredUser()` - Updates stored user data
+
+### `presence-service.ts`
+
+Presence management service for tracking user availability status and activity.
+
+**Key Functions:**
+- `updatePresence()` - Manually update user presence status
+- `setUserPresenceStatus()` - Set user presence status with auto-away support
+- `startActivityTracking()` - Enable automatic "away" status after 5 minutes of inactivity
+- `stopActivityTracking()` - Disable activity tracking
+- `getCurrentPresenceStatus()` - Get current presence status
+- `getUserSetPresenceStatus()` - Get user-set status (not auto-away)
+- `isActivityTrackingEnabled()` - Check if activity tracking is enabled
+- `getTimeSinceLastActivity()` - Get time since last user activity
+
+**Activity Tracking:**
+The service monitors mouse movement, keyboard input, mouse clicks, scroll events, and touch events to detect user activity. After 5 minutes of inactivity, it automatically sets the status to "away" (unless the user has manually set their status to "away" or "appear_offline").
 
 ### `auth-hooks.ts`
 
@@ -290,13 +355,171 @@ try {
 }
 ```
 
+## Automatic Token Refresh
+
+The authentication system includes automatic token refresh to prevent sessions from expiring:
+
+### How It Works
+
+1. **Dual Token System**:
+   - **Access Token**: Short-lived token used for API requests (expires in 1 hour by default)
+   - **Refresh Token**: Long-lived token used to obtain new access tokens (expires in 30 days by default)
+
+2. **Automatic Refresh**:
+   - Supabase's `autoRefreshToken` automatically refreshes tokens before they expire
+   - Periodic check every 5 minutes to ensure token validity
+   - Proactive refresh when token expires in less than 10 minutes
+   - Handles `TOKEN_REFRESHED` events from Supabase
+
+3. **Session Persistence**:
+   - Both tokens are stored securely in Tauri backend (persists across app restarts)
+   - Supabase session is restored on app startup
+   - Tokens are synchronized across all windows
+
+### Implementation Details
+
+The token refresh system operates on multiple layers:
+
+```typescript
+// 1. Supabase automatic refresh (handled by Supabase client)
+// Configuration in supabase.ts:
+export const supabase = createClient(url, key, {
+  auth: {
+    autoRefreshToken: true,  // Automatically refresh before expiration
+    persistSession: true,
+  }
+});
+
+// 2. Manual refresh check (every 5 minutes)
+startTokenRefreshInterval(); // Called after successful auth
+
+// 3. Event-based refresh (Supabase onAuthStateChange)
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'TOKEN_REFRESHED' && session) {
+    // Update stored tokens
+  }
+});
+```
+
+### Token Storage
+
+Tokens are stored in multiple locations:
+1. **Zustand Store**: In-memory state for immediate access
+2. **Tauri Backend**: Persistent storage on disk (survives app restarts)
+3. **Supabase Client**: Manages session and automatic refresh
+
 ## Security Considerations
 
-1. **Token Storage**: Tokens are stored in localStorage. For production, consider using more secure storage mechanisms.
+1. **Token Storage**: Tokens are stored securely in the Tauri backend with file-system encryption. Access tokens are short-lived (1 hour) and refresh tokens are long-lived (30 days).
 2. **HTTPS**: Always use HTTPS in production to protect tokens in transit.
-3. **Token Expiration**: Implement token refresh logic when the backend supports it.
+3. **Automatic Token Refresh**: Tokens are automatically refreshed before expiration, preventing session interruptions.
 4. **XSS Protection**: Ensure proper input sanitization to prevent XSS attacks.
 5. **Query Cache**: Sensitive data is cached in memory. Clear cache on sign out.
+
+## Presence Service Usage
+
+### Basic Presence Updates with Hooks
+
+**Important:** Always use the React Query hooks (`useSetPresenceStatus`) instead of calling service functions directly. The hooks automatically handle token retrieval from the auth store.
+
+```typescript
+import { useSetPresenceStatus } from './lib/hooks/presence-hooks';
+import type { PresenceStatus } from '@/types';
+
+function PresenceSelector() {
+  const setPresenceStatus = useSetPresenceStatus();
+
+  const handleStatusChange = async (status: PresenceStatus) => {
+    try {
+      await setPresenceStatus.mutateAsync(status);
+      console.log('Presence updated to:', status);
+    } catch (error) {
+      console.error('Failed to update presence:', error);
+    }
+  };
+
+  return (
+    <select
+      onChange={(e) => handleStatusChange(e.target.value as PresenceStatus)}
+      disabled={setPresenceStatus.isPending}
+    >
+      <option value="online">Online</option>
+      <option value="away">Away</option>
+      <option value="busy">Busy</option>
+      <option value="appear_offline">Appear Offline</option>
+    </select>
+  );
+}
+```
+
+### Activity Tracking
+
+```typescript
+import { startActivityTracking, stopActivityTracking } from './lib/presence-service';
+import { useAuthStore } from './lib/store/auth-store';
+import { useEffect } from 'react';
+
+function App() {
+  const token = useAuthStore((state) => state.token);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      // Start tracking activity when user signs in
+      startActivityTracking(token, 'online');
+
+      // Clean up when component unmounts or user signs out
+      return () => {
+        stopActivityTracking();
+      };
+    }
+  }, [isAuthenticated, token]);
+
+  return <div>Your app content</div>;
+}
+```
+
+### Monitoring Activity Status
+
+```typescript
+import { 
+  getCurrentPresenceStatus,
+  getUserSetPresenceStatus,
+  getTimeSinceLastActivity,
+  isActivityTrackingEnabled 
+} from './lib/presence-service';
+
+function PresenceDebugPanel() {
+  const [info, setInfo] = useState({
+    current: getCurrentPresenceStatus(),
+    userSet: getUserSetPresenceStatus(),
+    timeSinceActivity: getTimeSinceLastActivity(),
+    isTracking: isActivityTrackingEnabled()
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setInfo({
+        current: getCurrentPresenceStatus(),
+        userSet: getUserSetPresenceStatus(),
+        timeSinceActivity: getTimeSinceLastActivity(),
+        isTracking: isActivityTrackingEnabled()
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div>
+      <p>Current Status: {info.current}</p>
+      <p>User Set Status: {info.userSet}</p>
+      <p>Time Since Activity: {Math.floor(info.timeSinceActivity / 1000)}s</p>
+      <p>Tracking Enabled: {info.isTracking ? 'Yes' : 'No'}</p>
+    </div>
+  );
+}
+```
 
 ## Requirements Fulfilled
 
@@ -304,6 +527,7 @@ This implementation fulfills the following requirements:
 - **1.2**: User authentication through Backend Service
 - **1.4**: JWT token management and session handling
 - **1.5**: Sign-out functionality
+- **3.2**: Presence status updates and automatic "away" after 5 minutes
 - **16.1**: Kebab-case file naming convention
 - **16.3**: TypeScript implementation with proper types
 

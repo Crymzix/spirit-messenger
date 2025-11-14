@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useUser } from '../lib/store/auth-store';
+import { useSetPresenceStatus } from '../lib/hooks/presence-hooks';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
-
-type PresenceStatus = 'online' | 'away' | 'busy' | 'appear_offline';
+import { PresenceStatus } from '@/types';
 
 interface UserProfileProps {
     presenceStatus: PresenceStatus;
@@ -19,6 +19,7 @@ const statusOptions: { value: PresenceStatus; label: string; color: string }[] =
 
 export function UserProfile({ presenceStatus, onStatusChange }: UserProfileProps) {
     const user = useUser();
+    const setPresenceStatus = useSetPresenceStatus();
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -40,9 +41,19 @@ export function UserProfile({ presenceStatus, onStatusChange }: UserProfileProps
         }
     }, [isStatusDropdownOpen]);
 
-    const handleStatusChange = (status: PresenceStatus) => {
-        onStatusChange(status);
-        setIsStatusDropdownOpen(false);
+    const handleStatusChange = async (status: PresenceStatus) => {
+        try {
+            // Update presence status via the hook
+            await setPresenceStatus.mutateAsync(status);
+            // Update local UI state
+            onStatusChange(status);
+            setIsStatusDropdownOpen(false);
+        } catch (error) {
+            console.error('Failed to update presence status:', error);
+            // Still update the UI even if the backend call fails
+            onStatusChange(status);
+            setIsStatusDropdownOpen(false);
+        }
     };
 
     const handleProfilePictureEdit = () => {

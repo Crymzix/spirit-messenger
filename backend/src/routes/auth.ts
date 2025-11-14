@@ -86,6 +86,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
                     success: true,
                     data: {
                         token: sessionData.session.access_token,
+                        refreshToken: sessionData.session.refresh_token,
                         user: {
                             id: newUser.id,
                             email: newUser.email,
@@ -160,6 +161,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
                     success: true,
                     data: {
                         token: data.session.access_token,
+                        refreshToken: data.session.refresh_token || data.session.access_token, // Fallback to access token if no refresh token
                         user: {
                             id: userProfile.id,
                             email: userProfile.email,

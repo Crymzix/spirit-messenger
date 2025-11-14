@@ -20,11 +20,12 @@ pub struct AuthUser {
     pub presence_status: Option<String>,
 }
 
-/// Authentication data that includes both user and token
+/// Authentication data that includes user, access token, and refresh token
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthData {
     pub user: AuthUser,
     pub token: String,
+    pub refresh_token: String,
 }
 
 /// Global application state
@@ -110,10 +111,28 @@ fn get_token(state: tauri::State<AppState>) -> Option<String> {
         .map(|data| data.token.clone())
 }
 
-/// Set the authentication data (user and token)
+/// Get the current refresh token
 #[tauri::command]
-fn set_auth(app: tauri::AppHandle, state: tauri::State<AppState>, user: AuthUser, token: String) -> Result<(), String> {
-    *state.auth_data.lock().unwrap() = Some(AuthData { user: user.clone(), token });
+fn get_refresh_token(state: tauri::State<AppState>) -> Option<String> {
+    state.auth_data.lock().unwrap()
+        .as_ref()
+        .map(|data| data.refresh_token.clone())
+}
+
+/// Set the authentication data (user, access token, and refresh token)
+#[tauri::command]
+fn set_auth(
+    app: tauri::AppHandle,
+    state: tauri::State<AppState>,
+    user: AuthUser,
+    token: String,
+    refresh_token: String
+) -> Result<(), String> {
+    *state.auth_data.lock().unwrap() = Some(AuthData {
+        user: user.clone(),
+        token,
+        refresh_token
+    });
     state.save_to_disk()?;
 
     // Emit event to all windows
@@ -186,6 +205,7 @@ pub fn run() {
             greet,
             get_user,
             get_token,
+            get_refresh_token,
             set_auth,
             update_user,
             clear_auth,

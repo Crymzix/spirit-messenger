@@ -1,9 +1,3 @@
-/**
- * React Query hooks for profile management
- * Integrates with Zustand auth store for global state management
- * Includes real-time profile change subscriptions via Supabase
- */
-
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useAuthStore } from '../store/auth-store';

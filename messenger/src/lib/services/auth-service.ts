@@ -4,6 +4,7 @@
  * Integrates with Zustand auth store for global state management
  */
 
+import { PresenceStatus } from '@/types';
 import { apiPost } from '../api-client';
 import { useAuthStore } from '../store/auth-store';
 
@@ -26,11 +27,12 @@ export interface AuthUser {
   displayName: string;
   personalMessage?: string;
   displayPictureUrl?: string;
-  presenceStatus?: string;
+  presenceStatus?: PresenceStatus;
 }
 
 export interface AuthResponse {
   token: string;
+  refreshToken: string;
   user: AuthUser;
 }
 
@@ -47,7 +49,7 @@ export async function signUp(data: RegisterData): Promise<{
 
   if (response.success && response.data) {
     // Update Zustand store (which also handles Tauri backend storage)
-    await useAuthStore.getState().setAuth(response.data.user, response.data.token);
+    await useAuthStore.getState().setAuth(response.data.user, response.data.token, response.data.refreshToken);
 
     return {
       success: true,
@@ -75,7 +77,7 @@ export async function signIn(data: LoginData): Promise<{
 
   if (response.success && response.data) {
     // Update Zustand store (which also handles Tauri backend storage)
-    await useAuthStore.getState().setAuth(response.data.user, response.data.token);
+    await useAuthStore.getState().setAuth(response.data.user, response.data.token, response.data.refreshToken);
 
     return {
       success: true,

@@ -13,17 +13,21 @@ import type { AuthUser } from '../services/auth-service';
 interface AuthState {
     user: AuthUser | null;
     token: string | null;
+    refreshToken: string | null;
     isAuthenticated: boolean;
     isLoading: boolean;
     isInitialized: boolean;
+    refreshInterval: number | null;
 
     // Actions
-    setAuth: (user: AuthUser, token: string) => Promise<void>;
+    setAuth: (user: AuthUser, token: string, refreshToken: string) => Promise<void>;
     clearAuth: () => Promise<void>;
     updateUser: (user: Partial<AuthUser>) => Promise<void>;
     restoreSession: () => Promise<void>;
-    refreshToken: () => Promise<boolean>;
+    refreshAccessToken: () => Promise<boolean>;
     initialize: () => Promise<void>;
+    startTokenRefreshInterval: () => void;
+    stopTokenRefreshInterval: () => void;
 }
 
 /**
@@ -33,25 +37,42 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set, get) => ({
     user: null,
     token: null,
+    refreshToken: null,
     isAuthenticated: false,
     isLoading: false,
     isInitialized: false,
+    refreshInterval: null,
 
     /**
      * Set authentication data
      * Stores in Tauri backend (persists to disk)
+     * Sets Supabase session for automatic token refresh
      */
-    setAuth: async (user: AuthUser, token: string) => {
+    setAuth: async (user: AuthUser, token: string, refreshToken: string) => {
         try {
-            // Store in Tauri backend
-            await invoke('set_auth', { user, token });
+            console.log('FUCK', {
+                token,
+                refreshToken
+            })
+
+            await invoke('set_auth', { user, token, refreshToken });
+
+            // Set Supabase session to enable automatic token refresh
+            await supabase.auth.setSession({
+                access_token: token,
+                refresh_token: refreshToken,
+            });
 
             // Update local state
             set({
                 user,
                 token,
+                refreshToken,
                 isAuthenticated: true,
             });
+
+            // Start token refresh interval
+            get().startTokenRefreshInterval();
         } catch (error) {
             console.error('Failed to set auth data:', error);
             throw error;
@@ -61,24 +82,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     /**
      * Clear authentication data
      * Removes from Tauri backend and local state
+     * Stops token refresh interval
      */
     clearAuth: async () => {
         try {
+            // Stop token refresh interval
+            get().stopTokenRefreshInterval();
+
             // Clear from Tauri backend
             await invoke('clear_auth');
+
+            // Sign out from Supabase
+            await supabase.auth.signOut();
 
             // Clear local state
             set({
                 user: null,
                 token: null,
+                refreshToken: null,
                 isAuthenticated: false,
             });
         } catch (error) {
             console.error('Failed to clear auth data:', error);
             // Still clear local state even if backend fails
+            get().stopTokenRefreshInterval();
             set({
                 user: null,
                 token: null,
+                refreshToken: null,
                 isAuthenticated: false,
             });
         }
@@ -108,16 +139,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     /**
      * Restore session from Tauri backend
+     * Sets Supabase session to enable automatic token refresh
      */
     restoreSession: async () => {
         set({ isLoading: true });
 
         try {
-            // Get user and token from Tauri backend
+            // Get user, access token, and refresh token from Tauri backend
             const user = await invoke<AuthUser | null>('get_user');
             const token = await invoke<string | null>('get_token');
+            const refreshToken = await invoke<string | null>('get_refresh_token');
 
-            if (!user || !token) {
+            if (!user || !token || !refreshToken) {
+                set({ isLoading: false });
+                return;
+            }
+
+            // Set Supabase session to enable automatic token refresh
+            const { data: { session }, error: sessionError } = await supabase.auth.setSession({
+                access_token: token,
+                refresh_token: refreshToken,
+            });
+
+            if (sessionError || !session) {
+                console.error('Failed to set Supabase session:', sessionError);
+                // Token is invalid, clear auth data
+                await get().clearAuth();
                 set({ isLoading: false });
                 return;
             }
@@ -136,9 +183,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             set({
                 user,
                 token,
+                refreshToken,
                 isAuthenticated: true,
                 isLoading: false,
             });
+
+            // Start token refresh interval
+            get().startTokenRefreshInterval();
         } catch (error) {
             console.error('Failed to restore session:', error);
             await get().clearAuth();
@@ -149,7 +200,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     /**
      * Refresh authentication token using Supabase Auth
      */
-    refreshToken: async (): Promise<boolean> => {
+    refreshAccessToken: async (): Promise<boolean> => {
         try {
             const { data, error } = await supabase.auth.refreshSession();
 
@@ -159,13 +210,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 return false;
             }
 
-            // Update token in state and backend
+            // Update tokens in state and backend
             const newToken = data.session.access_token;
+            const newRefreshToken = data.session.refresh_token;
             const currentUser = get().user;
 
             if (currentUser) {
-                await invoke('set_auth', { user: currentUser, token: newToken });
-                set({ token: newToken });
+                await invoke('set_auth', { user: currentUser, token: newToken, refreshToken: newRefreshToken });
+                set({ token: newToken, refreshToken: newRefreshToken });
             }
 
             return true;
@@ -224,9 +276,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                     if (currentUser) {
                         await invoke('set_auth', {
                             user: currentUser,
-                            token: session.access_token
+                            token: session.access_token,
+                            refreshToken: session.refresh_token
                         });
-                        set({ token: session.access_token });
+                        set({ token: session.access_token, refreshToken: session.refresh_token });
                     }
                 } else if (event === 'SIGNED_IN' && session) {
                     // Handle sign-in event if needed
@@ -234,9 +287,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                     if (currentUser) {
                         await invoke('set_auth', {
                             user: currentUser,
-                            token: session.access_token
+                            token: session.access_token,
+                            refreshToken: session.refresh_token
                         });
-                        set({ token: session.access_token });
+                        set({ token: session.access_token, refreshToken: session.refresh_token });
                     }
                 }
             });
@@ -245,6 +299,65 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         } catch (error) {
             console.error('Failed to initialize auth:', error);
             set({ isLoading: false, isInitialized: true });
+        }
+    },
+
+    /**
+     * Start periodic token refresh check
+     * Checks every 5 minutes and refreshes if token expires in less than 10 minutes
+     */
+    startTokenRefreshInterval: () => {
+        const existingInterval = get().refreshInterval;
+        if (existingInterval !== null) {
+            window.clearInterval(existingInterval);
+        }
+
+        const interval = window.setInterval(async () => {
+            const token = get().token;
+            if (!token) {
+                return;
+            }
+
+            try {
+                // Check if token is still valid
+                const { data: { session }, error } = await supabase.auth.getSession();
+
+                if (error || !session) {
+                    console.log('No valid session, attempting refresh...');
+                    await get().refreshAccessToken();
+                    return;
+                }
+
+                // Check token expiration (refresh if less than 10 minutes remaining)
+                const expiresAt = session.expires_at;
+                if (expiresAt) {
+                    const now = Math.floor(Date.now() / 1000);
+                    const timeUntilExpiry = expiresAt - now;
+                    const TEN_MINUTES = 10 * 60;
+
+                    if (timeUntilExpiry < TEN_MINUTES) {
+                        console.log('Token expiring soon, refreshing...');
+                        await get().refreshAccessToken();
+                    }
+                }
+            } catch (error) {
+                console.error('Token refresh check failed:', error);
+            }
+        }, 5 * 60 * 1000); // Check every 5 minutes
+
+        set({ refreshInterval: interval });
+        console.log('Token refresh interval started');
+    },
+
+    /**
+     * Stop periodic token refresh check
+     */
+    stopTokenRefreshInterval: () => {
+        const interval = get().refreshInterval;
+        if (interval !== null) {
+            window.clearInterval(interval);
+            set({ refreshInterval: null });
+            console.log('Token refresh interval stopped');
         }
     },
 }));

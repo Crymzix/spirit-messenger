@@ -30,9 +30,13 @@ export async function apiRequest<T>(
   const url = `${API_BASE_URL}${endpoint}`;
 
   const requestHeaders: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...headers,
   };
+
+  // Only set Content-Type if there's a body to send
+  if (body !== undefined) {
+    requestHeaders['Content-Type'] = 'application/json';
+  }
 
   if (token) {
     requestHeaders['Authorization'] = `Bearer ${token}`;

@@ -129,19 +129,19 @@
     - _Requirements: 9.5, 17.1, 16.3_
 
 - [ ] 9. Implement presence and status management
-  - [ ] 9.1 Create status selector component
+  - [x] 9.1 Create status selector component
     - Build status-selector.tsx dropdown with status options (Online, Away, Busy, Appear Offline)
     - Add status icons for each option
     - Implement status change handler
     - Style with classic MSN design
     - _Requirements: 3.1, 17.1, 16.3_
-  - [ ] 9.2 Implement presence update logic
+  - [x] 9.2 Implement presence update logic
     - Create presence-service.ts calling Backend Service API
     - Send presence updates to Backend Service
     - Implement automatic "Away" status after 5 minutes of inactivity
     - Track user activity (mouse movement, keyboard input)
     - _Requirements: 3.2, 17.1, 16.3_
-  - [ ] 9.3 Create custom status message feature
+  - [x] 9.3 Create custom status message feature
     - Add custom status message input field to profile settings
     - Implement character limit (150 characters)
     - Send custom message to Backend Service
