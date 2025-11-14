@@ -84,7 +84,7 @@ export function ContactRequestNotification({
     };
 
     return (
-        <div className="bg-msn-light-blue border border-msn-blue rounded p-3 mb-2 shadow-sm">
+        <div className="rounded p-3 mb-2 shadow-sm">
             {/* Request Header */}
             <div className="flex items-center gap-2 mb-2">
                 {/* Display Picture */}
@@ -130,14 +130,12 @@ export function ContactRequestNotification({
                 <button
                     onClick={handleAccept}
                     disabled={isProcessing}
-                    className="flex-1 px-3 py-1.5 text-[10px] font-bold bg-msn-online text-white rounded hover:bg-green-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                     {isProcessing ? 'Processing...' : 'Accept'}
                 </button>
                 <button
                     onClick={handleDecline}
                     disabled={isProcessing}
-                    className="flex-1 px-3 py-1.5 text-[10px] font-bold bg-gray-400 text-white rounded hover:bg-gray-500 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
                     {isProcessing ? 'Processing...' : 'Decline'}
                 </button>

@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Contact, ContactGroup } from '@/types';
 import { ContactItem } from './contact-item';
+import { usePendingContactRequests } from '@/lib/hooks/contact-hooks';
+import { placeholderContactGroups, placeholderContacts, placeholderPendingRequests } from '@/lib/placeholder-data';
+import { ContactRequestNotification } from './contact-request-notification';
 
 interface ContactListProps {
-    contacts: Contact[];
-    customGroups?: ContactGroup[];
     onContactClick?: (contact: Contact) => void;
     onAddContact?: () => void;
     onAddToGroup?: (contact: Contact) => void;
@@ -18,13 +19,16 @@ interface GroupedContacts {
 }
 
 export function ContactList({
-    contacts = [],
-    customGroups = [],
     onContactClick,
-    onAddContact,
     onAddToGroup
 }: ContactListProps) {
+    const { pendingRequests, refetch: refetchPendingRequests } = usePendingContactRequests();
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+    // TODO: Remove placeholder data when real data is available
+    const contacts = placeholderContacts;
+    const customGroups = placeholderContactGroups;
+    const displayPendingRequests = pendingRequests.length > 0 ? pendingRequests : placeholderPendingRequests;
 
     // Group contacts by status
     const groupedContacts: GroupedContacts = contacts.reduce(
@@ -76,12 +80,19 @@ export function ContactList({
         return (
             <div
                 onClick={() => toggleGroup(groupId)}
-                className="flex items-center gap-1 px-2 py-1 bg-gray-100 border-b border-gray-300 cursor-pointer hover:bg-gray-200 transition-colors"
+                className="flex items-center gap-1 px-1 py-1 cursor-pointer transition-colors"
             >
                 <span className="text-[10px] text-gray-700">
-                    {isCollapsed ? '▶' : '▼'}
+                    {
+                        isCollapsed ?
+                            <img src='/group-plus.png' className='size-10' /> :
+                            <img src='/group-minus.png' className='size-10' />
+                    }
                 </span>
-                <span className="text-[11px] font-bold text-gray-800">
+                <span
+                    style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                    className="text-[11px] font-bold text-[#00005D]"
+                >
                     {title} ({count})
                 </span>
             </div>
@@ -93,12 +104,14 @@ export function ContactList({
         groupContacts: Contact[],
         groupId: string
     ) => {
-        if (groupContacts.length === 0) return null;
+        if (groupContacts.length === 0) {
+            return null;
+        }
 
         const isCollapsed = isGroupCollapsed(groupId);
 
         return (
-            <div key={groupId} className="border-b border-gray-200">
+            <div key={groupId}>
                 {renderGroupHeader(title, groupContacts.length, groupId)}
                 {!isCollapsed && (
                     <div className="py-1">
@@ -109,28 +122,44 @@ export function ContactList({
         );
     };
 
-    // Empty state
-    if (contacts.length === 0) {
+    const renderPendingInvites = () => {
+        if (displayPendingRequests.length === 0) {
+            return
+        }
+
+        const groupId = '_pending-invites'
+        const isCollapsed = isGroupCollapsed(groupId);
+
         return (
-            <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
-                <div className="text-gray-500 text-[11px] mb-4">
-                    <p className="mb-2">You don't have any contacts yet.</p>
-                    <p className="text-[10px]">Add contacts to start chatting!</p>
-                </div>
-                {onAddContact && (
-                    <button
-                        onClick={onAddContact}
-                        className="px-4 py-2 bg-msn-blue text-white rounded text-[11px] hover:bg-blue-700 transition-colors"
-                    >
-                        Add Contact
-                    </button>
+            <div key={groupId} className="border-b border-gray-200">
+                {renderGroupHeader('Pending Requests', displayPendingRequests.length, groupId)}
+                {!isCollapsed && (
+                    <div className="py-1">
+                        {displayPendingRequests.map((request) => (
+                            <ContactRequestNotification
+                                key={request.id}
+                                request={request}
+                                onAccept={() => {
+                                    console.log('Contact request accepted:', request.id);
+                                    refetchPendingRequests();
+                                }}
+                                onDecline={() => {
+                                    console.log('Contact request declined:', request.id);
+                                    refetchPendingRequests();
+                                }}
+                            />
+                        ))}
+                    </div>
                 )}
             </div>
         );
     }
 
     return (
-        <div className="flex-1 overflow-y-auto bg-white">
+        <div className="flex-1 overflow-y-auto h-[calc(100vh-210px)]">
+            {/* Pending Contact Requests */}
+            {renderPendingInvites()}
+
             {/* Online Contacts */}
             {renderGroup('Online', groupedContacts.online, 'online')}
 
