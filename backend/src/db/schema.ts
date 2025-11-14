@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, varchar, jsonb, bigint, index, boolean, pgPolicy } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, varchar, jsonb, bigint, index, boolean, pgPolicy, integer } from 'drizzle-orm/pg-core';
 import { InferInsertModel, InferSelectModel, sql } from 'drizzle-orm';
 
 // Users table schema
@@ -69,6 +69,45 @@ export const contacts = pgTable('contacts', {
         for: 'select',
         to: 'public',
         using: sql`user_id = auth.uid() OR contact_user_id = auth.uid()`,
+    }),
+]);
+
+// Contact groups table schema
+export const contactGroups = pgTable('contact_groups', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    displayOrder: integer('display_order').default(0),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
+}, (table) => [
+    index('idx_contact_groups_user_id').on(table.userId, table.displayOrder),
+    pgPolicy('users_can_view_own_contact_groups', {
+        for: 'select',
+        to: 'public',
+        using: sql`user_id = auth.uid()`,
+    }),
+]);
+
+// Contact group memberships table schema
+export const contactGroupMemberships = pgTable('contact_group_memberships', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    groupId: uuid('group_id').notNull().references(() => contactGroups.id, { onDelete: 'cascade' }),
+    contactId: uuid('contact_id').notNull().references(() => contacts.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at').defaultNow(),
+}, (table) => [
+    index('idx_contact_group_memberships_group_id').on(table.groupId),
+    index('idx_contact_group_memberships_contact_id').on(table.contactId),
+    pgPolicy('users_can_view_own_group_memberships', {
+        for: 'select',
+        to: 'public',
+        using: sql`
+            EXISTS (
+                SELECT 1 FROM contact_groups
+                WHERE contact_groups.id = contact_group_memberships.group_id
+                AND contact_groups.user_id = auth.uid()
+            )
+        `,
     }),
 ]);
 
@@ -181,6 +220,12 @@ export type InsertUser = InferInsertModel<typeof users>;
 
 export type SelectContact = InferSelectModel<typeof contacts>;
 export type InsertContact = InferInsertModel<typeof contacts>;
+
+export type SelectContactGroup = InferSelectModel<typeof contactGroups>;
+export type InsertContactGroup = InferInsertModel<typeof contactGroups>;
+
+export type SelectContactGroupMembership = InferSelectModel<typeof contactGroupMemberships>;
+export type InsertContactGroupMembership = InferInsertModel<typeof contactGroupMemberships>;
 
 export type SelectConversation = InferSelectModel<typeof conversations>;
 export type InsertConversation = InferInsertModel<typeof conversations>;

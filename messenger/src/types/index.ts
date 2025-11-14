@@ -29,6 +29,22 @@ export interface Contact {
   createdAt: Date;
 }
 
+export interface ContactGroup {
+  id: string;
+  userId: string;
+  name: string;
+  displayOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ContactGroupMembership {
+  id: string;
+  groupId: string;
+  contactId: string;
+  createdAt: Date;
+}
+
 export interface Message {
   id: string;
   conversationId: string;

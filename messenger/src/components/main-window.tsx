@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { useUser } from '../lib/store/auth-store';
 import { useProfileSubscription } from '../lib/hooks/profile-hooks';
+import { usePendingContactRequests } from '../lib/hooks/contact-hooks';
 import { Layout } from './layout';
 import { UserProfile } from './user-profile';
-import { PresenceStatus } from '@/types';
+import { ContactList } from './contact-list';
+import { AddContactDialog } from './add-contact-dialog';
+import { ContactRequestNotification } from './contact-request-notification';
+import { PresenceStatus, Contact } from '@/types';
 
 interface MainWindowProps {
     onSignOut?: () => void;
@@ -13,8 +17,10 @@ export function MainWindow({ onSignOut }: MainWindowProps) {
     const user = useUser();
     const [presenceStatus, setPresenceStatus] = useState<PresenceStatus>(user?.presenceStatus || 'online');
     const [searchQuery, setSearchQuery] = useState('');
+    const [isAddContactDialogOpen, setIsAddContactDialogOpen] = useState(false);
 
     useProfileSubscription();
+    const { pendingRequests, refetch: refetchPendingRequests } = usePendingContactRequests();
 
     const onStatusChange = (status: PresenceStatus) => {
         setPresenceStatus(status);
@@ -60,27 +66,52 @@ export function MainWindow({ onSignOut }: MainWindowProps) {
                     </form>
                 </div>
 
-                {/* Contact List Area - Placeholder */}
-                <div className="flex-1 overflow-y-auto p-3">
-                    <div className="text-center text-gray-500 text-[11px] mt-8">
-                        <p>Contact list will be implemented in task 11.1</p>
-                        <p className="mt-2 text-[10px]">
-                            Current user: {user?.username}
-                        </p>
-                        <p className="text-[10px]">
-                            Status: {presenceStatus}
-                        </p>
-                        {onSignOut && (
-                            <button
-                                onClick={onSignOut}
-                                className="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-[11px]"
-                            >
-                                Sign Out
-                            </button>
-                        )}
+                {/* Pending Contact Requests */}
+                {pendingRequests.length > 0 && (
+                    <div className="p-2 border-b border-gray-300 bg-white max-h-[200px] overflow-y-auto">
+                        <div className="text-[10px] font-bold text-gray-700 mb-2 px-1">
+                            Pending Requests ({pendingRequests.length})
+                        </div>
+                        {pendingRequests.map((request) => (
+                            <ContactRequestNotification
+                                key={request.id}
+                                request={request}
+                                onAccept={() => {
+                                    console.log('Contact request accepted:', request.id);
+                                    refetchPendingRequests();
+                                }}
+                                onDecline={() => {
+                                    console.log('Contact request declined:', request.id);
+                                    refetchPendingRequests();
+                                }}
+                            />
+                        ))}
                     </div>
-                </div>
+                )}
+
+                {/* Contact List Area */}
+                <ContactList
+                    contacts={[]}
+                    customGroups={[]}
+                    onContactClick={(contact: Contact) => {
+                        // TODO: Open chat window (will be implemented in task 15.1)
+                        console.log('Contact clicked:', contact);
+                    }}
+                    onAddContact={() => {
+                        setIsAddContactDialogOpen(true);
+                    }}
+                />
             </div>
+
+            {/* Add Contact Dialog */}
+            <AddContactDialog
+                isOpen={isAddContactDialogOpen}
+                onClose={() => setIsAddContactDialogOpen(false)}
+                onSuccess={() => {
+                    console.log('Contact request sent successfully');
+                    // TODO: Refresh contact list when real-time subscriptions are implemented
+                }}
+            />
         </Layout>
     );
 }

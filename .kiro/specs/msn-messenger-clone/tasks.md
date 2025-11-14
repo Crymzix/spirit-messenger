@@ -153,12 +153,12 @@
     - _Requirements: 3.3_
 
 - [ ] 10. Implement Backend Service contact endpoints with TypeScript
-  - [ ] 10.1 Create contact service
+  - [x] 10.1 Create contact service
     - Create contact-service.ts with Drizzle ORM queries
     - Implement functions for contact requests, acceptance, and removal
     - Add proper error handling and validation
     - _Requirements: 2.2, 17.2, 16.5_
-  - [ ] 10.2 Create contact management routes
+  - [x] 10.2 Create contact management routes
     - Create contacts.ts route file
     - Implement POST /api/contacts/request endpoint with Fastify schema
     - Implement POST /api/contacts/accept endpoint
@@ -169,14 +169,14 @@
     - _Requirements: 2.2, 2.4, 2.5, 17.2, 16.5_
 
 - [ ] 11. Implement Backend Service contact group endpoints with TypeScript
-  - [ ] 11.1 Create contact group service
+  - [x] 11.1 Create contact group service
     - Create contact-group-service.ts with Drizzle ORM queries
     - Implement functions for creating, updating, deleting groups
     - Implement functions for adding/removing contacts from groups
     - Implement group reordering logic
     - Add proper error handling and validation
     - _Requirements: 17.2, 16.5, 17.2, 17.5_
-  - [ ] 11.2 Create contact group routes
+  - [x] 11.2 Create contact group routes
     - Create contact-groups.ts route file
     - Implement POST /api/contact-groups endpoint with Fastify schema
     - Implement GET /api/contact-groups endpoint
@@ -188,22 +188,21 @@
     - Add authorization checks to ensure users can only manage their own groups
     - Register routes in index.ts
     - _Requirements: 17.2, 16.3, 16.4, 16.6, 16.7, 16.8, 16.10, 17.2, 17.5_
-  - [ ] 11.3 Update database schema
+  - [x] 11.3 Update database schema
     - Add contact_groups table to Drizzle schema
     - Add contact_group_memberships table to Drizzle schema
-    - Create and run database migration
     - Add indexes for optimized queries
     - _Requirements: 17.2, 16.5_
 
 - [ ] 12. Build frontend contact management system
-  - [ ] 12.1 Create contact list component
+  - [x] 12.1 Create contact list component
     - Build contact-list.tsx scrollable container
     - Implement grouped contacts (Online, Offline, Blocked, Custom Groups)
     - Add collapsible group headers
     - Create empty state for no contacts
     - Style with classic MSN design
     - _Requirements: 2.1, 11.2, 17.5, 17.1, 17.3_
-  - [ ] 12.2 Create contact item component
+  - [x] 12.2 Create contact item component
     - Build contact-item.tsx displaying contact display picture (96x96px)
     - Show contact display name
     - Display personal message
@@ -211,14 +210,14 @@
     - Implement hover effects
     - Add right-click context menu with "Add to Group" option
     - _Requirements: 2.1, 9.3, 17.1, 17.3_
-  - [ ] 12.3 Implement add contact functionality
+  - [x] 12.3 Implement add contact functionality
     - Create add-contact-dialog.tsx with email input
     - Implement contact search by email from Supabase
     - Create contact-service.ts calling Backend Service API
     - Send contact request to Backend Service API
     - Show confirmation message
     - _Requirements: 2.2, 17.1, 17.3_
-  - [ ] 12.4 Implement contact request handling
+  - [x] 12.4 Implement contact request handling
     - Create contact-request-notification.tsx UI component
     - Build accept/decline buttons
     - Send accept request to Backend Service API

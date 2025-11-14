@@ -43,6 +43,13 @@
       "when": 1763038397229,
       "tag": "0005_worried_queen_noir",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1763092184235,
+      "tag": "0006_left_brood",
+      "breakpoints": true
     }
   ]
 }

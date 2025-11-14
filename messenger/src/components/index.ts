@@ -5,5 +5,9 @@ export { TitleBar } from './title-bar';
 export { Layout } from './layout';
 export { MainWindow } from './main-window';
 export { UserProfile } from './user-profile';
-export { ProfilePictureUploadWindow } from './profile-picture-upload-window'
-export { OptionsWindow } from './options-window'
+export { ProfilePictureUploadWindow } from './profile-picture-upload-window';
+export { OptionsWindow } from './options-window';
+export { ContactList } from './contact-list';
+export { ContactItem } from './contact-item';
+export { AddContactDialog } from './add-contact-dialog';
+export { ContactRequestNotification } from './contact-request-notification';

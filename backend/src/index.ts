@@ -62,6 +62,12 @@ await fastify.register(authRoutes.default, { prefix: '/api/auth' });
 const usersRoutes = await import('./routes/users.js');
 await fastify.register(usersRoutes.default, { prefix: '/api/users' });
 
+const contactsRoutes = await import('./routes/contacts.js');
+await fastify.register(contactsRoutes.default, { prefix: '/api/contacts' });
+
+const contactGroupsRoutes = await import('./routes/contact-groups.js');
+await fastify.register(contactGroupsRoutes.default, { prefix: '/api/contact-groups' });
+
 // Health check endpoint
 fastify.get('/health', async () => {
     return {
