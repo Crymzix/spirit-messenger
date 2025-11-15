@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Contact, ContactGroup } from '@/types';
+import { Contact } from '@/types';
 import { ContactItem } from './contact-item';
 import { usePendingContactRequests } from '@/lib/hooks/contact-hooks';
 import { placeholderContactGroups, placeholderContacts, placeholderPendingRequests } from '@/lib/placeholder-data';
@@ -7,7 +7,6 @@ import { ContactRequestNotification } from './contact-request-notification';
 
 interface ContactListProps {
     onContactClick?: (contact: Contact) => void;
-    onAddContact?: () => void;
     onAddToGroup?: (contact: Contact) => void;
 }
 
@@ -156,24 +155,26 @@ export function ContactList({
     }
 
     return (
-        <div className="flex-1 overflow-y-auto h-[calc(100vh-210px)]">
-            {/* Pending Contact Requests */}
-            {renderPendingInvites()}
+        <>
+            <div className="flex-1 overflow-y-auto h-[calc(100vh-210px)]">
+                {/* Pending Contact Requests */}
+                {renderPendingInvites()}
 
-            {/* Online Contacts */}
-            {renderGroup('Online', groupedContacts.online, 'online')}
+                {/* Online Contacts */}
+                {renderGroup('Online', groupedContacts.online, 'online')}
 
-            {/* Custom Groups */}
-            {customGroups.map((group) => {
-                const groupContacts = groupedContacts.custom.get(group.id) || [];
-                return renderGroup(group.name, groupContacts, `custom-${group.id}`);
-            })}
+                {/* Custom Groups */}
+                {customGroups.map((group) => {
+                    const groupContacts = groupedContacts.custom.get(group.id) || [];
+                    return renderGroup(group.name, groupContacts, `custom-${group.id}`);
+                })}
 
-            {/* Offline Contacts */}
-            {renderGroup('Offline', groupedContacts.offline, 'offline')}
+                {/* Offline Contacts */}
+                {renderGroup('Offline', groupedContacts.offline, 'offline')}
 
-            {/* Blocked Contacts */}
-            {renderGroup('Blocked', groupedContacts.blocked, 'blocked')}
-        </div>
+                {/* Blocked Contacts */}
+                {renderGroup('Blocked', groupedContacts.blocked, 'blocked')}
+            </div>
+        </>
     );
 }

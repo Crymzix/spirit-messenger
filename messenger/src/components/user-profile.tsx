@@ -7,7 +7,6 @@ import { PresenceStatus } from '@/types';
 interface UserProfileProps {
     presenceStatus: PresenceStatus;
     onStatusChange: (status: PresenceStatus) => void;
-    onEditProfile: () => void;
 }
 
 const statusOptions: { value: PresenceStatus; label: string; color: string }[] = [

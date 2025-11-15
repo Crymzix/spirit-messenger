@@ -1,5 +1,32 @@
 # Implementation Plan
 
+## Important: React Query Architecture
+
+**CRITICAL REQUIREMENT:** All Backend Service API calls in the frontend MUST be made through React Query hooks, never directly from components.
+
+**Pattern to Follow:**
+1. Service layer (`src/lib/services/`) contains pure functions that make HTTP requests
+2. Hook layer (`src/lib/hooks/`) wraps service functions with React Query (useQuery/useMutation)
+3. Components use hooks, never call services directly
+
+**Example:**
+```typescript
+// ❌ WRONG - Component calling service directly
+const handleClick = async () => {
+  await contactService.requestContact(email);
+};
+
+// ✅ CORRECT - Component using React Query hook
+const contactRequest = useContactRequest();
+const handleClick = async () => {
+  await contactRequest.mutateAsync(email);
+};
+```
+
+See Requirement 18 in requirements.md and the React Query Architecture section in design.md for full details.
+
+---
+
 - [x] 1. Initialize project structure and dependencies
   - Create Tauri + React project with TypeScript
   - Install and configure TailwindCSS
@@ -67,6 +94,30 @@
     - Add token refresh logic using Supabase Auth
     - _Requirements: 1.4, 17.1, 16.3_
 
+- [ ] 5.5 Set up React Query infrastructure
+  - [ ] 5.5.1 Install and configure React Query
+    - Install @tanstack/react-query and @tanstack/react-query-devtools
+    - Create QueryClient with default configuration in main.tsx
+    - Wrap App component with QueryClientProvider
+    - Configure staleTime (5 minutes), gcTime (30 minutes), retry logic (3 attempts)
+    - Add React Query DevTools for development
+    - _Requirements: 18.1, 18.6, 17.1, 16.3_
+  - [ ] 5.5.2 Create React Query hooks for authentication
+    - Create auth-hooks.ts in src/lib/hooks/
+    - Implement useLogin() mutation hook wrapping auth-service.ts login function
+    - Implement useRegister() mutation hook wrapping auth-service.ts register function
+    - Implement useLogout() mutation hook wrapping auth-service.ts logout function
+    - Add proper error handling and success callbacks
+    - Invalidate auth queries on successful mutations
+    - _Requirements: 18.2, 18.3, 18.4, 18.5, 18.7, 17.1, 16.3_
+  - [ ] 5.5.3 Update authentication components to use hooks
+    - Refactor sign-in-window.tsx to use useLogin() hook instead of calling auth-service directly
+    - Refactor registration-window.tsx to use useRegister() hook instead of calling auth-service directly
+    - Use hook's isPending state for loading indicators
+    - Use hook's error state for error messages
+    - Remove direct service calls from components
+    - _Requirements: 18.2, 18.9, 17.1, 16.3_
+
 - [ ] 6. Build main application window and layout
   - [x] 6.1 Create main-window.tsx component structure
     - Implement window chrome with classic MSN styling
@@ -127,6 +178,20 @@
     - Subscribe to user profile changes via Supabase Realtime
     - Refresh UI with updated profile information
     - _Requirements: 9.5, 17.1, 16.3_
+  - [ ] 8.4 Create React Query hooks for profile management
+    - Create profile-hooks.ts in src/lib/hooks/
+    - Implement useProfile(userId) query hook to fetch user profile from Supabase
+    - Implement useProfileUpdate() mutation hook wrapping profile-service.ts updateProfile function
+    - Implement useDisplayPictureUpload() mutation hook wrapping profile-service.ts uploadDisplayPicture function
+    - Add optimistic updates for profile changes
+    - Invalidate profile queries on successful mutations
+    - _Requirements: 18.2, 18.3, 18.4, 18.5, 18.7, 18.8, 17.1, 16.3_
+  - [ ] 8.5 Update profile components to use React Query hooks
+    - Refactor profile-settings.tsx to use useProfileUpdate() and useDisplayPictureUpload() hooks
+    - Refactor user-profile.tsx to use useProfile() hook for fetching profile data
+    - Remove direct service calls from components
+    - Use hook states (isPending, error, data) for UI feedback
+    - _Requirements: 18.2, 18.9, 17.1, 16.3_
 
 - [ ] 9. Implement presence and status management
   - [x] 9.1 Create status selector component
@@ -146,11 +211,24 @@
     - Implement character limit (150 characters)
     - Send custom message to Backend Service
     - _Requirements: 3.4, 3.5_
-  - [ ] 9.4 Set up real-time presence subscriptions
+  - [ ] 9.4 Create React Query hooks for presence management
+    - Create presence-hooks.ts in src/lib/hooks/
+    - Implement usePresenceUpdate() mutation hook wrapping presence-service.ts updatePresence function
+    - Implement usePresence(userId) query hook to fetch user presence from Supabase
+    - Add optimistic updates for presence changes
+    - Invalidate presence queries on successful mutations
+    - _Requirements: 18.2, 18.3, 18.4, 18.5, 18.7, 18.8, 17.1, 16.3_
+  - [ ] 9.5 Update presence components to use React Query hooks
+    - Refactor status-selector.tsx to use usePresenceUpdate() hook
+    - Remove direct service calls from components
+    - Use hook states for loading and error feedback
+    - _Requirements: 18.2, 18.9, 17.1, 16.3_
+  - [ ] 9.6 Set up real-time presence subscriptions
     - Subscribe to users table changes via Supabase Realtime
+    - Invalidate React Query presence cache when Supabase receives updates
     - Update contact list UI when presence changes
     - Implement presence change notifications (sign-in/sign-out sounds)
-    - _Requirements: 3.3_
+    - _Requirements: 3.3, 18.7_
 
 - [ ] 10. Implement Backend Service contact endpoints with TypeScript
   - [x] 10.1 Create contact service
@@ -223,17 +301,36 @@
     - Send accept request to Backend Service API
     - Send decline request to Backend Service API
     - _Requirements: 2.3, 2.4, 17.1, 17.3_
-  - [ ] 12.5 Implement remove contact functionality
+  - [x] 12.5 Implement remove contact functionality
     - Add "Remove Contact" option to context menu
     - Create confirmation dialog
     - Send delete request to Backend Service API
     - Update contact list UI via Supabase real-time subscription
     - _Requirements: 2.5_
-  - [ ] 12.6 Set up real-time contact updates
+  - [ ] 12.6 Create React Query hooks for contact management
+    - Create contact-hooks.ts in src/lib/hooks/
+    - Implement useContacts() query hook to fetch contacts from Supabase
+    - Implement useContactRequest() mutation hook wrapping contact-service.ts requestContact function
+    - Implement useContactAccept() mutation hook wrapping contact-service.ts acceptContact function
+    - Implement useContactDecline() mutation hook wrapping contact-service.ts declineContact function
+    - Implement useContactRemove() mutation hook wrapping contact-service.ts removeContact function
+    - Add optimistic updates for contact operations
+    - Invalidate contact queries on successful mutations
+    - _Requirements: 18.2, 18.3, 18.4, 18.5, 18.7, 18.8, 17.1, 16.3_
+  - [ ] 12.7 Update contact components to use React Query hooks
+    - Refactor contact-list.tsx to use useContacts() hook
+    - Refactor add-contact-dialog.tsx to use useContactRequest() hook
+    - Refactor contact-request-notification.tsx to use useContactAccept() and useContactDecline() hooks
+    - Refactor remove-contact-window.tsx to use useContactRemove() hook
+    - Remove direct service calls from all contact components
+    - Use hook states for loading, error, and success feedback
+    - _Requirements: 18.2, 18.9, 17.1, 16.3_
+  - [ ] 12.8 Set up real-time contact updates
     - Subscribe to contacts table changes via Supabase Realtime
+    - Invalidate React Query contact cache when Supabase receives updates
     - Update contact list when contacts are added/removed
     - Update contact status in real-time
-    - _Requirements: 2.1, 3.3_
+    - _Requirements: 2.1, 3.3, 18.7_
 
 - [ ] 13. Implement frontend custom contact groups
   - [ ] 13.1 Create contact group management UI

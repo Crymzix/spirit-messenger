@@ -10,5 +10,4 @@ export { ProfilePictureUploadWindow } from './windows/profile-picture-upload-win
 export { OptionsWindow } from './windows/options-window';
 export { ContactList } from './contact-list';
 export { ContactItem } from './contact-item';
-export { AddContactDialog } from './add-contact-dialog';
 export { ContactRequestNotification } from './contact-request-notification';

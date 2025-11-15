@@ -72,6 +72,7 @@ graph TB
    - State management for UI interactions
    - Real-time updates via Supabase subscriptions (reads only)
    - HTTP client for Backend Service API calls (writes only)
+   - React Query for API state management, caching, and synchronization
 
 2. **Application Layer (Tauri Rust)**
    - Native system integrations (notifications, file system, system tray)
@@ -79,7 +80,7 @@ graph TB
    - Local storage and caching
    - Window management
 
-3. **Backend Service Layer (Node.js/Express)**
+3. **Backend Service Layer (Node.js/Fastify)**
    - RESTful API endpoints for all write operations
    - Authentication and authorization
    - Business logic validation
@@ -96,6 +97,316 @@ graph TB
 5. **AI Layer (External API)**
    - Chatbot conversation handling (accessed via Backend Service)
    - Response generation
+
+## React Query Architecture
+
+### Overview
+
+The frontend uses React Query (TanStack Query) as the primary data fetching and state management solution for all Backend Service API interactions. This provides:
+
+- **Automatic caching** with configurable TTL
+- **Background refetching** to keep data fresh
+- **Optimistic updates** for instant UI feedback
+- **Request deduplication** to prevent redundant API calls
+- **Loading and error states** built-in
+- **Query invalidation** for cache management
+
+### Architecture Pattern
+
+```
+Component → Custom Hook (React Query) → Service Layer → Backend API
+                ↓
+         Cache Management
+         Loading States
+         Error Handling
+```
+
+**Key Principle:** Components NEVER call service functions directly. All API interactions go through custom React Query hooks.
+
+### Hook Organization
+
+Hooks are organized by feature domain in the `src/lib/hooks/` directory:
+
+```
+src/lib/hooks/
+├── auth-hooks.ts          # Authentication hooks
+├── contact-hooks.ts       # Contact management hooks
+├── message-hooks.ts       # Messaging hooks
+├── profile-hooks.ts       # User profile hooks
+├── presence-hooks.ts      # Presence/status hooks
+├── group-hooks.ts         # Contact group hooks
+├── file-hooks.ts          # File transfer hooks
+├── ai-hooks.ts            # AI bot hooks
+└── search-hooks.ts        # Search hooks
+```
+
+### Hook Naming Convention
+
+All custom hooks follow the pattern: `use[Feature][Action]`
+
+**Query Hooks (useQuery):**
+- `useContacts()` - Fetch user's contacts
+- `useMessages(conversationId)` - Fetch messages for a conversation
+- `useProfile(userId)` - Fetch user profile
+- `useContactGroups()` - Fetch contact groups
+- `useAIBots()` - Fetch available AI bots
+
+**Mutation Hooks (useMutation):**
+- `useContactRequest()` - Send contact request
+- `useContactAccept()` - Accept contact request
+- `useContactRemove()` - Remove contact
+- `useMessageSend()` - Send message
+- `useProfileUpdate()` - Update user profile
+- `usePresenceUpdate()` - Update presence status
+- `useGroupCreate()` - Create contact group
+- `useFileUpload()` - Upload file
+
+### Service Layer
+
+Service files contain pure functions that make HTTP requests. They do NOT manage state:
+
+```typescript
+// src/lib/services/contact-service.ts
+export const contactService = {
+  async requestContact(email: string): Promise<ContactRequest> {
+    const response = await apiClient.post('/api/contacts/request', { contact_email: email });
+    return response.data;
+  },
+  
+  async acceptContact(requestId: string): Promise<Contact> {
+    const response = await apiClient.post('/api/contacts/accept', { request_id: requestId });
+    return response.data;
+  },
+  
+  async removeContact(contactId: string): Promise<void> {
+    await apiClient.delete(`/api/contacts/${contactId}`);
+  }
+};
+```
+
+### Custom Hook Implementation
+
+Hooks wrap service functions with React Query:
+
+```typescript
+// src/lib/hooks/contact-hooks.ts
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { contactService } from '../services/contact-service';
+
+// Mutation hook for sending contact request
+export function useContactRequest() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (email: string) => contactService.requestContact(email),
+    onSuccess: () => {
+      // Invalidate contacts query to refetch
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+    },
+    onError: (error) => {
+      console.error('Failed to send contact request:', error);
+    }
+  });
+}
+
+// Mutation hook for accepting contact request
+export function useContactAccept() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (requestId: string) => contactService.acceptContact(requestId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['contact-requests'] });
+    }
+  });
+}
+
+// Mutation hook for removing contact
+export function useContactRemove() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (contactId: string) => contactService.removeContact(contactId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+    }
+  });
+}
+```
+
+### Component Usage
+
+Components use hooks, never services directly:
+
+```typescript
+// src/components/windows/add-contact-window.tsx
+import { useContactRequest } from '../../lib/hooks/contact-hooks';
+
+export function AddContactWindow() {
+  const [email, setEmail] = useState('');
+  const contactRequest = useContactRequest();
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      await contactRequest.mutateAsync(email);
+      // Success - show confirmation
+      alert('Contact request sent!');
+      setEmail('');
+    } catch (error) {
+      // Error handling
+      alert('Failed to send contact request');
+    }
+  };
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      <input 
+        value={email} 
+        onChange={(e) => setEmail(e.target.value)}
+        disabled={contactRequest.isPending}
+      />
+      <button type="submit" disabled={contactRequest.isPending}>
+        {contactRequest.isPending ? 'Sending...' : 'Send Request'}
+      </button>
+    </form>
+  );
+}
+```
+
+### React Query Configuration
+
+Global configuration in `src/main.tsx`:
+
+```typescript
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 30, // 30 minutes (formerly cacheTime)
+      retry: 3,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true
+    },
+    mutations: {
+      retry: 1,
+      onError: (error) => {
+        console.error('Mutation error:', error);
+      }
+    }
+  }
+});
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <QueryClientProvider client={queryClient}>
+    <App />
+  </QueryClientProvider>
+);
+```
+
+### Query Keys
+
+Consistent query key structure for cache management:
+
+```typescript
+// Query key patterns
+const queryKeys = {
+  contacts: ['contacts'] as const,
+  contactGroups: ['contact-groups'] as const,
+  messages: (conversationId: string) => ['messages', conversationId] as const,
+  profile: (userId: string) => ['profile', userId] as const,
+  presence: (userId: string) => ['presence', userId] as const,
+  aiBots: ['ai-bots'] as const,
+  searchResults: (query: string) => ['search', query] as const
+};
+```
+
+### Optimistic Updates
+
+For instant UI feedback on mutations:
+
+```typescript
+export function useMessageSend(conversationId: string) {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (content: string) => messageService.sendMessage(conversationId, content),
+    onMutate: async (content) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['messages', conversationId] });
+      
+      // Snapshot previous value
+      const previousMessages = queryClient.getQueryData(['messages', conversationId]);
+      
+      // Optimistically update
+      queryClient.setQueryData(['messages', conversationId], (old: Message[]) => [
+        ...old,
+        {
+          id: 'temp-' + Date.now(),
+          content,
+          senderId: currentUserId,
+          createdAt: new Date(),
+          status: 'sending'
+        }
+      ]);
+      
+      return { previousMessages };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      queryClient.setQueryData(['messages', conversationId], context?.previousMessages);
+    },
+    onSettled: () => {
+      // Refetch after mutation
+      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+    }
+  });
+}
+```
+
+### Integration with Supabase Realtime
+
+React Query works alongside Supabase Realtime subscriptions:
+
+- **React Query**: Handles Backend Service API calls (writes)
+- **Supabase Realtime**: Handles real-time updates (reads)
+
+When Supabase receives a new message via Realtime, invalidate the React Query cache:
+
+```typescript
+// Subscribe to Supabase Realtime
+useEffect(() => {
+  const channel = supabase
+    .channel(`conversation:${conversationId}`)
+    .on('postgres_changes', 
+      { event: 'INSERT', schema: 'public', table: 'messages' },
+      (payload) => {
+        // Invalidate React Query cache to refetch
+        queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+      }
+    )
+    .subscribe();
+    
+  return () => {
+    channel.unsubscribe();
+  };
+}, [conversationId]);
+```
+
+### Benefits
+
+1. **Consistency**: All API calls follow the same pattern
+2. **Caching**: Automatic request deduplication and caching
+3. **Loading States**: Built-in loading/error/success states
+4. **Optimistic Updates**: Instant UI feedback
+5. **Cache Invalidation**: Automatic data synchronization
+6. **Developer Experience**: Cleaner component code
+7. **Performance**: Reduced unnecessary API calls
+8. **Type Safety**: Full TypeScript support
 
 ## Components and Interfaces
 

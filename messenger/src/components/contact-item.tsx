@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Contact, PresenceStatus } from '@/types';
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 interface ContactItemProps {
     contact: Contact;
@@ -60,6 +61,35 @@ export function ContactItem({ contact, onClick, onAddToGroup }: ContactItemProps
         onAddToGroup?.(contact);
     };
 
+    const handleRemoveContact = () => {
+        setShowContextMenu(false);
+
+        // In dev mode, use the full dev server URL; in production, use the relative path
+        const isDev = window.location.hostname === 'localhost';
+        const url = isDev
+            ? 'http://localhost:1420/remove-contact.html'
+            : '/remove-contact.html';
+
+        const removeContactWindow = new WebviewWindow('remove-contact', {
+            url: `${url}?contactId=${contactUser.id}&contactName=${contactUser.displayName || contactUser.username}`,
+            title: 'Remove Contact',
+            width: 320,
+            height: 140,
+            resizable: true,
+            decorations: false,
+            transparent: true,
+            center: true,
+        });
+
+        removeContactWindow.once('tauri://created', () => {
+            console.log('Add Contact window created');
+        });
+
+        removeContactWindow.once('tauri://error', (e) => {
+            console.error('Error creating window:', e);
+        });
+    };
+
     return (
         <>
             <div
@@ -111,18 +141,35 @@ export function ContactItem({ contact, onClick, onAddToGroup }: ContactItemProps
             {showContextMenu && (
                 <div
                     ref={contextMenuRef}
-                    className="fixed bg-white border border-gray-300 shadow-lg rounded z-50 py-1 min-w-[150px]"
+                    className="fixed bg-white border border-gray-400 shadow-lg z-50 min-w-[150px]"
                     style={{
                         left: `${contextMenuPosition.x}px`,
                         top: `${contextMenuPosition.y}px`,
                     }}
                 >
-                    <button
+                    <div
                         onClick={handleAddToGroup}
-                        className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-msn-light-blue transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-msn-light-blue transition-colors text-left whitespace-nowrap cursor-pointer"
                     >
-                        Add to Group
-                    </button>
+                        <div className='w-4' />
+                        <span
+                            style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                        >
+                            Add to Group
+                        </span>
+                    </div>
+                    <div className="border-t border-gray-300" />
+                    <div
+                        onClick={handleRemoveContact}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-msn-light-blue transition-colors text-left whitespace-nowrap cursor-pointer"
+                    >
+                        <div className='w-4' />
+                        <span
+                            style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                        >
+                            Remove Contact
+                        </span>
+                    </div>
                 </div>
             )}
         </>

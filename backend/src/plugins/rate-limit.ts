@@ -5,7 +5,7 @@ import { FastifyPluginAsync } from 'fastify';
 const rateLimitPlugin: FastifyPluginAsync = async (fastify) => {
     await fastify.register(rateLimit, {
         max: 100,
-        timeWindow: '15 minutes',
+        timeWindow: '1 minutes',
         errorResponseBuilder: () => ({
             success: false,
             error: 'Too many requests, please try again later',

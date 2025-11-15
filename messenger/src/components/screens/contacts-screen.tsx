@@ -4,9 +4,9 @@ import { useProfileSubscription } from '../../lib/hooks/profile-hooks';
 import { Layout } from '../layout';
 import { UserProfile } from '../user-profile';
 import { ContactList } from '../contact-list';
-import { AddContactDialog } from '../add-contact-dialog';
 import { PresenceStatus, Contact } from '@/types';
 import { ContactsTabs } from '../contacts-tabs';
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 interface ContactsScreenProps {
     onSignOut?: () => void;
@@ -16,17 +16,11 @@ export function ContactsScreen({ onSignOut }: ContactsScreenProps) {
     const user = useUser();
     const [presenceStatus, setPresenceStatus] = useState<PresenceStatus>(user?.presenceStatus || 'online');
     const [searchQuery, setSearchQuery] = useState('');
-    const [isAddContactDialogOpen, setIsAddContactDialogOpen] = useState(false);
 
     useProfileSubscription();
 
-
     const onStatusChange = (status: PresenceStatus) => {
         setPresenceStatus(status);
-    };
-
-    const handleEditProfile = async () => {
-        // TODO
     };
 
     const handleSearch = (e: React.FormEvent) => {
@@ -34,6 +28,33 @@ export function ContactsScreen({ onSignOut }: ContactsScreenProps) {
         // TODO: Implement search functionality (will be implemented in task 22.2)
         console.log('Search query:', searchQuery);
     };
+
+    const handleAddContact = () => {
+        // In dev mode, use the full dev server URL; in production, use the relative path
+        const isDev = window.location.hostname === 'localhost';
+        const url = isDev
+            ? 'http://localhost:1420/add-contact.html'
+            : '/add-contact.html';
+
+        const addContactWindow = new WebviewWindow('add-contact', {
+            url,
+            title: 'Add a Contact',
+            width: 640,
+            height: 500,
+            resizable: false,
+            decorations: false,
+            transparent: true,
+            center: true,
+        });
+
+        addContactWindow.once('tauri://created', () => {
+            console.log('Add Contact window created');
+        });
+
+        addContactWindow.once('tauri://error', (e) => {
+            console.error('Error creating window:', e);
+        });
+    }
 
     return (
         <Layout>
@@ -43,7 +64,6 @@ export function ContactsScreen({ onSignOut }: ContactsScreenProps) {
                 <UserProfile
                     presenceStatus={presenceStatus}
                     onStatusChange={onStatusChange}
-                    onEditProfile={handleEditProfile}
                 />
 
                 <div className='flex relative'>
@@ -55,7 +75,9 @@ export function ContactsScreen({ onSignOut }: ContactsScreenProps) {
                         }}
                     >
                         {/* Add Contacts */}
-                        <div className='flex items-center px-2 cursor-pointer border-b-[1px] border-gray-200 bg-gradient-to-b from-[#B8C6EA] to-transparent rounded-t-lg mt-1 ml-2 mr-1'>
+                        <div
+                            onClick={handleAddContact}
+                            className='flex items-center px-2 cursor-pointer border-b-[1px] border-gray-200 bg-gradient-to-b from-[#B8C6EA] to-transparent rounded-t-lg mt-1 ml-2 mr-1'>
                             <img src='/msn-add.png' className='size-12' />
                             <div
                                 style={{ fontFamily: 'Pixelated MS Sans Serif' }}
@@ -70,23 +92,10 @@ export function ContactsScreen({ onSignOut }: ContactsScreenProps) {
                                 // TODO: Open chat window (will be implemented in task 15.1)
                                 console.log('Contact clicked:', contact);
                             }}
-                            onAddContact={() => {
-                                setIsAddContactDialogOpen(true);
-                            }}
                         />
                     </div>
                 </div>
             </div>
-
-            {/* Add Contact Dialog */}
-            <AddContactDialog
-                isOpen={isAddContactDialogOpen}
-                onClose={() => setIsAddContactDialogOpen(false)}
-                onSuccess={() => {
-                    console.log('Contact request sent successfully');
-                    // TODO: Refresh contact list when real-time subscriptions are implemented
-                }}
-            />
         </Layout>
     );
 }

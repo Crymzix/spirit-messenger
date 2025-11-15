@@ -231,3 +231,20 @@ This document outlines the requirements for building a desktop application that 
 3. WHEN a developer creates a new TypeScript file, THE file name SHALL use lowercase letters with hyphens separating words
 4. THE MSN Messenger Application SHALL apply Kebab Case naming to component files, utility files, service files, and type definition files
 5. THE Backend Service SHALL apply Kebab Case naming to route files, service files, plugin files, and type definition files
+
+### Requirement 18: React Query Integration for API Calls
+
+**User Story:** As a developer, I want all API calls to be made through React Query hooks, so that the application has consistent state management, caching, and real-time data synchronization.
+
+#### Acceptance Criteria
+
+1. THE MSN Messenger Application SHALL define custom React Query hooks for all Backend Service API interactions
+2. THE MSN Messenger Application SHALL NOT make direct API calls from React components using service classes
+3. WHEN a developer needs to fetch data from the Backend Service, THE MSN Messenger Application SHALL use a custom hook that wraps the service call with useQuery
+4. WHEN a developer needs to mutate data via the Backend Service, THE MSN Messenger Application SHALL use a custom hook that wraps the service call with useMutation
+5. THE MSN Messenger Application SHALL define all custom API hooks in the hooks directory following the naming pattern use[Feature][Action] (e.g., useContactRequest, useProfileUpdate, useMessageSend)
+6. THE MSN Messenger Application SHALL configure React Query with appropriate cache times, stale times, and retry logic for optimal performance
+7. WHEN a mutation succeeds, THE MSN Messenger Application SHALL invalidate relevant queries to ensure UI consistency
+8. THE MSN Messenger Application SHALL use React Query's optimistic updates for mutations that affect the UI immediately (e.g., sending messages, updating presence)
+9. THE MSN Messenger Application SHALL handle loading states, error states, and success states using React Query's built-in state management
+10. THE MSN Messenger Application SHALL organize hooks by feature domain (auth-hooks.ts, contact-hooks.ts, message-hooks.ts, profile-hooks.ts, presence-hooks.ts)

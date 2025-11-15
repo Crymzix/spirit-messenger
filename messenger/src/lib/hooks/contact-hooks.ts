@@ -4,8 +4,9 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
-import { getPendingRequests } from '../services/contact-service';
+import { getPendingRequests, sendContactRequest, removeContact } from '../services/contact-service';
 import { useAuthStore } from '../store/auth-store';
 import type { Contact } from '@/types';
 
@@ -107,4 +108,52 @@ export function usePendingContactRequests() {
             }
         },
     };
+}
+
+/**
+ * Hook for sending a contact request
+ */
+export function useSendContactRequest() {
+    const queryClient = useQueryClient();
+    const token = useAuthStore((state) => state.token);
+
+    return useMutation({
+        mutationFn: async (contactEmail: string) => {
+            if (!token) {
+                throw new Error('Not authenticated');
+            }
+
+            const response = await sendContactRequest(contactEmail, token);
+            return response;
+        },
+        onSuccess: () => {
+            // Invalidate contacts queries to refetch the updated list
+            queryClient.invalidateQueries({ queryKey: ['contacts'] });
+            queryClient.invalidateQueries({ queryKey: ['pendingRequests'] });
+        },
+    });
+}
+
+/**
+ * Hook for removing a contact
+ */
+export function useRemoveContact() {
+    const queryClient = useQueryClient();
+    const token = useAuthStore((state) => state.token);
+
+    return useMutation({
+        mutationFn: async (contactId: string) => {
+            if (!token) {
+                throw new Error('Not authenticated');
+            }
+
+            const response = await removeContact(contactId, token);
+            return response;
+        },
+        onSuccess: () => {
+            // Invalidate contacts queries to refetch the updated list
+            queryClient.invalidateQueries({ queryKey: ['contacts'] });
+            queryClient.invalidateQueries({ queryKey: ['pendingRequests'] });
+        },
+    });
 }
