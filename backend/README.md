@@ -105,6 +105,11 @@ npm start
 ### AI Chatbot (to be implemented)
 - `POST /api/ai/message` - Send message to AI chatbot
 
+### Typing Indicators
+Typing indicators are **NOT** implemented as API endpoints. They use Supabase Realtime Presence feature on the frontend for real-time, ephemeral state sharing without backend involvement.
+
+📖 **See [TYPING_INDICATORS.md](./TYPING_INDICATORS.md) for complete implementation guide**
+
 ## Project Structure
 
 ```

@@ -1,12 +1,4 @@
-/**
- * Contact Request Notification Component
- * Displays pending contact requests with accept/decline buttons
- * Sends accept/decline requests to Backend Service API
- */
-
-import { useState } from 'react';
-import { acceptContactRequest, declineContactRequest } from '../lib/services/contact-service';
-import { useAuthStore } from '../lib/store/auth-store';
+import { useAcceptContactRequest, useDeclineContactRequest } from '../lib/hooks/contact-hooks';
 import type { Contact } from '@/types';
 
 interface ContactRequestNotificationProps {
@@ -20,71 +12,44 @@ export function ContactRequestNotification({
     onAccept,
     onDecline,
 }: ContactRequestNotificationProps) {
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [isVisible, setIsVisible] = useState(true);
-    const token = useAuthStore((state) => state.token);
-
-    if (!isVisible) return null;
+    const acceptMutation = useAcceptContactRequest();
+    const declineMutation = useDeclineContactRequest();
 
     const handleAccept = async () => {
-        if (!token) {
-            setError('You must be logged in to accept contact requests');
-            return;
-        }
-
-        setIsProcessing(true);
-        setError(null);
-
         try {
-            // Send accept request to Backend Service API
-            await acceptContactRequest(request.id, token);
+            await acceptMutation.mutateAsync(request.id);
 
             // Call success callback if provided
             if (onAccept) {
                 onAccept(request.id);
             }
 
-            // Hide notification after successful accept
-            setIsVisible(false);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to accept contact request';
-            setError(errorMessage);
-        } finally {
-            setIsProcessing(false);
+            // Error is already handled by React Query
+            console.error('Failed to accept contact request:', err);
         }
     };
 
     const handleDecline = async () => {
-        if (!token) {
-            setError('You must be logged in to decline contact requests');
-            return;
-        }
-
-        setIsProcessing(true);
-        setError(null);
-
         try {
-            // Send decline request to Backend Service API
-            await declineContactRequest(request.id, token);
+            await declineMutation.mutateAsync(request.id);
 
             // Call success callback if provided
             if (onDecline) {
                 onDecline(request.id);
             }
 
-            // Hide notification after successful decline
-            setIsVisible(false);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to decline contact request';
-            setError(errorMessage);
-        } finally {
-            setIsProcessing(false);
+            // Error is already handled by React Query
+            console.error('Failed to decline contact request:', err);
         }
     };
 
+    const isProcessing = acceptMutation.isPending || declineMutation.isPending;
+    const error = acceptMutation.error || declineMutation.error;
+
     return (
-        <div className="rounded p-3 mb-2 shadow-sm">
+        <div className="p-3 mb-2">
             {/* Request Header */}
             <div className="flex items-center gap-2 mb-2">
                 {/* Display Picture */}
@@ -121,7 +86,9 @@ export function ContactRequestNotification({
             {/* Error Message */}
             {error && (
                 <div className="mb-2 p-2 bg-red-50 border border-red-300 rounded">
-                    <p className="text-[9px] text-red-700">{error}</p>
+                    <p className="text-[9px] text-red-700">
+                        {error instanceof Error ? error.message : 'An error occurred'}
+                    </p>
                 </div>
             )}
 

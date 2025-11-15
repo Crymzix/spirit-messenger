@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Contact } from '@/types';
 import { ContactItem } from './contact-item';
-import { usePendingContactRequests } from '@/lib/hooks/contact-hooks';
+import { usePendingContactRequests, useContactRealtimeUpdates } from '@/lib/hooks/contact-hooks';
 import { placeholderContactGroups, placeholderContacts, placeholderPendingRequests } from '@/lib/placeholder-data';
 import { ContactRequestNotification } from './contact-request-notification';
 
@@ -23,6 +23,9 @@ export function ContactList({
 }: ContactListProps) {
     const { pendingRequests, refetch: refetchPendingRequests } = usePendingContactRequests();
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+    // Set up real-time contact updates
+    useContactRealtimeUpdates();
 
     // TODO: Remove placeholder data when real data is available
     const contacts = placeholderContacts;

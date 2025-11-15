@@ -4,9 +4,17 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
-import { getPendingRequests, sendContactRequest, removeContact } from '../services/contact-service';
+import {
+    getPendingRequests,
+    sendContactRequest,
+    removeContact,
+    acceptContactRequest,
+    declineContactRequest,
+    getContacts,
+    searchUserByEmail
+} from '../services/contact-service';
 import { useAuthStore } from '../store/auth-store';
 import type { Contact } from '@/types';
 
@@ -156,4 +164,173 @@ export function useRemoveContact() {
             queryClient.invalidateQueries({ queryKey: ['pendingRequests'] });
         },
     });
+}
+
+/**
+ * Hook for accepting a contact request
+ */
+export function useAcceptContactRequest() {
+    const queryClient = useQueryClient();
+    const token = useAuthStore((state) => state.token);
+
+    return useMutation({
+        mutationFn: async (requestId: string) => {
+            if (!token) {
+                throw new Error('Not authenticated');
+            }
+
+            const response = await acceptContactRequest(requestId, token);
+            return response;
+        },
+        onSuccess: () => {
+            // Invalidate contacts queries to refetch the updated list
+            queryClient.invalidateQueries({ queryKey: ['contacts'] });
+            queryClient.invalidateQueries({ queryKey: ['pendingRequests'] });
+        },
+    });
+}
+
+/**
+ * Hook for declining a contact request
+ */
+export function useDeclineContactRequest() {
+    const queryClient = useQueryClient();
+    const token = useAuthStore((state) => state.token);
+
+    return useMutation({
+        mutationFn: async (requestId: string) => {
+            if (!token) {
+                throw new Error('Not authenticated');
+            }
+
+            const response = await declineContactRequest(requestId, token);
+            return response;
+        },
+        onSuccess: () => {
+            // Invalidate contacts queries to refetch the updated list
+            queryClient.invalidateQueries({ queryKey: ['contacts'] });
+            queryClient.invalidateQueries({ queryKey: ['pendingRequests'] });
+        },
+    });
+}
+
+/**
+ * Hook for fetching contacts with optional status filter
+ */
+export function useContacts(status?: 'pending' | 'accepted' | 'blocked') {
+    const token = useAuthStore((state) => state.token);
+
+    return useQuery({
+        queryKey: ['contacts', status],
+        queryFn: async () => {
+            if (!token) {
+                throw new Error('Not authenticated');
+            }
+
+            const response = await getContacts(token, status);
+            return response.contacts;
+        },
+        enabled: !!token,
+    });
+}
+
+/**
+ * Hook for searching a user by email
+ */
+export function useSearchUserByEmail(email: string) {
+    const token = useAuthStore((state) => state.token);
+
+    return useQuery({
+        queryKey: ['searchUser', email],
+        queryFn: async () => {
+            if (!token) {
+                throw new Error('Not authenticated');
+            }
+
+            const response = await searchUserByEmail(email, token);
+            return response;
+        },
+        enabled: !!token && !!email && email.length > 0,
+    });
+}
+
+/**
+ * Hook to set up real-time contact updates
+ * Subscribes to contacts table changes and invalidates React Query cache
+ * Also subscribes to users table for presence status updates
+ */
+export function useContactRealtimeUpdates() {
+    const queryClient = useQueryClient();
+    const user = useAuthStore((state) => state.user);
+
+    useEffect(() => {
+        if (!user) {
+            return;
+        }
+
+        // Subscribe to contacts table changes (add/remove contacts)
+        const contactsChannel = supabase
+            .channel('contacts-realtime')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'contacts',
+                    filter: `user_id=eq.${user.id}`,
+                },
+                (payload) => {
+                    console.log('Contact change detected:', payload);
+
+                    // Invalidate contacts query to refetch updated list
+                    queryClient.invalidateQueries({ queryKey: ['contacts'] });
+
+                    if (payload.eventType === 'INSERT') {
+                        console.log('New contact added');
+                    } else if (payload.eventType === 'UPDATE') {
+                        console.log('Contact updated');
+                    } else if (payload.eventType === 'DELETE') {
+                        console.log('Contact removed');
+                    }
+                }
+            )
+            .subscribe();
+
+        // Subscribe to users table for presence status updates
+        // This will update when any user's presence changes
+        const presenceChannel = supabase
+            .channel('presence-realtime')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'users',
+                },
+                (payload) => {
+                    console.log('User presence change detected:', payload);
+
+                    // Check if the updated fields include presence-related fields
+                    const updatedUser = payload.new as any;
+                    const oldUser = payload.old as any;
+
+                    if (
+                        updatedUser.presence_status !== oldUser.presence_status ||
+                        updatedUser.personal_message !== oldUser.personal_message ||
+                        updatedUser.display_name !== oldUser.display_name ||
+                        updatedUser.display_picture_url !== oldUser.display_picture_url
+                    ) {
+                        // Invalidate contacts query to refetch with updated user info
+                        queryClient.invalidateQueries({ queryKey: ['contacts'] });
+                    }
+                }
+            )
+            .subscribe();
+
+        // Cleanup subscriptions on unmount
+        return () => {
+            supabase.removeChannel(contactsChannel);
+            supabase.removeChannel(presenceChannel);
+        };
+    }, [user, queryClient]);
 }

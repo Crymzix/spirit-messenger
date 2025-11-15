@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Contact, PresenceStatus } from '@/types';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { invoke } from '@tauri-apps/api/core';
 
 interface ContactItemProps {
     contact: Contact;
@@ -50,6 +51,13 @@ export function ContactItem({ contact, onClick, onAddToGroup }: ContactItemProps
         onClick?.(contact);
     };
 
+    const handleDoubleClick = async () => {
+        await invoke("open_chat_window", {
+            dialogWindow: contact.id, // TODO: Handle group chats
+            options: {},
+        });
+    }
+
     const handleContextMenu = (e: React.MouseEvent) => {
         e.preventDefault();
         setContextMenuPosition({ x: e.clientX, y: e.clientY });
@@ -94,6 +102,7 @@ export function ContactItem({ contact, onClick, onAddToGroup }: ContactItemProps
         <>
             <div
                 onClick={handleClick}
+                onDoubleClick={handleDoubleClick}
                 onContextMenu={handleContextMenu}
                 className="flex items-center gap-2 px-2 py-1.5 hover:bg-msn-light-blue cursor-pointer transition-colors"
             >

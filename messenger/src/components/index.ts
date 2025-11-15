@@ -5,6 +5,7 @@ export { ProtectedRoute } from './protected-route';
 export { TitleBar } from './title-bar';
 export { Layout } from './layout';
 export { MainWindow } from './windows/main-window';
+export { ChatWindow } from './windows/chat-window';
 export { UserProfile } from './user-profile';
 export { ProfilePictureUploadWindow } from './windows/profile-picture-upload-window';
 export { OptionsWindow } from './windows/options-window';

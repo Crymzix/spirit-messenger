@@ -307,7 +307,7 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Send delete request to Backend Service API
     - Update contact list UI via Supabase real-time subscription
     - _Requirements: 2.5_
-  - [ ] 12.6 Create React Query hooks for contact management
+  - [X] 12.6 Create React Query hooks for contact management
     - Create contact-hooks.ts in src/lib/hooks/
     - Implement useContacts() query hook to fetch contacts from Supabase
     - Implement useContactRequest() mutation hook wrapping contact-service.ts requestContact function
@@ -317,7 +317,7 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Add optimistic updates for contact operations
     - Invalidate contact queries on successful mutations
     - _Requirements: 18.2, 18.3, 18.4, 18.5, 18.7, 18.8, 17.1, 16.3_
-  - [ ] 12.7 Update contact components to use React Query hooks
+  - [X] 12.7 Update contact components to use React Query hooks
     - Refactor contact-list.tsx to use useContacts() hook
     - Refactor add-contact-dialog.tsx to use useContactRequest() hook
     - Refactor contact-request-notification.tsx to use useContactAccept() and useContactDecline() hooks
@@ -325,7 +325,7 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Remove direct service calls from all contact components
     - Use hook states for loading, error, and success feedback
     - _Requirements: 18.2, 18.9, 17.1, 16.3_
-  - [ ] 12.8 Set up real-time contact updates
+  - [x] 12.8 Set up real-time contact updates
     - Subscribe to contacts table changes via Supabase Realtime
     - Invalidate React Query contact cache when Supabase receives updates
     - Update contact list when contacts are added/removed
@@ -369,12 +369,12 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - _Requirements: 17.5, 16.9_
 
 - [ ] 14. Implement Backend Service messaging endpoints with TypeScript
-  - [ ] 14.1 Create message service
+  - [x] 14.1 Create message service
     - Create message-service.ts with Drizzle ORM queries
     - Implement functions for creating messages, conversations, and managing participants
     - Add proper error handling and validation
     - _Requirements: 4.2, 17.2, 17.5_
-  - [ ] 32.2 Create message routes
+  - [x] 32.2 Create message routes
     - Create messages.ts route file
     - Implement POST /api/messages endpoint with Fastify schema validation
     - Implement POST /api/conversations endpoint
@@ -382,14 +382,14 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Add authorization checks to ensure users can only access their conversations
     - Register routes in index.ts
     - _Requirements: 4.2, 4.3, 17.2, 17.5_
-  - [ ] 32.3 Implement typing indicators
+  - [x] 32.3 Implement typing indicators
     - Use Supabase Realtime presence feature for typing status
     - Add typing status tracking in message service
     - Document typing indicator implementation for frontend
     - _Requirements: 13.5_
 
 - [ ] 15. Implement frontend one-on-one chat functionality
-  - [ ] 30.1 Create chat window component
+  - [x] 30.1 Create chat window component
     - Build chat-window.tsx layout with title bar
     - Create message history panel (scrollable)
     - Build message composition area with text input

@@ -11,7 +11,7 @@ export default defineConfig(async () => ({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        profileSettings: resolve(__dirname, 'profile-picture-upload.html'),
+        'chat-window': resolve(__dirname, 'chat-window.html'),
       },
     },
   },

@@ -1,8 +1,9 @@
+use log::error;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use tauri::{Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager, WebviewWindowBuilder};
 
 /// Represents a user in the authentication system
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,7 +99,10 @@ impl AppState {
 /// Get the current authenticated user
 #[tauri::command]
 fn get_user(state: tauri::State<AppState>) -> Option<AuthUser> {
-    state.auth_data.lock().unwrap()
+    state
+        .auth_data
+        .lock()
+        .unwrap()
         .as_ref()
         .map(|data| data.user.clone())
 }
@@ -106,7 +110,10 @@ fn get_user(state: tauri::State<AppState>) -> Option<AuthUser> {
 /// Get the current authentication token
 #[tauri::command]
 fn get_token(state: tauri::State<AppState>) -> Option<String> {
-    state.auth_data.lock().unwrap()
+    state
+        .auth_data
+        .lock()
+        .unwrap()
         .as_ref()
         .map(|data| data.token.clone())
 }
@@ -114,7 +121,10 @@ fn get_token(state: tauri::State<AppState>) -> Option<String> {
 /// Get the current refresh token
 #[tauri::command]
 fn get_refresh_token(state: tauri::State<AppState>) -> Option<String> {
-    state.auth_data.lock().unwrap()
+    state
+        .auth_data
+        .lock()
+        .unwrap()
         .as_ref()
         .map(|data| data.refresh_token.clone())
 }
@@ -126,12 +136,12 @@ fn set_auth(
     state: tauri::State<AppState>,
     user: AuthUser,
     token: String,
-    refresh_token: String
+    refresh_token: String,
 ) -> Result<(), String> {
     *state.auth_data.lock().unwrap() = Some(AuthData {
         user: user.clone(),
         token,
-        refresh_token
+        refresh_token,
     });
     state.save_to_disk()?;
 
@@ -143,7 +153,11 @@ fn set_auth(
 
 /// Update the current user's data
 #[tauri::command]
-fn update_user(app: tauri::AppHandle, state: tauri::State<AppState>, user_updates: AuthUser) -> Result<(), String> {
+fn update_user(
+    app: tauri::AppHandle,
+    state: tauri::State<AppState>,
+    user_updates: AuthUser,
+) -> Result<(), String> {
     let mut auth_data = state.auth_data.lock().unwrap();
 
     if let Some(data) = auth_data.as_mut() {
@@ -178,10 +192,34 @@ fn is_authenticated(state: tauri::State<AppState>) -> bool {
     state.auth_data.lock().unwrap().is_some()
 }
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+fn open_chat_window(
+    handle: AppHandle,
+    webview_window: tauri::WebviewWindow,
+    dialog_window: String,
+) -> Result<(), String> {
+    let dialog_label = format!("chat-{}", dialog_window);
+    let title = dialog_window.clone();
+
+    if let Some(existing_window) = handle.get_webview_window(&dialog_label) {
+        if let Err(e) = existing_window.set_focus() {
+            error!("Error focusing the chat window: {:?}", e);
+        }
+    } else {
+        let _ = WebviewWindowBuilder::new(&handle, &dialog_label, tauri::WebviewUrl::App("chat-window.html".into()))
+            .title(title)
+            .decorations(false)
+            .resizable(true)
+            .transparent(true)
+            .inner_size(600.0, 400.0)
+            .min_inner_size(600.0, 400.0)
+            .center()
+            .parent(&webview_window)
+            .unwrap()
+            .build()
+            .unwrap();
+    }
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -191,7 +229,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // Get the app data directory for storage
-            let app_data_dir = app.path().app_data_dir()
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
                 .expect("Failed to get app data directory");
             let storage_path = app_data_dir.join("auth_data.json");
 
@@ -202,7 +242,6 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            greet,
             get_user,
             get_token,
             get_refresh_token,
@@ -210,6 +249,7 @@ pub fn run() {
             update_user,
             clear_auth,
             is_authenticated,
+            open_chat_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

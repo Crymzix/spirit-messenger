@@ -21,5 +21,8 @@
     "http",
     "net"
   ],
-  "kiroAgent.configureMCP": "Disabled"
+  "kiroAgent.configureMCP": "Disabled",
+  "rust-analyzer.linkedProjects": [
+    "messenger/src-tauri/Cargo.toml"
+  ]
 }
