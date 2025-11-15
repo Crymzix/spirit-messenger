@@ -9,16 +9,11 @@ import type { PresenceStatus } from '@/types';
  */
 export function useSetPresenceStatus() {
     const queryClient = useQueryClient();
-    const token = useAuthStore((state) => state.token);
     const updateUser = useAuthStore((state) => state.updateUser);
 
     return useMutation({
         mutationFn: async (status: PresenceStatus) => {
-            if (!token) {
-                throw new Error('Not authenticated');
-            }
-
-            const response = await setUserPresenceStatus(status, token);
+            const response = await setUserPresenceStatus(status);
             return { status, response };
         },
         onSuccess: ({ status }) => {

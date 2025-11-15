@@ -36,3 +36,24 @@ body {
 * {
   box-sizing: border-box;
 }
+
+/* Typin
+g indicator animation */
+@keyframes typing-pulse {
+
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+
+  30% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-typing-pulse {
+  animation: typing-pulse 1.4s infinite;
+}

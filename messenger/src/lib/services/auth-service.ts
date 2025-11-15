@@ -105,8 +105,7 @@ export async function signOut(): Promise<{
     // Call backend logout endpoint
     const response = await apiPost<{ message: string }>(
       '/api/auth/logout',
-      {},
-      token
+      {}
     );
 
     if (!response.success) {

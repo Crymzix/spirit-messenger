@@ -17,16 +17,11 @@ import {
  */
 export function useUpdateProfile() {
     const queryClient = useQueryClient();
-    const token = useAuthStore((state) => state.token);
     const updateUser = useAuthStore((state) => state.updateUser);
 
     return useMutation({
         mutationFn: async (data: UpdateProfileData) => {
-            if (!token) {
-                throw new Error('Not authenticated');
-            }
-
-            const response = await updateProfile(data, token);
+            const response = await updateProfile(data);
             return response;
         },
         onSuccess: (data) => {
@@ -44,16 +39,11 @@ export function useUpdateProfile() {
  */
 export function useUploadDisplayPicture() {
     const queryClient = useQueryClient();
-    const token = useAuthStore((state) => state.token);
     const updateUser = useAuthStore((state) => state.updateUser);
 
     return useMutation({
         mutationFn: async (file: File) => {
-            if (!token) {
-                throw new Error('Not authenticated');
-            }
-
-            const response = await uploadDisplayPicture(file, token);
+            const response = await uploadDisplayPicture(file);
             return response;
         },
         onSuccess: (data) => {
@@ -73,19 +63,15 @@ export function useUploadDisplayPicture() {
  * Hook for fetching user's profile pictures
  */
 export function useProfilePictures() {
-    const token = useAuthStore((state) => state.token);
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
     return useQuery({
         queryKey: ['profilePictures'],
         queryFn: async () => {
-            if (!token) {
-                throw new Error('Not authenticated');
-            }
-
-            const response = await getProfilePictures(token);
+            const response = await getProfilePictures();
             return response.pictures;
         },
-        enabled: !!token,
+        enabled: isAuthenticated,
         staleTime: 5 * 60 * 1000, // 5 minutes
     });
 }
@@ -95,16 +81,11 @@ export function useProfilePictures() {
  */
 export function useSetDisplayPicture() {
     const queryClient = useQueryClient();
-    const token = useAuthStore((state) => state.token);
     const updateUser = useAuthStore((state) => state.updateUser);
 
     return useMutation({
         mutationFn: async (displayPictureUrl: string) => {
-            if (!token) {
-                throw new Error('Not authenticated');
-            }
-
-            const response = await setDisplayPicture(displayPictureUrl, token);
+            const response = await setDisplayPicture(displayPictureUrl);
             return response;
         },
         onSuccess: (data) => {
@@ -123,16 +104,11 @@ export function useSetDisplayPicture() {
  */
 export function useRemoveDisplayPicture() {
     const queryClient = useQueryClient();
-    const token = useAuthStore((state) => state.token);
     const updateUser = useAuthStore((state) => state.updateUser);
 
     return useMutation({
         mutationFn: async () => {
-            if (!token) {
-                throw new Error('Not authenticated');
-            }
-
-            const response = await removeDisplayPicture(token);
+            const response = await removeDisplayPicture();
             return response;
         },
         onSuccess: (data) => {

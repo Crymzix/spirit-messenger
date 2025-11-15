@@ -39,13 +39,11 @@ let userSetStatus: PresenceStatus = 'online'; // The status the user explicitly 
  * Sends presence update to Backend Service
  */
 export async function updatePresence(
-    presenceStatus: PresenceStatus,
-    token: string
+    presenceStatus: PresenceStatus
 ): Promise<UpdatePresenceResponse> {
     const response = await apiPut<{ success: boolean }>(
         '/api/users/presence',
-        { presenceStatus },
-        token
+        { presenceStatus }
     );
 
     if (!response.success || !response.data) {
@@ -67,12 +65,12 @@ export async function updatePresence(
  * Handle user activity
  * Resets the inactivity timer and updates status if needed
  */
-function handleActivity(token: string): void {
+function handleActivity(): void {
     lastActivityTime = Date.now();
 
     // If user was auto-set to away, bring them back to their previous status
     if (currentPresenceStatus === 'away' && userSetStatus !== 'away') {
-        updatePresence(userSetStatus, token).catch((error) => {
+        updatePresence(userSetStatus).catch((error) => {
             console.error('Failed to update presence on activity:', error);
         });
     }
@@ -84,18 +82,18 @@ function handleActivity(token: string): void {
 
     // Set new timer for auto-away
     activityTimer = window.setTimeout(() => {
-        setAutoAway(token);
+        setAutoAway();
     }, INACTIVITY_TIMEOUT);
 }
 
 /**
  * Set status to away automatically due to inactivity
  */
-function setAutoAway(token: string): void {
+function setAutoAway(): void {
     // Only auto-set to away if user's status is online or busy
     // Don't override if user manually set to away or appear_offline
     if (currentPresenceStatus === 'online' || currentPresenceStatus === 'busy') {
-        updatePresence('away', token).catch((error) => {
+        updatePresence('away').catch((error) => {
             console.error('Failed to set auto-away status:', error);
         });
     }
@@ -104,12 +102,10 @@ function setAutoAway(token: string): void {
 /**
  * Start tracking user activity for automatic away status
  * Monitors mouse movement and keyboard input
- * 
- * @param token - Authentication token for API calls
+ *
  * @param initialStatus - The initial presence status (default: 'online')
  */
 export function startActivityTracking(
-    token: string,
     initialStatus: PresenceStatus = 'online'
 ): void {
     if (isTrackingActivity) {
@@ -126,7 +122,7 @@ export function startActivityTracking(
     let throttleTimeout: number | null = null;
     const throttledHandler = () => {
         if (throttleTimeout === null) {
-            handleActivity(token);
+            handleActivity();
             throttleTimeout = window.setTimeout(() => {
                 throttleTimeout = null;
             }, 1000); // Throttle to once per second
@@ -142,7 +138,7 @@ export function startActivityTracking(
 
     // Start the initial inactivity timer
     activityTimer = window.setTimeout(() => {
-        setAutoAway(token);
+        setAutoAway();
     }, INACTIVITY_TIMEOUT);
 
     console.log('Activity tracking started');
@@ -205,13 +201,11 @@ export function getTimeSinceLastActivity(): number {
 /**
  * Manually update the user-set status
  * This is called when the user explicitly changes their status
- * 
+ *
  * @param status - The new presence status
- * @param token - Authentication token for API calls
  */
 export async function setUserPresenceStatus(
-    status: PresenceStatus,
-    token: string
+    status: PresenceStatus
 ): Promise<UpdatePresenceResponse> {
     userSetStatus = status;
 
@@ -228,9 +222,9 @@ export async function setUserPresenceStatus(
             window.clearTimeout(activityTimer);
         }
         activityTimer = window.setTimeout(() => {
-            setAutoAway(token);
+            setAutoAway();
         }, INACTIVITY_TIMEOUT);
     }
 
-    return updatePresence(status, token);
+    return updatePresence(status);
 }

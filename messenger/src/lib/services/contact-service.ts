@@ -43,13 +43,11 @@ export interface PendingRequestsResponse {
  * Send a contact request to another user by email
  */
 export async function sendContactRequest(
-    contactEmail: string,
-    token: string
+    contactEmail: string
 ): Promise<ContactRequestResponse> {
     const response = await apiPost<ContactRequestResponse>(
         '/api/contacts/request',
-        { contactEmail },
-        token
+        { contactEmail }
     );
 
     if (!response.success || !response.data) {
@@ -63,13 +61,11 @@ export async function sendContactRequest(
  * Accept a contact request
  */
 export async function acceptContactRequest(
-    requestId: string,
-    token: string
+    requestId: string
 ): Promise<AcceptContactResponse> {
     const response = await apiPost<AcceptContactResponse>(
         '/api/contacts/accept',
-        { requestId },
-        token
+        { requestId }
     );
 
     if (!response.success || !response.data) {
@@ -83,13 +79,11 @@ export async function acceptContactRequest(
  * Decline a contact request
  */
 export async function declineContactRequest(
-    requestId: string,
-    token: string
+    requestId: string
 ): Promise<{ success: boolean }> {
     const response = await apiPost<{ success: boolean }>(
         '/api/contacts/decline',
-        { requestId },
-        token
+        { requestId }
     );
 
     if (!response.success || !response.data) {
@@ -103,12 +97,10 @@ export async function declineContactRequest(
  * Remove a contact
  */
 export async function removeContact(
-    contactId: string,
-    token: string
+    contactId: string
 ): Promise<{ success: boolean }> {
     const response = await apiDelete<{ success: boolean }>(
-        `/api/contacts/${contactId}`,
-        token
+        `/api/contacts/${contactId}`
     );
 
     if (!response.success || !response.data) {
@@ -122,14 +114,12 @@ export async function removeContact(
  * Get all contacts for the authenticated user
  */
 export async function getContacts(
-    token: string,
     status?: 'pending' | 'accepted' | 'blocked'
 ): Promise<GetContactsResponse> {
     const endpoint = status ? `/api/contacts?status=${status}` : '/api/contacts';
 
     const response = await apiGet<GetContactsResponse>(
-        endpoint,
-        token
+        endpoint
     );
 
     if (!response.success || !response.data) {
@@ -142,12 +132,9 @@ export async function getContacts(
 /**
  * Get pending contact requests
  */
-export async function getPendingRequests(
-    token: string
-): Promise<PendingRequestsResponse> {
+export async function getPendingRequests(): Promise<PendingRequestsResponse> {
     const response = await apiGet<PendingRequestsResponse>(
-        '/api/contacts/pending',
-        token
+        '/api/contacts/pending'
     );
 
     if (!response.success || !response.data) {
@@ -162,8 +149,7 @@ export async function getPendingRequests(
  * This is used to validate if a user exists before sending a contact request
  */
 export async function searchUserByEmail(
-    email: string,
-    token: string
+    email: string
 ): Promise<{ exists: boolean; username?: string; displayName?: string }> {
     // Note: This could be implemented as a direct Supabase query or as a backend endpoint
     // For now, we'll rely on the backend to validate the email when sending the request

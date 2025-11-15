@@ -402,31 +402,34 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Show delivery status indicator
     - Implement different styles for sent/received messages
     - _Requirements: 4.3, 17.1, 17.3_
-  - [ ] 24.3 Implement send message functionality
+  - [x] 24.3 Implement send message functionality
     - Create message-service.ts with send handler
+    - Use React Query hooks for message APIs
     - Send message to Backend Service API
     - Show message optimistically in chat window
     - Confirm delivery via Supabase real-time subscription
     - _Requirements: 4.2, 17.1, 17.3_
-  - [ ] 24.4 Implement receive message functionality
+  - [x] 24.4 Implement receive message functionality
     - Subscribe to messages table changes via Supabase Realtime
     - Filter messages for active conversation
     - Display incoming messages in chat window
     - Update message delivery status
     - Scroll to bottom on new message
     - _Requirements: 4.3, 13.1_
-  - [ ] 24.5 Implement chat history loading
+  - [x] 24.5 Implement chat history loading
     - Fetch previous messages from Supabase on chat open
     - Implement pagination (50 messages per page)
     - Add "Load More" functionality for older messages
     - Display messages in chronological order
+    - Ensure we use React Query and Hooks
     - _Requirements: 4.5_
-  - [ ] 15.6 Implement typing indicators
+  - [x] 15.6 Implement typing indicators
     - Use Supabase Realtime presence to track typing status
     - Send typing status when user types
     - Subscribe to typing status from contacts
     - Display "Contact is typing..." indicator
     - Clear indicator after 3 seconds of inactivity
+    - Ensure we use React Query and Hooks
     - _Requirements: 13.5_
 
 - [ ] 16. Implement emoticons and rich text formatting

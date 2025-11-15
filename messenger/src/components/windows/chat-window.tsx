@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { User, Message } from "@/types";
+import { User } from "@/types";
 import { TitleBar } from "../title-bar";
 import { useUser } from "@/lib";
+import { useSendMessage, useConversationMessagesInfinite, useConversationRealtimeUpdates } from "@/lib/hooks/message-hooks";
+import { useTypingIndicator } from "@/lib/hooks/typing-hooks";
+import { TypingIndicator } from "../typing-indicator";
 
 interface ChatWindowProps {
     conversation?: {
@@ -10,18 +13,34 @@ interface ChatWindowProps {
         name?: string;
         participants: User[];
     };
-    onClose?: () => void;
 }
 
-export function ChatWindow({ conversation, onClose }: ChatWindowProps) {
+export function ChatWindow({ conversation }: ChatWindowProps) {
     const user = useUser()
     const [messageInput, setMessageInput] = useState("");
-    const [messages, setMessages] = useState<Message[]>([]);
     const [showEmoticonPicker, setShowEmoticonPicker] = useState(false);
     const [activeTab, setActiveTab] = useState<"type" | "handwrite">('type');
+    const [isTyping, setIsTyping] = useState(false);
     const messageHistoryRef = useRef<HTMLDivElement>(null);
 
-    console.log(user)
+    const sendMessageMutation = useSendMessage(conversation?.id || '');
+    const {
+        data: messagesQueryData,
+        isLoading: isLoadingMessages,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+    } = useConversationMessagesInfinite(conversation?.id || '', 50);
+
+    // Extract messages from the infinite query result
+    const messagesData = messagesQueryData?.messages || [];
+
+    // Subscribe to real-time message updates
+    useConversationRealtimeUpdates(conversation?.id);
+
+    // Typing indicator hook
+    const { typingUsers, setTyping } = useTypingIndicator(conversation?.id || null);
+
     const participants = useMemo(() => {
         return conversation?.participants.filter(p => p.id !== user?.id) || []
     }, [conversation])
@@ -38,27 +57,53 @@ export function ChatWindow({ conversation, onClose }: ChatWindowProps) {
     // Scroll to bottom when messages change
     useEffect(() => {
         if (messageHistoryRef.current) {
-            messageHistoryRef.current.scrollTop = messageHistoryRef.current.scrollHeight;
+            // Use requestAnimationFrame to ensure DOM has updated
+            requestAnimationFrame(() => {
+                if (messageHistoryRef.current) {
+                    messageHistoryRef.current.scrollTop = messageHistoryRef.current.scrollHeight;
+                }
+            });
         }
-    }, [messages]);
+    }, [messagesData]);
 
-    const handleSendMessage = () => {
-        if (!messageInput.trim()) return;
+    const handleSendMessage = async () => {
+        if (!messageInput.trim() || !conversation?.id) return;
 
-        // TODO: Implement message sending via React Query hook
-        // For now, just add to local state
-        const newMessage: Message = {
-            id: `temp-${Date.now()}`,
-            conversationId: conversation?.id!!,
-            senderId: user?.id!!,
-            content: messageInput,
-            messageType: 'text',
-            metadata: {},
-            createdAt: new Date(),
-        };
+        try {
+            // Clear typing status before sending
+            if (isTyping) {
+                setTyping(false);
+                setIsTyping(false);
+            }
 
-        setMessages([...messages, newMessage]);
-        setMessageInput("");
+            // Send message using React Query mutation hook
+            await sendMessageMutation.mutateAsync({
+                conversationId: conversation.id,
+                content: messageInput.trim(),
+                messageType: 'text',
+                metadata: {},
+            });
+
+            // Clear input on success
+            setMessageInput("");
+        } catch (error) {
+            console.error('Failed to send message:', error);
+            // Optionally show error to user
+        }
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const value = e.target.value;
+        setMessageInput(value);
+
+        // Set typing status
+        if (value.length > 0 && !isTyping) {
+            setIsTyping(true);
+            setTyping(true);
+        } else if (value.length === 0 && isTyping) {
+            setIsTyping(false);
+            setTyping(false);
+        }
     };
 
     const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -241,10 +286,7 @@ export function ChatWindow({ conversation, onClose }: ChatWindowProps) {
                         <div className="flex flex-col flex-1 min-h-0 z-10 gap-4">
                             <div className="flex flex-1 gap-4">
                                 {/* Message History Panel */}
-                                <div
-                                    ref={messageHistoryRef}
-                                    className="flex-1 bg-white border-[1px] border-[#31497C] rounded-t-xl"
-                                >
+                                <div className="flex-1 bg-white border-[1px] border-[#31497C] rounded-t-xl flex flex-col">
                                     <div
                                         style={{ fontFamily: 'Pixelated MS Sans Serif' }}
                                         className="flex items-center gap-1 text-[#31497C] bg-[#E6ECF9] border-b-[1px] border-[#31497C] rounded-t-xl px-2 py-1.5 text-lg"
@@ -254,10 +296,31 @@ export function ChatWindow({ conversation, onClose }: ChatWindowProps) {
                                             {participants.map(p => p.displayName || p.username).join(", ")}
                                         </div>
                                     </div>
-                                    <div className="space-y-2 overflow-y-auto p-2">
-                                        {messages.map((message) => {
-                                            const sender = conversation?.participants.find(p => p.id === message.senderId);
+                                    <div
+                                        ref={messageHistoryRef}
+                                        className="flex-1 space-y-2 overflow-y-auto p-2"
+                                    >
+                                        {isLoadingMessages && (
+                                            <div className="text-center text-gray-500 text-sm py-2">
+                                                Loading messages...
+                                            </div>
+                                        )}
+                                        {!isLoadingMessages && hasNextPage && (
+                                            <div className="text-center py-2">
+                                                <button
+                                                    onClick={() => fetchNextPage()}
+                                                    disabled={isFetchingNextPage}
+                                                    className="px-3 py-1 text-[10px] bg-[#E6ECF9] hover:bg-[#D8E8F7] border border-[#31497C] rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                                >
+                                                    {isFetchingNextPage ? 'Loading...' : 'Load More Messages'}
+                                                </button>
+                                            </div>
+                                        )}
+                                        {messagesData.map((message: any) => {
+                                            const sender = message.sender || conversation?.participants.find((p: User) => p.id === message.senderId);
                                             const isCurrentUser = message.senderId === user?.id;
+                                            const isOptimistic = message.id.startsWith('temp-');
 
                                             return (
                                                 <div key={message.id} className="text-[10px]">
@@ -266,13 +329,29 @@ export function ChatWindow({ conversation, onClose }: ChatWindowProps) {
                                                             {sender?.displayName || 'Unknown'}:
                                                         </span>
                                                         <span className="text-black">{message.content}</span>
+                                                        {isCurrentUser && (
+                                                            <span className="text-[8px] text-gray-400 ml-1">
+                                                                {isOptimistic ? '⏳' : message.deliveredAt ? '✓✓' : '✓'}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div className="text-[9px] text-gray-500 ml-1">
-                                                        {message.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                     </div>
                                                 </div>
                                             );
                                         })}
+                                        {sendMessageMutation.isPending && (
+                                            <div className="text-[10px] text-gray-500 italic">
+                                                Sending...
+                                            </div>
+                                        )}
+                                        {/* Typing indicator */}
+                                        {typingUsers.length > 0 && (
+                                            <TypingIndicator
+                                                usernames={typingUsers.map(u => u.username)}
+                                            />
+                                        )}
                                     </div>
                                 </div>
                                 {/* MSN Messenger Avatar */}
@@ -320,13 +399,21 @@ export function ChatWindow({ conversation, onClose }: ChatWindowProps) {
                                             <img src="/nudge.png" className="size-8" />
                                         </div>
                                     </div>
-                                    <textarea
-                                        value={messageInput}
-                                        onChange={(e) => setMessageInput(e.target.value)}
-                                        onKeyDown={handleKeyPress}
-                                        placeholder="Type a message..."
-                                        className="w-full flex-1 !p-2 !text-lg border border-[#ACA899] rounded resize-none focus:outline-none focus:border-msn-blue"
-                                    />
+                                    <div className="flex py-4 px-2">
+                                        <textarea
+                                            value={messageInput}
+                                            onChange={handleInputChange}
+                                            onKeyDown={handleKeyPress}
+                                            placeholder="Type a message..."
+                                            disabled={sendMessageMutation.isPending}
+                                            className="w-full flex-1 !text-lg border border-[#ACA899] rounded resize-none focus:outline-none focus:border-msn-blue disabled:opacity-50 disabled:cursor-not-allowed"
+                                        />
+                                        <div
+                                            className="!text-lg border border-[#93989C] bg-[#FBFBFB] w-[58px] h-full rounded-[5px] font-bold text-[0.6875em] text-[#969C9A] flex items-center justify-center"
+                                            style={{ boxShadow: '-4px -4px 4px #C0C9E0 inset', fontFamily: 'Pixelated MS Sans Serif' }}>
+                                            Send
+                                        </div>
+                                    </div>
 
                                     {/* Bottom Bar */}
                                     <div

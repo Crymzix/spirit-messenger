@@ -16,7 +16,7 @@
  * 5. UI automatically re-renders with new data
  */
 
-import { apiPut, apiGet } from '../api-client';
+import { apiPut, apiGet, createAuthHeaders } from '../api-client';
 import { supabase } from '../supabase';
 import type { User } from '@/types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
@@ -53,13 +53,11 @@ export type ProfileChangeCallback = (user: Partial<User>) => void;
  * Update user profile (display name and/or personal message)
  */
 export async function updateProfile(
-    data: UpdateProfileData,
-    token: string
+    data: UpdateProfileData
 ): Promise<UpdateProfileResponse> {
     const response = await apiPut<{ user: User }>(
         '/api/users/profile',
-        data,
-        token
+        data
     );
 
     if (!response.success || !response.data) {
@@ -74,8 +72,7 @@ export async function updateProfile(
  * Validates file type and size before uploading
  */
 export async function uploadDisplayPicture(
-    file: File,
-    token: string
+    file: File
 ): Promise<UploadDisplayPictureResponse> {
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
@@ -100,9 +97,7 @@ export async function uploadDisplayPicture(
     try {
         const response = await fetch(url, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
+            headers: createAuthHeaders(),
             body: formData,
         });
 
@@ -126,12 +121,9 @@ export async function uploadDisplayPicture(
 /**
  * Get all profile pictures for the current user
  */
-export async function getProfilePictures(
-    token: string
-): Promise<GetProfilePicturesResponse> {
+export async function getProfilePictures(): Promise<GetProfilePicturesResponse> {
     const response = await apiGet<GetProfilePicturesResponse>(
-        '/api/users/profile-pictures',
-        token
+        '/api/users/profile-pictures'
     );
 
     if (!response.success || !response.data) {
@@ -145,13 +137,11 @@ export async function getProfilePictures(
  * Set the user's display picture URL (for selecting from existing pictures)
  */
 export async function setDisplayPicture(
-    displayPictureUrl: string,
-    token: string
+    displayPictureUrl: string
 ): Promise<UpdateProfileResponse> {
     const response = await apiPut<{ user: User }>(
         '/api/users/profile',
-        { displayPictureUrl },
-        token
+        { displayPictureUrl }
     );
 
     if (!response.success || !response.data) {
@@ -164,9 +154,7 @@ export async function setDisplayPicture(
 /**
  * Remove the user's display picture
  */
-export async function removeDisplayPicture(
-    token: string
-): Promise<UpdateProfileResponse> {
+export async function removeDisplayPicture(): Promise<UpdateProfileResponse> {
     // Get API base URL
     const API_BASE_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:6666';
     const url = `${API_BASE_URL}/api/users/display-picture`;
@@ -175,7 +163,7 @@ export async function removeDisplayPicture(
         const response = await fetch(url, {
             method: 'DELETE',
             headers: {
-                'Authorization': `Bearer ${token}`,
+                ...createAuthHeaders(),
                 'Content-Type': 'application/json',
             },
         });

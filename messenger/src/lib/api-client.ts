@@ -3,6 +3,8 @@
  * Handles all write operations to the backend
  */
 
+import { useAuthStore } from './store/auth-store';
+
 const API_BASE_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:6666';
 
 export interface ApiResponse<T> {
@@ -38,8 +40,11 @@ export async function apiRequest<T>(
     requestHeaders['Content-Type'] = 'application/json';
   }
 
-  if (token) {
-    requestHeaders['Authorization'] = `Bearer ${token}`;
+  // Auto-retrieve token from store if not provided
+  const authToken = token || useAuthStore.getState().token;
+
+  if (authToken) {
+    requestHeaders['Authorization'] = `Bearer ${authToken}`;
   }
 
   try {
@@ -66,6 +71,22 @@ export async function apiRequest<T>(
       error: error instanceof Error ? error.message : 'Network error',
     };
   }
+}
+
+/**
+ * Create auth headers for direct fetch calls (e.g., file uploads)
+ * Auto-retrieves token from store if not provided
+ */
+export function createAuthHeaders(token?: string): Record<string, string> {
+  const authToken = token || useAuthStore.getState().token;
+
+  if (authToken) {
+    return {
+      'Authorization': `Bearer ${authToken}`,
+    };
+  }
+
+  return {};
 }
 
 /**

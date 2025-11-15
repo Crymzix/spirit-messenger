@@ -1,4 +1,4 @@
-import { eq, and, desc, isNull, inArray } from 'drizzle-orm';
+import { eq, and, desc, isNull, inArray, lt } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import {
     messages,
@@ -584,7 +584,7 @@ export async function getConversationMessages(
         // Build query conditions
         const conditions = [eq(messages.conversationId, conversationId)];
 
-        // If beforeMessageId is provided, get messages before that message
+        // If beforeMessageId is provided, get messages before that message (for pagination)
         if (beforeMessageId) {
             const [beforeMessage] = await db
                 .select()
@@ -592,16 +592,14 @@ export async function getConversationMessages(
                 .where(eq(messages.id, beforeMessageId))
                 .limit(1);
 
-            if (beforeMessage) {
-                conditions.push(
-                    // Get messages created before the reference message
-                    // Using createdAt for pagination
-                    desc(messages.createdAt)
-                );
+            if (beforeMessage && beforeMessage.createdAt) {
+                // Get messages created before the reference message's timestamp
+                // This ensures we get older messages for pagination
+                conditions.push(lt(messages.createdAt, beforeMessage.createdAt));
             }
         }
 
-        // Get messages with sender information
+        // Get messages with sender information, ordered by newest first
         const conversationMessages = await db
             .select({
                 id: messages.id,

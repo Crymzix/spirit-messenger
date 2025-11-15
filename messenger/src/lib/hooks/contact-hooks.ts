@@ -26,11 +26,10 @@ export function usePendingContactRequests() {
     const [pendingRequests, setPendingRequests] = useState<Contact[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const token = useAuthStore((state) => state.token);
     const user = useAuthStore((state) => state.user);
 
     useEffect(() => {
-        if (!token || !user) {
+        if (!user) {
             setPendingRequests([]);
             setIsLoading(false);
             return;
@@ -41,7 +40,7 @@ export function usePendingContactRequests() {
             try {
                 setIsLoading(true);
                 setError(null);
-                const response = await getPendingRequests(token);
+                const response = await getPendingRequests();
                 setPendingRequests(response.requests || []);
             } catch (err) {
                 const errorMessage = err instanceof Error ? err.message : 'Failed to fetch pending requests';
@@ -99,20 +98,18 @@ export function usePendingContactRequests() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [token, user]);
+    }, [user]);
 
     return {
         pendingRequests,
         isLoading,
         error,
         refetch: async () => {
-            if (token) {
-                try {
-                    const response = await getPendingRequests(token);
-                    setPendingRequests(response.requests || []);
-                } catch (err) {
-                    console.error('Error refetching pending requests:', err);
-                }
+            try {
+                const response = await getPendingRequests();
+                setPendingRequests(response.requests || []);
+            } catch (err) {
+                console.error('Error refetching pending requests:', err);
             }
         },
     };
@@ -123,15 +120,10 @@ export function usePendingContactRequests() {
  */
 export function useSendContactRequest() {
     const queryClient = useQueryClient();
-    const token = useAuthStore((state) => state.token);
 
     return useMutation({
         mutationFn: async (contactEmail: string) => {
-            if (!token) {
-                throw new Error('Not authenticated');
-            }
-
-            const response = await sendContactRequest(contactEmail, token);
+            const response = await sendContactRequest(contactEmail);
             return response;
         },
         onSuccess: () => {
@@ -147,15 +139,10 @@ export function useSendContactRequest() {
  */
 export function useRemoveContact() {
     const queryClient = useQueryClient();
-    const token = useAuthStore((state) => state.token);
 
     return useMutation({
         mutationFn: async (contactId: string) => {
-            if (!token) {
-                throw new Error('Not authenticated');
-            }
-
-            const response = await removeContact(contactId, token);
+            const response = await removeContact(contactId);
             return response;
         },
         onSuccess: () => {
@@ -171,15 +158,10 @@ export function useRemoveContact() {
  */
 export function useAcceptContactRequest() {
     const queryClient = useQueryClient();
-    const token = useAuthStore((state) => state.token);
 
     return useMutation({
         mutationFn: async (requestId: string) => {
-            if (!token) {
-                throw new Error('Not authenticated');
-            }
-
-            const response = await acceptContactRequest(requestId, token);
+            const response = await acceptContactRequest(requestId);
             return response;
         },
         onSuccess: () => {
@@ -195,15 +177,10 @@ export function useAcceptContactRequest() {
  */
 export function useDeclineContactRequest() {
     const queryClient = useQueryClient();
-    const token = useAuthStore((state) => state.token);
 
     return useMutation({
         mutationFn: async (requestId: string) => {
-            if (!token) {
-                throw new Error('Not authenticated');
-            }
-
-            const response = await declineContactRequest(requestId, token);
+            const response = await declineContactRequest(requestId);
             return response;
         },
         onSuccess: () => {
@@ -218,19 +195,15 @@ export function useDeclineContactRequest() {
  * Hook for fetching contacts with optional status filter
  */
 export function useContacts(status?: 'pending' | 'accepted' | 'blocked') {
-    const token = useAuthStore((state) => state.token);
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
     return useQuery({
         queryKey: ['contacts', status],
         queryFn: async () => {
-            if (!token) {
-                throw new Error('Not authenticated');
-            }
-
-            const response = await getContacts(token, status);
+            const response = await getContacts(status);
             return response.contacts;
         },
-        enabled: !!token,
+        enabled: isAuthenticated,
     });
 }
 
@@ -238,19 +211,15 @@ export function useContacts(status?: 'pending' | 'accepted' | 'blocked') {
  * Hook for searching a user by email
  */
 export function useSearchUserByEmail(email: string) {
-    const token = useAuthStore((state) => state.token);
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
     return useQuery({
         queryKey: ['searchUser', email],
         queryFn: async () => {
-            if (!token) {
-                throw new Error('Not authenticated');
-            }
-
-            const response = await searchUserByEmail(email, token);
+            const response = await searchUserByEmail(email);
             return response;
         },
-        enabled: !!token && !!email && email.length > 0,
+        enabled: isAuthenticated && !!email && email.length > 0,
     });
 }
 
