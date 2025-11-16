@@ -4,7 +4,6 @@ import { RegistrationScreen } from "../screens/registration-screen";
 import {
     useSignIn,
     useSignUp,
-    useSignOut,
     useIsAuthenticated,
     useAuthLoading,
     useAuthInitialized,
@@ -22,7 +21,6 @@ export function MainWindow() {
     const isAuthInitialized = useAuthInitialized();
     const signInMutation = useSignIn();
     const signUpMutation = useSignUp();
-    const signOutMutation = useSignOut();
 
     useEffect(() => {
         if (isAuthInitialized && isAuthenticated) {
@@ -55,11 +53,6 @@ export function MainWindow() {
         }
     };
 
-    const handleSignOut = async () => {
-        await signOutMutation.mutateAsync();
-        setCurrentView('signin');
-    };
-
     if (!isAuthInitialized || isAuthLoading) {
         return (
             <Loading />
@@ -85,6 +78,6 @@ export function MainWindow() {
     }
 
     return (
-        <ContactsScreen onSignOut={handleSignOut} />
+        <ContactsScreen />
     );
 }

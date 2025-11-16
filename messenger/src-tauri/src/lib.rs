@@ -33,14 +33,16 @@ pub struct AuthData {
 pub struct AppState {
     auth_data: Mutex<Option<AuthData>>,
     storage_path: PathBuf,
+    profile: Option<String>,
 }
 
 impl AppState {
     /// Create a new AppState with storage at the given path
-    pub fn new(storage_path: PathBuf) -> Self {
+    pub fn new(storage_path: PathBuf, profile: Option<String>) -> Self {
         let mut state = Self {
             auth_data: Mutex::new(None),
             storage_path,
+            profile,
         };
 
         // Load auth data from disk on initialization
@@ -192,6 +194,12 @@ fn is_authenticated(state: tauri::State<AppState>) -> bool {
     state.auth_data.lock().unwrap().is_some()
 }
 
+/// Get the current profile name (for multi-instance support)
+#[tauri::command]
+fn get_profile(state: tauri::State<AppState>) -> Option<String> {
+    state.profile.clone()
+}
+
 #[tauri::command]
 fn open_chat_window(
     handle: AppHandle,
@@ -229,14 +237,25 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // Get the app data directory for storage
-            let app_data_dir = app
+            let mut app_data_dir = app
                 .path()
                 .app_data_dir()
                 .expect("Failed to get app data directory");
+
+            // Support multiple instances via TAURI_PROFILE environment variable
+            // Usage: TAURI_PROFILE=user1 ./app or TAURI_PROFILE=user2 ./app
+            let profile = std::env::var("TAURI_PROFILE").ok();
+            if let Some(ref profile_name) = profile {
+                // Create a profile-specific subdirectory
+                app_data_dir = app_data_dir.join("profiles").join(profile_name);
+                println!("Using profile: {}", profile_name);
+                println!("Data directory: {:?}", app_data_dir);
+            }
+
             let storage_path = app_data_dir.join("auth_data.json");
 
             // Initialize app state
-            let state = AppState::new(storage_path);
+            let state = AppState::new(storage_path, profile);
             app.manage(state);
 
             Ok(())
@@ -249,6 +268,7 @@ pub fn run() {
             update_user,
             clear_auth,
             is_authenticated,
+            get_profile,
             open_chat_window
         ])
         .run(tauri::generate_context!())

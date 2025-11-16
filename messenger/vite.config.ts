@@ -12,6 +12,10 @@ export default defineConfig(async () => ({
       input: {
         main: resolve(__dirname, 'index.html'),
         'chat-window': resolve(__dirname, 'chat-window.html'),
+        'add-contact': resolve(__dirname, 'add-contact.html'),
+        'options': resolve(__dirname, 'options.html'),
+        'profile-picture-upload': resolve(__dirname, 'profile-picture-upload.html'),
+        'remove-contact': resolve(__dirname, 'remove-contact.html'),
       },
     },
   },

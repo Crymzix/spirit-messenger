@@ -143,19 +143,3 @@ export async function getPendingRequests(): Promise<PendingRequestsResponse> {
 
     return response.data;
 }
-
-/**
- * Search for a user by email (using Supabase direct read)
- * This is used to validate if a user exists before sending a contact request
- */
-export async function searchUserByEmail(
-    email: string
-): Promise<{ exists: boolean; username?: string; displayName?: string }> {
-    // Note: This could be implemented as a direct Supabase query or as a backend endpoint
-    // For now, we'll rely on the backend to validate the email when sending the request
-    // The backend will return an error if the user doesn't exist
-
-    // This is a placeholder that always returns exists: true
-    // The actual validation happens on the backend
-    return { exists: true };
-}

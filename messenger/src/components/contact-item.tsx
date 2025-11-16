@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Contact, PresenceStatus } from '@/types';
-import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { invoke } from '@tauri-apps/api/core';
+import { createWindow } from '@/lib/utils/window-utils';
 
 interface ContactItemProps {
     contact: Contact;
@@ -72,14 +72,9 @@ export function ContactItem({ contact, onClick, onAddToGroup }: ContactItemProps
     const handleRemoveContact = () => {
         setShowContextMenu(false);
 
-        // In dev mode, use the full dev server URL; in production, use the relative path
-        const isDev = window.location.hostname === 'localhost';
-        const url = isDev
-            ? 'http://localhost:1420/remove-contact.html'
-            : '/remove-contact.html';
+        const path = `/remove-contact.html?contactId=${contactUser.id}&contactName=${contactUser.displayName || contactUser.username}`;
 
-        const removeContactWindow = new WebviewWindow('remove-contact', {
-            url: `${url}?contactId=${contactUser.id}&contactName=${contactUser.displayName || contactUser.username}`,
+        createWindow('remove-contact', path, {
             title: 'Remove Contact',
             width: 320,
             height: 140,
@@ -87,14 +82,6 @@ export function ContactItem({ contact, onClick, onAddToGroup }: ContactItemProps
             decorations: false,
             transparent: true,
             center: true,
-        });
-
-        removeContactWindow.once('tauri://created', () => {
-            console.log('Add Contact window created');
-        });
-
-        removeContactWindow.once('tauri://error', (e) => {
-            console.error('Error creating window:', e);
         });
     };
 

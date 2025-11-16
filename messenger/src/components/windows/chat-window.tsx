@@ -18,7 +18,6 @@ interface ChatWindowProps {
 export function ChatWindow({ conversation }: ChatWindowProps) {
     const user = useUser()
     const [messageInput, setMessageInput] = useState("");
-    const [showEmoticonPicker, setShowEmoticonPicker] = useState(false);
     const [activeTab, setActiveTab] = useState<"type" | "handwrite">('type');
     const [isTyping, setIsTyping] = useState(false);
     const messageHistoryRef = useRef<HTMLDivElement>(null);
@@ -44,15 +43,6 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
     const participants = useMemo(() => {
         return conversation?.participants.filter(p => p.id !== user?.id) || []
     }, [conversation])
-
-    // Get the conversation title
-    const getConversationTitle = () => {
-        if (conversation?.type === 'group') {
-            return conversation.name || 'Group Chat';
-        }
-        const otherParticipant = conversation?.participants.find(p => p.id !== user?.id);
-        return otherParticipant?.displayName || 'Chat';
-    };
 
     // Scroll to bottom when messages change
     useEffect(() => {
@@ -111,11 +101,6 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
             e.preventDefault();
             handleSendMessage();
         }
-    };
-
-    const handleEmoticonClick = (emoticon: string) => {
-        setMessageInput(messageInput + emoticon);
-        setShowEmoticonPicker(false);
     };
 
     return (

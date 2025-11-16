@@ -1,6 +1,7 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { TitleBar } from './title-bar';
 import "xp.css/dist/XP.css";
+import { useSignOut } from '@/lib';
 
 interface LayoutProps {
   children: ReactNode;
@@ -10,6 +11,29 @@ interface LayoutProps {
 }
 
 export function Layout({ children, title = 'Spirit Messenger', showIcon = true, icon }: LayoutProps) {
+  const [isFileDropdownOpen, setIsFileDropdownOpen] = useState(false);
+  const fileDropdownRef = useRef<HTMLDivElement>(null);
+  const signOutMutation = useSignOut();
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (fileDropdownRef.current && !fileDropdownRef.current.contains(event.target as Node)) {
+        setIsFileDropdownOpen(false);
+      }
+    }
+
+    if (isFileDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isFileDropdownOpen]);
+
+  const handleSignOut = async () => {
+    await signOutMutation.mutateAsync();
+  };
+
   return (
     <div className="window w-full h-screen flex flex-col">
       <TitleBar title={title} showIcon={showIcon} icon={icon} />
@@ -18,9 +42,29 @@ export function Layout({ children, title = 'Spirit Messenger', showIcon = true, 
           {/* Menu Bar */}
           <div className="">
             <div className="flex gap-0.5 text-md">
-              <label className="px-3 py-1 cursor-pointer hover:bg-[#245DDA] hover:text-white">
-                File
-              </label>
+              <div ref={fileDropdownRef} className='relative'>
+                <label
+                  onClick={() => setIsFileDropdownOpen(true)}
+                  className="px-3 py-1 cursor-pointer hover:bg-[#245DDA] hover:text-white">
+                  File
+                </label>
+                {isFileDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 bg-white border border-gray-400 shadow-lg min-w-48 z-50">
+                    <div
+                      key="sign-out"
+                      onClick={handleSignOut}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-msn-light-blue transition-colors text-left whitespace-nowrap"
+                    >
+                      <div className='w-4' />
+                      <span
+                        style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                      >
+                        Sign out
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
               <label className="px-3 py-1 cursor-pointer hover:bg-[#245DDA] hover:text-white">
                 Contacts
               </label>

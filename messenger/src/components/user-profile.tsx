@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useUser } from '../lib/store/auth-store';
 import { useSetPresenceStatus } from '../lib/hooks/presence-hooks';
-import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { createWindow } from '@/lib/utils/window-utils';
 import { PresenceStatus } from '@/types';
 
 interface UserProfileProps {
@@ -57,14 +57,8 @@ export function UserProfile({ presenceStatus, onStatusChange }: UserProfileProps
 
     const handleProfilePictureEdit = () => {
         setIsStatusDropdownOpen(false);
-        // In dev mode, use the full dev server URL; in production, use the relative path
-        const isDev = window.location.hostname === 'localhost';
-        const url = isDev
-            ? 'http://localhost:1420/profile-picture-upload.html'
-            : '/profile-picture-upload.html';
 
-        const profileWindow = new WebviewWindow('profile-picture-upload', {
-            url,
+        createWindow('profile-picture-upload', '/profile-picture-upload.html', {
             title: 'My Display Picture',
             width: 400,
             height: 500,
@@ -73,26 +67,12 @@ export function UserProfile({ presenceStatus, onStatusChange }: UserProfileProps
             transparent: true,
             center: true,
         });
-
-        profileWindow.once('tauri://created', () => {
-            console.log('Display Picture window created');
-        });
-
-        profileWindow.once('tauri://error', (e) => {
-            console.error('Error creating window:', e);
-        });
     }
 
     const handleOptions = () => {
         setIsStatusDropdownOpen(false);
-        // In dev mode, use the full dev server URL; in production, use the relative path
-        const isDev = window.location.hostname === 'localhost';
-        const url = isDev
-            ? 'http://localhost:1420/options.html'
-            : '/options.html';
 
-        const optionsWindow = new WebviewWindow('options', {
-            url,
+        createWindow('options', '/options.html', {
             title: 'Options',
             width: 480,
             height: 600,
@@ -100,14 +80,6 @@ export function UserProfile({ presenceStatus, onStatusChange }: UserProfileProps
             decorations: false,
             transparent: true,
             center: true,
-        });
-
-        optionsWindow.once('tauri://created', () => {
-            console.log('Options window created');
-        });
-
-        optionsWindow.once('tauri://error', (e) => {
-            console.error('Error creating window:', e);
         });
     }
 

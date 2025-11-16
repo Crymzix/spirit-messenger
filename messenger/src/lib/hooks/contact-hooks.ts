@@ -13,7 +13,6 @@ import {
     acceptContactRequest,
     declineContactRequest,
     getContacts,
-    searchUserByEmail
 } from '../services/contact-service';
 import { useAuthStore } from '../store/auth-store';
 import type { Contact } from '@/types';
@@ -204,22 +203,6 @@ export function useContacts(status?: 'pending' | 'accepted' | 'blocked') {
             return response.contacts;
         },
         enabled: isAuthenticated,
-    });
-}
-
-/**
- * Hook for searching a user by email
- */
-export function useSearchUserByEmail(email: string) {
-    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-
-    return useQuery({
-        queryKey: ['searchUser', email],
-        queryFn: async () => {
-            const response = await searchUserByEmail(email);
-            return response;
-        },
-        enabled: isAuthenticated && !!email && email.length > 0,
     });
 }
 

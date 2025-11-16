@@ -6,38 +6,20 @@ import { UserProfile } from '../user-profile';
 import { ContactList } from '../contact-list';
 import { PresenceStatus, Contact } from '@/types';
 import { ContactsTabs } from '../contacts-tabs';
-import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { createWindow } from '@/lib/utils/window-utils';
 
-interface ContactsScreenProps {
-    onSignOut?: () => void;
-}
-
-export function ContactsScreen({ onSignOut }: ContactsScreenProps) {
+export function ContactsScreen() {
     const user = useUser();
     const [presenceStatus, setPresenceStatus] = useState<PresenceStatus>(user?.presenceStatus || 'online');
-    const [searchQuery, setSearchQuery] = useState('');
 
     useProfileSubscription();
 
     const onStatusChange = (status: PresenceStatus) => {
         setPresenceStatus(status);
-    };
-
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        // TODO: Implement search functionality (will be implemented in task 22.2)
-        console.log('Search query:', searchQuery);
-    };
+    }
 
     const handleAddContact = () => {
-        // In dev mode, use the full dev server URL; in production, use the relative path
-        const isDev = window.location.hostname === 'localhost';
-        const url = isDev
-            ? 'http://localhost:1420/add-contact.html'
-            : '/add-contact.html';
-
-        const addContactWindow = new WebviewWindow('add-contact', {
-            url,
+        createWindow('add-contact', '/add-contact.html', {
             title: 'Add a Contact',
             width: 640,
             height: 500,
@@ -45,14 +27,6 @@ export function ContactsScreen({ onSignOut }: ContactsScreenProps) {
             decorations: false,
             transparent: true,
             center: true,
-        });
-
-        addContactWindow.once('tauri://created', () => {
-            console.log('Add Contact window created');
-        });
-
-        addContactWindow.once('tauri://error', (e) => {
-            console.error('Error creating window:', e);
         });
     }
 

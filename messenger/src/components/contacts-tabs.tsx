@@ -5,7 +5,7 @@ const tabs = [
 ];
 
 export function ContactsTabs() {
-    const [activeTab, setActiveTab] = useState(0);
+    const [, setActiveTab] = useState(0);
 
     return (
         <div className='w-14 h-full flex flex-col ml-[1px] mt-[1px] z-10 -mr-[4px] border-t-[0.5px] border-[#B8C6EA]'>
