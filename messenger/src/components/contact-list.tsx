@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Contact } from '@/types';
 import { ContactItem } from './contact-item';
-import { usePendingContactRequests, useContactRealtimeUpdates } from '@/lib/hooks/contact-hooks';
-import { placeholderContactGroups, placeholderContacts, placeholderPendingRequests } from '@/lib/placeholder-data';
+import { usePendingContactRequests, useContactRealtimeUpdates, useContacts } from '@/lib/hooks/contact-hooks';
+import { useContactGroups, useContactGroupMemberships, useContactGroupRealtimeUpdates } from '@/lib/hooks/contact-group-hooks';
 import { ContactRequestNotification } from './contact-request-notification';
 
 interface ContactListProps {
@@ -21,35 +21,63 @@ export function ContactList({
     onContactClick,
     onAddToGroup
 }: ContactListProps) {
-    const { pendingRequests, refetch: refetchPendingRequests } = usePendingContactRequests();
+    const { pendingRequests } = usePendingContactRequests();
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
-    // Set up real-time contact updates
+    // Fetch real data using hooks
+    const { data: acceptedContacts = [], isLoading: contactsLoading } = useContacts('accepted');
+    const { data: customGroups = [], isLoading: groupsLoading } = useContactGroups();
+    const { data: groupMemberships } = useContactGroupMemberships();
+
+    // Set up real-time updates
     useContactRealtimeUpdates();
+    useContactGroupRealtimeUpdates();
 
-    // TODO: Remove placeholder data when real data is available
-    const contacts = placeholderContacts;
-    const customGroups = placeholderContactGroups;
-    const displayPendingRequests = pendingRequests.length > 0 ? pendingRequests : placeholderPendingRequests;
+    // Auto-expand Online group if user has no contacts or no online contacts
+    const shouldAutoExpandOnline = acceptedContacts.length === 0 ||
+        !acceptedContacts.some(contact =>
+            contact.status === 'accepted' &&
+            (contact.contactUser.presenceStatus === 'online' ||
+                contact.contactUser.presenceStatus === 'away' ||
+                contact.contactUser.presenceStatus === 'busy')
+        );
 
-    // Group contacts by status
-    const groupedContacts: GroupedContacts = contacts.reduce(
-        (acc, contact) => {
+    // Group contacts by status and custom groups
+    const groupedContacts = useMemo(() => {
+        const grouped: GroupedContacts = {
+            online: [],
+            offline: [],
+            blocked: [],
+            custom: new Map()
+        };
+
+        acceptedContacts.forEach((contact) => {
             if (contact.status === 'blocked') {
-                acc.blocked.push(contact);
+                grouped.blocked.push(contact);
             } else if (
                 contact.contactUser.presenceStatus === 'online' ||
                 contact.contactUser.presenceStatus === 'away' ||
                 contact.contactUser.presenceStatus === 'busy'
             ) {
-                acc.online.push(contact);
+                grouped.online.push(contact);
             } else {
-                acc.offline.push(contact);
+                grouped.offline.push(contact);
             }
-            return acc;
-        },
-        { online: [], offline: [], blocked: [], custom: new Map() } as GroupedContacts
-    );
+        });
+
+        // Group contacts by custom groups
+        if (groupMemberships) {
+            customGroups.forEach((group) => {
+                const contactIds = groupMemberships.get(group.id) || [];
+                const groupContacts = acceptedContacts.filter(
+                    (contact) => contactIds.includes(contact.id)
+                );
+                grouped.custom.set(group.id, groupContacts);
+            });
+        }
+
+        return grouped;
+    }, [acceptedContacts, customGroups, groupMemberships])
 
     const toggleGroup = (groupId: string) => {
         setCollapsedGroups((prev) => {
@@ -63,7 +91,13 @@ export function ContactList({
         });
     };
 
-    const isGroupCollapsed = (groupId: string) => collapsedGroups.has(groupId);
+    const isGroupCollapsed = (groupId: string) => {
+        // Auto-expand Online group if conditions are met
+        if (groupId === 'online' && shouldAutoExpandOnline) {
+            return false;
+        }
+        return collapsedGroups.has(groupId);
+    };
 
     const renderContactItem = (contact: Contact) => {
         return (
@@ -93,7 +127,7 @@ export function ContactList({
                 </span>
                 <span
                     style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                    className="text-[11px] font-bold text-[#00005D]"
+                    className="!text-lg font-bold text-[#00005D]"
                 >
                     {title} ({count})
                 </span>
@@ -104,9 +138,11 @@ export function ContactList({
     const renderGroup = (
         title: string,
         groupContacts: Contact[],
-        groupId: string
+        groupId: string,
+        alwaysShow: boolean = false,
+        placeholderText?: string
     ) => {
-        if (groupContacts.length === 0) {
+        if (groupContacts.length === 0 && !alwaysShow) {
             return null;
         }
 
@@ -117,7 +153,18 @@ export function ContactList({
                 {renderGroupHeader(title, groupContacts.length, groupId)}
                 {!isCollapsed && (
                     <div className="py-1">
-                        {groupContacts.map((contact) => renderContactItem(contact))}
+                        {groupContacts.length > 0 ? (
+                            groupContacts.map((contact) => renderContactItem(contact))
+                        ) : placeholderText ? (
+                            <div className="px-8">
+                                <p
+                                    style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                    className="!text-lg text-gray-500"
+                                >
+                                    {placeholderText}
+                                </p>
+                            </div>
+                        ) : null}
                     </div>
                 )}
             </div>
@@ -125,7 +172,7 @@ export function ContactList({
     };
 
     const renderPendingInvites = () => {
-        if (displayPendingRequests.length === 0) {
+        if (pendingRequests.length === 0) {
             return
         }
 
@@ -134,21 +181,13 @@ export function ContactList({
 
         return (
             <div key={groupId} className="border-b border-gray-200">
-                {renderGroupHeader('Pending Requests', displayPendingRequests.length, groupId)}
+                {renderGroupHeader('Pending Requests', pendingRequests.length, groupId)}
                 {!isCollapsed && (
                     <div className="py-1">
-                        {displayPendingRequests.map((request) => (
+                        {pendingRequests.map((request) => (
                             <ContactRequestNotification
                                 key={request.id}
                                 request={request}
-                                onAccept={() => {
-                                    console.log('Contact request accepted:', request.id);
-                                    refetchPendingRequests();
-                                }}
-                                onDecline={() => {
-                                    console.log('Contact request declined:', request.id);
-                                    refetchPendingRequests();
-                                }}
                             />
                         ))}
                     </div>
@@ -157,14 +196,30 @@ export function ContactList({
         );
     }
 
+    // Show loading state while initial data is being fetched
+    if (contactsLoading || groupsLoading) {
+        return (
+            <div className="flex-1 overflow-y-auto h-[calc(100vh-210px)] flex items-center justify-center">
+                <div style={{ fontFamily: 'Pixelated MS Sans Serif' }} className="text-[11px] text-gray-600">
+                    Loading contacts...
+                </div>
+            </div>
+        );
+    }
+
+    // Determine placeholder text for Online group
+    const onlinePlaceholderText = acceptedContacts.length === 0
+        ? "Start adding contacts"
+        : "All of your contacts are offline";
+
     return (
         <>
             <div className="flex-1 overflow-y-auto h-[calc(100vh-210px)]">
                 {/* Pending Contact Requests */}
                 {renderPendingInvites()}
 
-                {/* Online Contacts */}
-                {renderGroup('Online', groupedContacts.online, 'online')}
+                {/* Online Contacts - Always show */}
+                {renderGroup('Online', groupedContacts.online, 'online', true, onlinePlaceholderText)}
 
                 {/* Custom Groups */}
                 {customGroups.map((group) => {
@@ -172,8 +227,8 @@ export function ContactList({
                     return renderGroup(group.name, groupContacts, `custom-${group.id}`);
                 })}
 
-                {/* Offline Contacts */}
-                {renderGroup('Offline', groupedContacts.offline, 'offline')}
+                {/* Offline Contacts - Always show */}
+                {renderGroup('Offline', groupedContacts.offline, 'offline', true)}
 
                 {/* Blocked Contacts */}
                 {renderGroup('Blocked', groupedContacts.blocked, 'blocked')}

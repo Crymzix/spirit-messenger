@@ -341,12 +341,12 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Add right-click context menu for groups (Rename, Delete)
     - Style with classic MSN design
     - _Requirements: 17.1, 16.2, 16.5, 16.6, 16.7, 17.1, 17.3_
-  - [ ] 13.2 Implement group creation and management
+  - [x] 13.2 Implement group creation and management
     - Create contact-group-service.ts calling Backend Service API
     - Implement create group functionality
     - Implement rename group functionality
     - Implement delete group functionality
-    - Subscribe to contact_groups table changes via Supabase Realtime
+    - Subscribe to contact_groups table changes via Supabase Realtime (Use React Query and hooks)
     - _Requirements: 17.2, 16.6, 16.7, 17.1, 17.3_
   - [ ] 13.3 Implement add/remove contacts to groups
     - Add "Add to Group" option to contact context menu
@@ -555,7 +555,7 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - _Requirements: 11.4_
 
 - [ ] 22. Implement notifications and sounds
-  - [ ] 31.1 Create Tauri notification commands
+  - [x] 31.1 Create Tauri notification commands
     - Implement show_notification Rust command in lib.rs
     - Request notification permissions
     - Display system notifications with title and body

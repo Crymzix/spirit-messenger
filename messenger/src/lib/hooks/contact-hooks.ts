@@ -68,14 +68,15 @@ export function usePendingContactRequests() {
 
                     if (payload.eventType === 'INSERT') {
                         // New contact request received
-                        const newContact = payload.new as any;
+                        const newContact = payload.new as Contact;
+
                         if (newContact.status === 'pending') {
                             // Fetch the complete contact with user info
                             fetchPendingRequests();
                         }
                     } else if (payload.eventType === 'UPDATE') {
                         // Contact request status changed
-                        const updatedContact = payload.new as any;
+                        const updatedContact = payload.new as Contact;
                         if (updatedContact.status !== 'pending') {
                             // Request was accepted or declined, remove from list
                             setPendingRequests((prev) =>
@@ -84,7 +85,7 @@ export function usePendingContactRequests() {
                         }
                     } else if (payload.eventType === 'DELETE') {
                         // Contact request was deleted
-                        const deletedContact = payload.old as any;
+                        const deletedContact = payload.old as Contact;
                         setPendingRequests((prev) =>
                             prev.filter((req) => req.id !== deletedContact.id)
                         );

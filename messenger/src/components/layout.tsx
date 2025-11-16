@@ -13,6 +13,10 @@ interface LayoutProps {
 export function Layout({ children, title = 'Spirit Messenger', showIcon = true, icon }: LayoutProps) {
   const [isFileDropdownOpen, setIsFileDropdownOpen] = useState(false);
   const fileDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [isContactsDropdownOpen, setIsContactsDropdownOpen] = useState(false);
+  const contactsDropdownRef = useRef<HTMLDivElement>(null)
+
   const signOutMutation = useSignOut();
 
   useEffect(() => {
@@ -29,6 +33,21 @@ export function Layout({ children, title = 'Spirit Messenger', showIcon = true, 
       };
     }
   }, [isFileDropdownOpen]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (contactsDropdownRef.current && !contactsDropdownRef.current.contains(event.target as Node)) {
+        setIsContactsDropdownOpen(false);
+      }
+    }
+
+    if (isContactsDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isContactsDropdownOpen]);
 
   const handleSignOut = async () => {
     await signOutMutation.mutateAsync();
@@ -49,11 +68,18 @@ export function Layout({ children, title = 'Spirit Messenger', showIcon = true, 
                   File
                 </label>
                 {isFileDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-1 bg-white border border-gray-400 shadow-lg min-w-48 z-50">
+                  <div
+                    style={{
+                      borderLeft: '1px solid #DFDFDF',
+                      borderTop: '1px solid #DFDFDF',
+                      borderRight: '1px solid #404040',
+                      borderBottom: '1px solid #404040',
+                    }}
+                    className="absolute top-full left-0 bg-white border border-gray-400 min-w-48 z-50">
                     <div
                       key="sign-out"
                       onClick={handleSignOut}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-msn-light-blue transition-colors text-left whitespace-nowrap"
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-[#274997] hover:text-white text-left whitespace-nowrap"
                     >
                       <div className='w-4' />
                       <span
@@ -65,9 +91,70 @@ export function Layout({ children, title = 'Spirit Messenger', showIcon = true, 
                   </div>
                 )}
               </div>
-              <label className="px-3 py-1 cursor-pointer hover:bg-[#245DDA] hover:text-white">
-                Contacts
-              </label>
+              <div ref={contactsDropdownRef} className='relative'>
+                <label
+                  onClick={() => setIsContactsDropdownOpen(true)}
+                  className="px-3 py-1 cursor-pointer hover:bg-[#245DDA] hover:text-white">
+                  Contacts
+                </label>
+                {isContactsDropdownOpen && (
+                  <div
+                    style={{
+                      borderLeft: '1px solid #DFDFDF',
+                      borderTop: '1px solid #DFDFDF',
+                      borderRight: '1px solid #404040',
+                      borderBottom: '1px solid #404040',
+                    }}
+                    className="absolute top-full left-0 bg-white border border-gray-400 min-w-64 z-50">
+                    <div
+                      key="add-contact"
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-[#274997] hover:text-white text-left whitespace-nowrap"
+                    >
+                      <div className='w-4' />
+                      <span
+                        style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                      >
+                        Add a Contact...
+                      </span>
+                    </div>
+                    <div className='h-[1px] w-full bg-gray-400'></div>
+                    <div
+                      key="view-display-pictures"
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-[#274997] hover:text-white text-left whitespace-nowrap"
+                    >
+                      <div className='w-4' />
+                      <span
+                        style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                      >
+                        View Display Pictures
+                      </span>
+                    </div>
+                    <div className='h-[1px] w-full bg-gray-400'></div>
+                    <div
+                      key="manage-contacts"
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-[#274997] hover:text-white text-left whitespace-nowrap"
+                    >
+                      <div className='w-4' />
+                      <span
+                        style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                      >
+                        Manage Contacts
+                      </span>
+                    </div>
+                    <div
+                      key="manage-groups"
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-[#274997] hover:text-white text-left whitespace-nowrap"
+                    >
+                      <div className='w-4' />
+                      <span
+                        style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                      >
+                        Manage Groups
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
               <label className="px-3 py-1 cursor-pointer hover:bg-[#245DDA] hover:text-white">
                 Actions
               </label>

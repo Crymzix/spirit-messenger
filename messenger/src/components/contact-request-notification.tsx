@@ -3,27 +3,20 @@ import type { Contact } from '@/types';
 
 interface ContactRequestNotificationProps {
     request: Contact;
-    onAccept?: (requestId: string) => void;
-    onDecline?: (requestId: string) => void;
 }
 
 export function ContactRequestNotification({
     request,
-    onAccept,
-    onDecline,
 }: ContactRequestNotificationProps) {
     const acceptMutation = useAcceptContactRequest();
     const declineMutation = useDeclineContactRequest();
 
     const handleAccept = async () => {
+        if (isProcessing) {
+            return
+        }
         try {
             await acceptMutation.mutateAsync(request.id);
-
-            // Call success callback if provided
-            if (onAccept) {
-                onAccept(request.id);
-            }
-
         } catch (err) {
             // Error is already handled by React Query
             console.error('Failed to accept contact request:', err);
@@ -31,16 +24,12 @@ export function ContactRequestNotification({
     };
 
     const handleDecline = async () => {
+        if (isProcessing) {
+            return
+        }
         try {
             await declineMutation.mutateAsync(request.id);
-
-            // Call success callback if provided
-            if (onDecline) {
-                onDecline(request.id);
-            }
-
         } catch (err) {
-            // Error is already handled by React Query
             console.error('Failed to decline contact request:', err);
         }
     };
@@ -93,20 +82,24 @@ export function ContactRequestNotification({
             )}
 
             {/* Action Buttons */}
-            <div className="flex gap-2">
-                <button
-                    onClick={handleAccept}
-                    disabled={isProcessing}
-                >
-                    {isProcessing ? 'Processing...' : 'Accept'}
-                </button>
-                <button
-                    onClick={handleDecline}
-                    disabled={isProcessing}
-                >
-                    {isProcessing ? 'Processing...' : 'Decline'}
-                </button>
-            </div>
+            {
+                !isProcessing && (
+                    <div className="flex gap-4">
+                        <div
+                            className='cursor-pointer font-verdana font-bold text-[#31497C]'
+                            onClick={handleAccept}
+                        >
+                            Accept
+                        </div>
+                        <div
+                            className='cursor-pointer font-verdana font-bold text-[#31497C]'
+                            onClick={handleDecline}
+                        >
+                            Decline
+                        </div>
+                    </div>
+                )
+            }
         </div>
     );
 }

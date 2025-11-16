@@ -200,6 +200,49 @@ fn get_profile(state: tauri::State<AppState>) -> Option<String> {
     state.profile.clone()
 }
 
+/// Request notification permission
+#[tauri::command]
+fn request_notification_permission(app: AppHandle) -> Result<String, String> {
+    use tauri_plugin_notification::NotificationExt;
+
+    let permission = app
+        .notification()
+        .request_permission()
+        .map_err(|e| format!("Failed to request notification permission: {}", e))?;
+
+    println!("Notification permission: {:?}", permission);
+    Ok(format!("{:?}", permission))
+}
+
+/// Show a system notification with title and body
+#[tauri::command]
+async fn show_notification(app: AppHandle, title: String, body: String) -> Result<(), String> {
+    use tauri_plugin_notification::NotificationExt;
+
+    // Check if permission is granted
+    let permission = app
+        .notification()
+        .permission_state()
+        .map_err(|e| format!("Failed to check notification permission: {}", e))?;
+
+    println!("Notification permission state: {:?}", permission);
+
+    // Show notification with sound
+    app.notification()
+        .builder()
+        .title(title)
+        .body(body)
+        .sound("default") // Add default system sound
+        .show()
+        .map_err(|e| {
+            eprintln!("Failed to show notification: {}", e);
+            format!("Failed to show notification: {}", e)
+        })?;
+
+    println!("Notification shown successfully");
+    Ok(())
+}
+
 #[tauri::command]
 fn open_chat_window(
     handle: AppHandle,
@@ -214,18 +257,22 @@ fn open_chat_window(
             error!("Error focusing the chat window: {:?}", e);
         }
     } else {
-        let _ = WebviewWindowBuilder::new(&handle, &dialog_label, tauri::WebviewUrl::App("chat-window.html".into()))
-            .title(title)
-            .decorations(false)
-            .resizable(true)
-            .transparent(true)
-            .inner_size(600.0, 400.0)
-            .min_inner_size(600.0, 400.0)
-            .center()
-            .parent(&webview_window)
-            .unwrap()
-            .build()
-            .unwrap();
+        let _ = WebviewWindowBuilder::new(
+            &handle,
+            &dialog_label,
+            tauri::WebviewUrl::App("chat-window.html".into()),
+        )
+        .title(title)
+        .decorations(false)
+        .resizable(true)
+        .transparent(true)
+        .inner_size(600.0, 400.0)
+        .min_inner_size(600.0, 400.0)
+        .center()
+        .parent(&webview_window)
+        .unwrap()
+        .build()
+        .unwrap();
     }
     Ok(())
 }
@@ -235,6 +282,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             // Get the app data directory for storage
             let mut app_data_dir = app
@@ -269,7 +317,9 @@ pub fn run() {
             clear_auth,
             is_authenticated,
             get_profile,
-            open_chat_window
+            open_chat_window,
+            request_notification_permission,
+            show_notification
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

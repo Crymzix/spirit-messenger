@@ -43,7 +43,9 @@
             "core:window:allow-outer-size",
             "core:window:default",
             "core:window:allow-set-size",
-            "core:window:allow-set-position"
+            "core:window:allow-set-position",
+            "notification:allow-is-permission-granted",
+            "notification:default"
           ]
         },
         {

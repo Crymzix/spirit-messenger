@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/* Custom font declarations */
+@font-face {
+  font-family: 'Verdana';
+  src: url('/fonts/verdana.woff2') format('woff2'),
+       url('/fonts/verdana.woff') format('woff'),
+       url('/fonts/verdana.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   --color-msn-blue: #0066CC;
   --color-msn-light-blue: #E6F2FF;
@@ -9,6 +20,7 @@
   --color-msn-busy: #CC0000;
 
   --font-family-msn: Tahoma, Arial, sans-serif;
+  --font-family-verdana: Verdana, Geneva, sans-serif;
 }
 
 :root {

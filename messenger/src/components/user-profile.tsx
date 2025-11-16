@@ -216,7 +216,7 @@ export function UserProfile({ presenceStatus, onStatusChange }: UserProfileProps
                             style={{ fontFamily: 'Pixelated MS Sans Serif' }}
                             className="!text-md text-gray-600 truncate mt-4"
                         >
-                            {user?.personalMessage || 'No personal message'}
+                            {user?.personalMessage || '<Type a personal message>'}
                         </div>
                     </div>
                 </div>
