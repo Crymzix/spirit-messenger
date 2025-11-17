@@ -71,7 +71,7 @@ export async function createConversation(data: CreateConversationData): Promise<
     error?: string;
 }> {
     const response = await apiPost<{ conversation: ConversationWithParticipants }>(
-        '/api/messages/conversations',
+        '/api/conversations',
         {
             type: data.type,
             participantIds: data.participantIds,
@@ -104,7 +104,7 @@ export async function getConversationMessages(
     messages?: MessageWithSender[];
     error?: string;
 }> {
-    let endpoint = `/api/messages/conversations/${conversationId}/messages?limit=${limit}`;
+    let endpoint = `/api/conversations/${conversationId}/messages?limit=${limit}`;
     if (beforeMessageId) {
         endpoint += `&beforeMessageId=${beforeMessageId}`;
     }
@@ -133,7 +133,7 @@ export async function getConversation(conversationId: string): Promise<{
     error?: string;
 }> {
     const response = await apiGet<{ conversation: ConversationWithParticipants }>(
-        `/api/messages/conversations/${conversationId}`
+        `/api/conversations/${conversationId}`
     );
 
     if (response.success && response.data) {
@@ -158,7 +158,7 @@ export async function getUserConversations(): Promise<{
     error?: string;
 }> {
     const response = await apiGet<{ conversations: ConversationWithParticipants[] }>(
-        '/api/messages/conversations'
+        '/api/conversations'
     );
 
     if (response.success && response.data) {
@@ -182,7 +182,7 @@ export async function leaveConversation(conversationId: string): Promise<{
     error?: string;
 }> {
     const response = await apiPost<{ success: boolean }>(
-        `/api/messages/conversations/${conversationId}/leave`,
+        `/api/conversations/${conversationId}/leave`,
         {}
     );
 

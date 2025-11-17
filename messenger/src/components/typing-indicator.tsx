@@ -18,7 +18,7 @@ export function TypingIndicator({ usernames }: TypingIndicatorProps) {
     };
 
     return (
-        <div className="typing-indicator flex items-center px-3 py-2 text-[10px] text-gray-600 italic">
+        <div className="typing-indicator flex items-center px-3 text-[10px] text-gray-600 italic">
             <div className="typing-dots flex gap-1 mr-2">
                 <span className="dot w-1 h-1 bg-gray-600 rounded-full animate-typing-pulse"></span>
                 <span className="dot w-1 h-1 bg-gray-600 rounded-full animate-typing-pulse [animation-delay:0.2s]"></span>

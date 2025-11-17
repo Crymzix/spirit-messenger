@@ -5,11 +5,10 @@ import { createWindow } from '@/lib/utils/window-utils';
 
 interface ContactItemProps {
     contact: Contact;
-    onClick?: (contact: Contact) => void;
     onAddToGroup?: (contact: Contact) => void;
 }
 
-export function ContactItem({ contact, onClick, onAddToGroup }: ContactItemProps) {
+export function ContactItem({ contact, onAddToGroup }: ContactItemProps) {
     const [showContextMenu, setShowContextMenu] = useState(false);
     const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
     const contextMenuRef = useRef<HTMLDivElement>(null);
@@ -47,14 +46,10 @@ export function ContactItem({ contact, onClick, onAddToGroup }: ContactItemProps
         }
     };
 
-    const handleClick = () => {
-        onClick?.(contact);
-    };
-
     const handleDoubleClick = async () => {
         await invoke("open_chat_window", {
-            dialogWindow: contact.id, // TODO: Handle group chats
-            options: {},
+            dialogWindow: contactUser.id,
+            contactName: contactUser.displayName || contactUser.username,
         });
     }
 
@@ -88,7 +83,6 @@ export function ContactItem({ contact, onClick, onAddToGroup }: ContactItemProps
     return (
         <>
             <div
-                onClick={handleClick}
                 onDoubleClick={handleDoubleClick}
                 onContextMenu={handleContextMenu}
                 className="flex items-center gap-2 px-2 py-1.5 hover:bg-msn-light-blue cursor-pointer transition-colors"

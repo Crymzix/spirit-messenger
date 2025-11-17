@@ -6,7 +6,6 @@ import { useContactGroups, useContactGroupMemberships, useContactGroupRealtimeUp
 import { ContactRequestNotification } from './contact-request-notification';
 
 interface ContactListProps {
-    onContactClick?: (contact: Contact) => void;
     onAddToGroup?: (contact: Contact) => void;
 }
 
@@ -18,7 +17,6 @@ interface GroupedContacts {
 }
 
 export function ContactList({
-    onContactClick,
     onAddToGroup
 }: ContactListProps) {
     const { pendingRequests } = usePendingContactRequests();
@@ -104,7 +102,6 @@ export function ContactList({
             <ContactItem
                 key={contact.id}
                 contact={contact}
-                onClick={onContactClick}
                 onAddToGroup={onAddToGroup}
             />
         );

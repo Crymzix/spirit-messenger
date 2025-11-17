@@ -4,18 +4,22 @@ import { TitleBar } from "../title-bar";
 import { useUser } from "@/lib";
 import { useSendMessage, useConversationMessagesInfinite, useConversationRealtimeUpdates } from "@/lib/hooks/message-hooks";
 import { useTypingIndicator } from "@/lib/hooks/typing-hooks";
+import { useConversation, useParticipantRealtimeUpdates } from "@/lib/hooks/conversation-hooks";
 import { TypingIndicator } from "../typing-indicator";
 
-interface ChatWindowProps {
-    conversation?: {
-        id: string;
-        type: 'one_on_one' | 'group';
-        name?: string;
-        participants: User[];
-    };
-}
+export function ChatWindow() {
+    // Extract contactId and contactName from URL query parameters
+    const params = new URLSearchParams(window.location.search);
+    const contactId = params.get('contactId');
+    const contactName = params.get('contactName');
 
-export function ChatWindow({ conversation }: ChatWindowProps) {
+    // Find or create conversation with the contact
+    const {
+        data: conversation,
+        isLoading: isLoadingConversation,
+        error: conversationError
+    } = useConversation(contactId);
+
     const user = useUser()
     const [messageInput, setMessageInput] = useState("");
     const [activeTab, setActiveTab] = useState<"type" | "handwrite">('type');
@@ -31,10 +35,8 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
         isFetchingNextPage,
     } = useConversationMessagesInfinite(conversation?.id || '', 50);
 
-    // Extract messages from the infinite query result
     const messagesData = messagesQueryData?.messages || [];
 
-    // Subscribe to real-time message updates
     useConversationRealtimeUpdates(conversation?.id);
 
     // Typing indicator hook
@@ -42,7 +44,84 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
 
     const participants = useMemo(() => {
         return conversation?.participants.filter(p => p.id !== user?.id) || []
-    }, [conversation])
+    }, [conversation, user?.id])
+
+    // Map typing user IDs to usernames based on conversation participants
+    const typingUsernames = useMemo(() => {
+        if (!typingUsers || typingUsers.length === 0 || !conversation?.participants) {
+            return [];
+        }
+
+        return typingUsers
+            .map(typingUser => {
+                const participant = conversation.participants.find(p => p.id === typingUser.userId);
+                return participant?.username || participant?.displayName || 'Unknown';
+            })
+            .filter(Boolean);
+    }, [typingUsers, conversation?.participants])
+
+    useParticipantRealtimeUpdates(participants, conversation?.id);
+
+    // Use contactName from URL if available, otherwise derive from participants
+    const displayName = useMemo(() => {
+        if (contactName) return contactName;
+        return participants.map(p => p.displayName || p.username).join(", ");
+    }, [contactName, participants])
+
+    const canSend = useMemo(() => {
+        if (!messageInput?.trim()) {
+            return false
+        }
+
+        if (isLoadingConversation || isLoadingMessages || sendMessageMutation.isPending) {
+            return false
+        }
+
+        return true
+    }, [isLoadingConversation, isLoadingMessages, sendMessageMutation.isPending, messageInput])
+
+    // Calculate last message received from other users (not sent by current user)
+    const lastMessageReceived = useMemo(() => {
+        if (!messagesData || messagesData.length === 0 || !user) {
+            return null;
+        }
+
+        // Find the most recent message that was NOT sent by the current user
+        // Iterate from the end (most recent) to find the last received message
+        for (let i = messagesData.length - 1; i >= 0; i--) {
+            const message = messagesData[i];
+            if (message.senderId !== user.id) {
+                return message;
+            }
+        }
+
+        return null;
+    }, [messagesData, user])
+
+    // Format the last message timestamp
+    const lastMessageTimestamp = useMemo(() => {
+        if (!lastMessageReceived) {
+            return 'No messages received yet.';
+        }
+
+        const messageDate = new Date(lastMessageReceived.createdAt);
+
+        // Format time as HH:MM AM/PM
+        const hours = messageDate.getHours();
+        const minutes = messageDate.getMinutes();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const displayHours = hours % 12 || 12;
+        const displayMinutes = minutes.toString().padStart(2, '0');
+        const timeStr = `${displayHours}:${displayMinutes} ${ampm}`;
+
+        // Format date as M/D/YYYY
+        const month = messageDate.getMonth() + 1;
+        const day = messageDate.getDate();
+        const year = messageDate.getFullYear();
+        const dateStr = `${month}/${day}/${year}`;
+
+        return `Last message received at ${timeStr} on ${dateStr}.`;
+    }, [lastMessageReceived])
 
     // Scroll to bottom when messages change
     useEffect(() => {
@@ -57,7 +136,12 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
     }, [messagesData]);
 
     const handleSendMessage = async () => {
-        if (!messageInput.trim() || !conversation?.id) return;
+        if (!messageInput.trim() || !conversation?.id) {
+            return;
+        }
+        if (!canSend) {
+            return
+        }
 
         try {
             // Clear typing status before sending
@@ -66,7 +150,6 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
                 setIsTyping(false);
             }
 
-            // Send message using React Query mutation hook
             await sendMessageMutation.mutateAsync({
                 conversationId: conversation.id,
                 content: messageInput.trim(),
@@ -105,7 +188,7 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
 
     return (
         <div className="window w-full h-screen flex flex-col">
-            <TitleBar title={`${participants.map(p => p.displayName || p.username).join(", ")} - Conversation`} />
+            <TitleBar title={`${displayName} - Conversation`} />
             <div className="window-body flex-1 !my-[0px] !mx-[3px] relative flex flex-col min-h-0">
                 <div className="flex flex-col overflow-hidden">
                     {/* Menu Bar */}
@@ -278,18 +361,13 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
                                     >
                                         <div>To: </div>
                                         <div className="font-bold">
-                                            {participants.map(p => p.displayName || p.username).join(", ")}
+                                            {displayName}
                                         </div>
                                     </div>
                                     <div
                                         ref={messageHistoryRef}
-                                        className="flex-1 space-y-2 overflow-y-auto p-2"
+                                        className="space-y-2 overflow-y-auto h-[calc(100vh-306px)] p-2"
                                     >
-                                        {isLoadingMessages && (
-                                            <div className="text-center text-gray-500 text-sm py-2">
-                                                Loading messages...
-                                            </div>
-                                        )}
                                         {!isLoadingMessages && hasNextPage && (
                                             <div className="text-center py-2">
                                                 <button
@@ -302,47 +380,47 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
                                                 </button>
                                             </div>
                                         )}
-                                        {messagesData.map((message: any) => {
+                                        {messagesData.map((message) => {
                                             const sender = message.sender || conversation?.participants.find((p: User) => p.id === message.senderId);
-                                            const isCurrentUser = message.senderId === user?.id;
-                                            const isOptimistic = message.id.startsWith('temp-');
 
                                             return (
-                                                <div key={message.id} className="text-[10px]">
-                                                    <div className="flex items-baseline gap-1">
-                                                        <span className={`font-bold ${isCurrentUser ? 'text-[#CC0000]' : 'text-[#0066CC]'}`}>
-                                                            {sender?.displayName || 'Unknown'}:
-                                                        </span>
-                                                        <span className="text-black">{message.content}</span>
-                                                        {isCurrentUser && (
-                                                            <span className="text-[8px] text-gray-400 ml-1">
-                                                                {isOptimistic ? '⏳' : message.deliveredAt ? '✓✓' : '✓'}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <div className="text-[9px] text-gray-500 ml-1">
-                                                        {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                <div key={message.id} className="text-lg">
+                                                    <div className="flex flex-col">
+                                                        <div className={`font-verdana`}>
+                                                            {`${sender?.displayName || 'Unknown'} says`}:
+                                                        </div>
+                                                        <div className="font-verdana text-black ml-4">{message.content}</div>
                                                     </div>
                                                 </div>
                                             );
                                         })}
-                                        {sendMessageMutation.isPending && (
-                                            <div className="text-[10px] text-gray-500 italic">
-                                                Sending...
-                                            </div>
-                                        )}
-                                        {/* Typing indicator */}
-                                        {typingUsers.length > 0 && (
-                                            <TypingIndicator
-                                                usernames={typingUsers.map(u => u.username)}
-                                            />
-                                        )}
+                                        {
+                                            sendMessageMutation.isPending && (
+                                                <div className="!text-lg text-gray-500 italic">
+                                                    Sending...
+                                                </div>
+                                            )
+                                        }
+                                        {
+                                            (isLoadingConversation || isLoadingMessages) && (
+                                                <div className="!text-lg text-gray-500 italic">
+                                                    Loading...
+                                                </div>
+                                            )
+                                        }
+                                        {
+                                            conversationError && (
+                                                <div className="!text-lg text-red-600 italic">
+                                                    {(conversationError as Error)?.message || 'An error occurred'}
+                                                </div>
+                                            )
+                                        }
                                     </div>
                                 </div>
                                 {/* MSN Messenger Avatar */}
                                 <div className="hidden min-[470px]:block">
                                     <div className="w-[104px] flex items-center flex-col border border-[#586170] pt-[3px] rounded-lg relative bg-[#dee7f7]">
-                                        <img className="size-[96px] border border-[#586170] rounded-[7px]" src="/msn.png" alt="" />
+                                        <img className="size-[96px] border border-[#586170] rounded-[7px]" src={participants[0]?.displayPictureUrl || '/default-profile-pictures/friendly_dog.png'} alt="" />
                                         <img className="self-end m-[3px_5px]" src="/down.png" alt="" />
                                         <img className="absolute top-1 right-0 translate-x-[9px]" src="/expand-left.png" alt="" />
                                     </div>
@@ -394,7 +472,9 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
                                             className="w-full flex-1 !text-lg border border-[#ACA899] rounded resize-none focus:outline-none focus:border-msn-blue disabled:opacity-50 disabled:cursor-not-allowed"
                                         />
                                         <div
-                                            className="!text-lg border border-[#93989C] bg-[#FBFBFB] w-[58px] h-full rounded-[5px] font-bold text-[0.6875em] text-[#969C9A] flex items-center justify-center"
+                                            aria-disabled={!canSend}
+                                            onClick={handleSendMessage}
+                                            className={`!text-lg border border-[#93989C] bg-[#FBFBFB] w-[58px] h-full rounded-[5px] font-bold text-[0.6875em] flex items-center justify-center ${canSend ? "text-[#31497C] cursor-pointer" : "text-[#969C9A]"}`}
                                             style={{ boxShadow: '-4px -4px 4px #C0C9E0 inset', fontFamily: 'Pixelated MS Sans Serif' }}>
                                             Send
                                         </div>
@@ -406,13 +486,20 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
                                             background: "linear-gradient(#D8E8F7, #F5F2F9, #D8E8F7)"
                                         }}
                                         className="flex border-t-[1px] border-[#31497C] rounded-b-xl">
-                                        {/* TODO Add last message received timestamp. */}
-                                        <div
-                                            style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                                            className="flex items-center px-3"
-                                        >
-                                            Last message received at 5:46 AM on 1/22/2025.
-                                        </div>
+                                        {/* Typing indicator */}
+                                        {
+                                            typingUsernames.length > 0 ? (
+                                                <TypingIndicator
+                                                    usernames={typingUsernames}
+                                                />
+                                            ) :
+                                                <div
+                                                    style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                                    className="flex items-center px-3"
+                                                >
+                                                    {lastMessageTimestamp}
+                                                </div>
+                                        }
                                         <div className="flex ml-auto mr-6 mb-1">
                                             {/* Handwrite Tab */}
                                             <div
@@ -463,7 +550,7 @@ export function ChatWindow({ conversation }: ChatWindowProps) {
                                 {/* MSN Messenger Avatar */}
                                 <div className="hidden min-[470px]:block">
                                     <div className="w-[104px] flex items-center flex-col border border-[#586170] pt-[3px] rounded-lg relative bg-[#dee7f7]">
-                                        <img className="size-[96px] border border-[#586170] rounded-[7px]" src={user?.displayPictureUrl || "/msn.png"} alt="" />
+                                        <img className="size-[96px] border border-[#586170] rounded-[7px]" src={user?.displayPictureUrl || "/default-profile-pictures/friendly_dog.png"} alt="" />
                                         <img className="self-end m-[3px_5px]" src="/down.png" alt="" />
                                         <img className="absolute top-1 right-0 translate-x-[9px]" src="/expand-left.png" alt="" />
                                     </div>

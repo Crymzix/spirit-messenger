@@ -62,7 +62,9 @@
             "core:window:allow-start-dragging",
             "core:window:allow-create",
             "core:event:allow-listen",
-            "core:event:default"
+            "core:event:default",
+            "notification:allow-is-permission-granted",
+            "notification:default"
           ]
         },
         {
@@ -79,7 +81,9 @@
             "core:window:allow-start-dragging",
             "core:window:allow-create",
             "core:event:allow-listen",
-            "core:event:default"
+            "core:event:default",
+            "notification:allow-is-permission-granted",
+            "notification:default"
           ]
         },
         {
@@ -96,7 +100,9 @@
             "core:window:allow-start-dragging",
             "core:window:allow-create",
             "core:event:allow-listen",
-            "core:event:default"
+            "core:event:default",
+            "notification:allow-is-permission-granted",
+            "notification:default"
           ]
         },
         {
@@ -113,7 +119,9 @@
             "core:window:allow-start-dragging",
             "core:window:allow-create",
             "core:event:allow-listen",
-            "core:event:default"
+            "core:event:default",
+            "notification:allow-is-permission-granted",
+            "notification:default"
           ]
         },
         {
@@ -130,7 +138,9 @@
             "core:window:allow-start-dragging",
             "core:window:allow-create",
             "core:event:allow-listen",
-            "core:event:default"
+            "core:event:default",
+            "notification:allow-is-permission-granted",
+            "notification:default"
           ]
         }
       ]

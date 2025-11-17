@@ -296,20 +296,17 @@ export function useConversationRealtimeUpdates(conversationId: string | undefine
     useEffect(() => {
         if (!conversationId) return;
 
-        console.log(`[Realtime] Subscribing to conversation: ${conversationId}`);
-
         const channel = supabase
-            .channel(`conversation:${conversationId}`)
+            .channel(`conversation-messages-${conversationId}`)
             .on(
                 'postgres_changes',
                 {
-                    event: 'INSERT',
+                    event: '*',
                     schema: 'public',
                     table: 'messages',
                     filter: `conversation_id=eq.${conversationId}`,
                 },
-                (payload) => {
-                    console.log('[Realtime] New message received:', payload);
+                () => {
                     // Invalidate both regular and infinite queries to refetch and show the new message
                     // This ensures we get the complete message with sender info
                     queryClient.invalidateQueries({
@@ -317,29 +314,10 @@ export function useConversationRealtimeUpdates(conversationId: string | undefine
                     });
                 }
             )
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'messages',
-                    filter: `conversation_id=eq.${conversationId}`,
-                },
-                (payload) => {
-                    console.log('[Realtime] Message updated (delivery status):', payload);
-                    // Invalidate to update delivery status
-                    queryClient.invalidateQueries({
-                        queryKey: messageKeys.messages(conversationId)
-                    });
-                }
-            )
-            .subscribe((status) => {
-                console.log(`[Realtime] Subscription status: ${status}`);
-            });
+            .subscribe();
 
         return () => {
-            console.log(`[Realtime] Unsubscribing from conversation: ${conversationId}`);
-            channel.unsubscribe();
+            supabase.removeChannel(channel);
         };
     }, [conversationId, queryClient]);
 }

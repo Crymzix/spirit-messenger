@@ -4,7 +4,7 @@ import { useProfileSubscription } from '../../lib/hooks/profile-hooks';
 import { Layout } from '../layout';
 import { UserProfile } from '../user-profile';
 import { ContactList } from '../contact-list';
-import { PresenceStatus, Contact } from '@/types';
+import { PresenceStatus } from '@/types';
 import { ContactsTabs } from '../contacts-tabs';
 import { createWindow } from '@/lib/utils/window-utils';
 
@@ -61,12 +61,7 @@ export function ContactsScreen() {
                         </div>
 
                         {/* Contact List Area */}
-                        <ContactList
-                            onContactClick={(contact: Contact) => {
-                                // TODO: Open chat window (will be implemented in task 15.1)
-                                console.log('Contact clicked:', contact);
-                            }}
-                        />
+                        <ContactList />
                     </div>
                 </div>
             </div>

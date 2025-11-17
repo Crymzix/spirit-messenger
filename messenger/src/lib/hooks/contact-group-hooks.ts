@@ -339,8 +339,6 @@ export function useContactGroupRealtimeUpdates() {
                     filter: `user_id=eq.${user.id}`,
                 },
                 (payload) => {
-                    console.log('Contact group change detected:', payload);
-
                     // Invalidate contact groups query to refetch updated list
                     queryClient.invalidateQueries({ queryKey: contactGroupKeys.lists() });
 

@@ -2,7 +2,9 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "chat-window",
   "description": "Capability for chat windows",
-  "windows": ["chat-*"],
+  "windows": [
+    "chat-*"
+  ],
   "permissions": [
     "core:window:allow-close",
     "core:window:allow-minimize",
@@ -12,6 +14,8 @@
     "core:window:allow-start-dragging",
     "core:window:allow-create",
     "core:event:allow-listen",
-    "core:event:default"
+    "core:event:default",
+    "notification:allow-is-permission-granted",
+    "notification:default"
   ]
 }

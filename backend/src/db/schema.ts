@@ -24,12 +24,12 @@ export const users = pgTable('users', {
         for: 'select',
         to: 'public',
         using: sql`
-            id = auth.uid() OR
+            id = (select auth.uid()) OR
             is_ai_bot = TRUE OR
             EXISTS (
                 SELECT 1 FROM contacts
-                WHERE (user_id = auth.uid() AND contact_user_id = users.id AND status = 'accepted')
-                   OR (contact_user_id = auth.uid() AND user_id = users.id AND status = 'accepted')
+                WHERE (user_id = (select auth.uid()) AND contact_user_id = users.id AND status = 'accepted')
+                   OR (contact_user_id = (select auth.uid()) AND user_id = users.id AND status = 'accepted')
             )
         `,
     }),
@@ -48,7 +48,7 @@ export const userProfilePictures = pgTable('user_profile_pictures', {
     pgPolicy('users_can_view_own_profile_pictures', {
         for: 'select',
         to: 'public',
-        using: sql`user_id = auth.uid()`,
+        using: sql`user_id = (select auth.uid())`,
     }),
 ]);
 
@@ -68,7 +68,7 @@ export const contacts = pgTable('contacts', {
     pgPolicy('users_can_view_own_contacts', {
         for: 'select',
         to: 'public',
-        using: sql`user_id = auth.uid() OR contact_user_id = auth.uid()`,
+        using: sql`user_id = (select auth.uid()) OR contact_user_id = (select auth.uid())`,
     }),
 ]);
 
@@ -85,7 +85,7 @@ export const contactGroups = pgTable('contact_groups', {
     pgPolicy('users_can_view_own_contact_groups', {
         for: 'select',
         to: 'public',
-        using: sql`user_id = auth.uid()`,
+        using: sql`user_id = (select auth.uid())`,
     }),
 ]);
 
@@ -105,7 +105,7 @@ export const contactGroupMemberships = pgTable('contact_group_memberships', {
             EXISTS (
                 SELECT 1 FROM contact_groups
                 WHERE contact_groups.id = contact_group_memberships.group_id
-                AND contact_groups.user_id = auth.uid()
+                AND contact_groups.user_id = (select auth.uid())
             )
         `,
     }),
@@ -129,7 +129,7 @@ export const conversations = pgTable('conversations', {
             EXISTS (
                 SELECT 1 FROM conversation_participants
                 WHERE conversation_id = conversations.id
-                AND user_id = auth.uid()
+                AND user_id = (select auth.uid())
             )
         `,
     }),
@@ -146,23 +146,19 @@ export const conversationParticipants = pgTable('conversation_participants', {
     index('idx_conversation_participants_conversation_id').on(table.conversationId),
     index('idx_conversation_participants_user_id').on(table.userId),
     index('idx_conversation_participants_left_at').on(table.leftAt),
+    // Allow users to see their own participant record
+    // Cannot use self-referential query or query conversations (causes circular dependency)
     pgPolicy('users_can_view_conversation_participants', {
         for: 'select',
         to: 'public',
-        using: sql`
-            EXISTS (
-                SELECT 1 FROM conversation_participants cp
-                WHERE cp.conversation_id = conversation_participants.conversation_id
-                AND cp.user_id = auth.uid()
-            )
-        `,
+        using: sql`user_id = (select auth.uid())`,
     }),
 ]);
 
 // Messages table schema
 export const messages = pgTable('messages', {
     id: uuid('id').primaryKey().defaultRandom(),
-    conversationId: uuid('conversation_id').notNull(),
+    conversationId: uuid('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
     senderId: uuid('sender_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     content: text('content').notNull(),
     messageType: varchar('message_type', { length: 20 }).default('text'),
@@ -181,7 +177,7 @@ export const messages = pgTable('messages', {
             EXISTS (
                 SELECT 1 FROM conversation_participants
                 WHERE conversation_id = messages.conversation_id
-                AND user_id = auth.uid()
+                AND user_id = (select auth.uid())
                 AND left_at IS NULL
             )
         `,
@@ -208,7 +204,7 @@ export const files = pgTable('files', {
                 SELECT 1 FROM messages m
                 JOIN conversation_participants cp ON cp.conversation_id = m.conversation_id
                 WHERE m.id = files.message_id
-                AND cp.user_id = auth.uid()
+                AND cp.user_id = (select auth.uid())
                 AND cp.left_at IS NULL
             )
         `,

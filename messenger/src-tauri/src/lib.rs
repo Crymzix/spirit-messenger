@@ -248,31 +248,40 @@ fn open_chat_window(
     handle: AppHandle,
     webview_window: tauri::WebviewWindow,
     dialog_window: String,
+    contact_name: Option<String>,
 ) -> Result<(), String> {
     let dialog_label = format!("chat-{}", dialog_window);
-    let title = dialog_window.clone();
+    let title = contact_name
+        .clone()
+        .unwrap_or_else(|| dialog_window.clone());
+    let url = if let Some(name) = contact_name {
+        format!(
+            "chat-window.html?contactId={}&contactName={}",
+            dialog_window,
+            urlencoding::encode(&name)
+        )
+    } else {
+        format!("chat-window.html?contactId={}", dialog_window)
+    };
 
     if let Some(existing_window) = handle.get_webview_window(&dialog_label) {
         if let Err(e) = existing_window.set_focus() {
             error!("Error focusing the chat window: {:?}", e);
         }
     } else {
-        let _ = WebviewWindowBuilder::new(
-            &handle,
-            &dialog_label,
-            tauri::WebviewUrl::App("chat-window.html".into()),
-        )
-        .title(title)
-        .decorations(false)
-        .resizable(true)
-        .transparent(true)
-        .inner_size(600.0, 400.0)
-        .min_inner_size(600.0, 400.0)
-        .center()
-        .parent(&webview_window)
-        .unwrap()
-        .build()
-        .unwrap();
+        let _ =
+            WebviewWindowBuilder::new(&handle, &dialog_label, tauri::WebviewUrl::App(url.into()))
+                .title(title)
+                .decorations(false)
+                .resizable(true)
+                .transparent(true)
+                .inner_size(630.0, 530.0)
+                .min_inner_size(600.0, 500.0)
+                .center()
+                .parent(&webview_window)
+                .unwrap()
+                .build()
+                .unwrap();
     }
     Ok(())
 }

@@ -50,11 +50,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
      */
     setAuth: async (user: AuthUser, token: string, refreshToken: string) => {
         try {
-            console.log('FUCK', {
-                token,
-                refreshToken
-            })
-
             await invoke('set_auth', { user, token, refreshToken });
 
             // Set Supabase session to enable automatic token refresh

@@ -51,7 +51,7 @@ const messagesRoutes: FastifyPluginAsync = async (fastify) => {
         Body: CreateMessageBody;
         Reply: ApiResponse<{ message: SelectMessage }>;
     }>(
-        '/',
+        '/messages',
         {
             preHandler: fastify.authenticate,
             schema: {

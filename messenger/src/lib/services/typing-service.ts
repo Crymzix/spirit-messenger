@@ -3,7 +3,6 @@ import { supabase } from '../supabase';
 
 export interface TypingUser {
     userId: string;
-    username: string;
     isTyping: boolean;
     lastTypingAt: number;
 }
@@ -144,12 +143,10 @@ export class TypingService {
             const presences = state[userId];
             if (presences && presences.length > 0) {
                 const presence = presences[0]; // Get most recent presence
-
                 // Exclude current user and only include actively typing users
                 if (presence.userId !== currentUserId && presence.isTyping) {
                     typingUsers.push({
                         userId: presence.userId,
-                        username: presence.username || 'Unknown',
                         isTyping: presence.isTyping,
                         lastTypingAt: presence.lastTypingAt,
                     });

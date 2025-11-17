@@ -25,7 +25,6 @@ let storageKey = 'sb-auth-token';
 // Initialize storage key
 getStorageKey().then(key => {
   storageKey = key;
-  console.log('Using Supabase storage key:', storageKey);
 });
 
 const customStorage = {
