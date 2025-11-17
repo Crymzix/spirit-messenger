@@ -6,6 +6,10 @@ import { useSendMessage, useConversationMessagesInfinite, useConversationRealtim
 import { useTypingIndicator } from "@/lib/hooks/typing-hooks";
 import { useConversation, useParticipantRealtimeUpdates } from "@/lib/hooks/conversation-hooks";
 import { TypingIndicator } from "../typing-indicator";
+import { EmoticonPicker } from "../emoticon-picker";
+import { MessageContent } from "../message-content";
+import { TextFormatter } from "../text-formatter";
+import { Emoticon, findEmoticonMatches } from "@/lib/emoticons";
 
 export function ChatWindow() {
     // Extract contactId and contactName from URL query parameters
@@ -24,7 +28,11 @@ export function ChatWindow() {
     const [messageInput, setMessageInput] = useState("");
     const [activeTab, setActiveTab] = useState<"type" | "handwrite">('type');
     const [isTyping, setIsTyping] = useState(false);
+    const [showEmoticonPicker, setShowEmoticonPicker] = useState(false);
+    const [showFontPicker, setShowFontPicker] = useState(false)
+    const [formatting, setFormatting] = useState<{ bold?: boolean; italic?: boolean; color?: string }>({});
     const messageHistoryRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const sendMessageMutation = useSendMessage(conversation?.id || '');
     const {
@@ -150,11 +158,23 @@ export function ChatWindow() {
                 setIsTyping(false);
             }
 
+            // Find emoticon matches in the message
+            const emoticonMatches = findEmoticonMatches(messageInput.trim());
+
+            // Build emoticon metadata
+            const emoticonMetadata = emoticonMatches.map(match => ({
+                position: match.startIndex,
+                code: match.emoticon.id
+            }));
+
             await sendMessageMutation.mutateAsync({
                 conversationId: conversation.id,
                 content: messageInput.trim(),
                 messageType: 'text',
-                metadata: {},
+                metadata: {
+                    emoticons: emoticonMetadata.length > 0 ? emoticonMetadata : undefined,
+                    formatting: (formatting.bold || formatting.italic || formatting.color) ? formatting : undefined
+                },
             });
 
             // Clear input on success
@@ -167,6 +187,11 @@ export function ChatWindow() {
 
     const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const value = e.target.value;
+
+        // Note: Emoticon shortcuts are kept as text in the input
+        // They will be automatically converted to images when the message is displayed
+        // The findEmoticonMatches function will detect them when sending
+
         setMessageInput(value);
 
         // Set typing status
@@ -180,10 +205,52 @@ export function ChatWindow() {
     };
 
     const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        // Handle Enter key for sending message
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSendMessage();
+            return;
         }
+
+        // Handle Ctrl+B for bold
+        if (e.key === 'b' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            setFormatting(prev => ({ ...prev, bold: !prev.bold }));
+            return;
+        }
+
+        // Handle Ctrl+I for italic
+        if (e.key === 'i' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            setFormatting(prev => ({ ...prev, italic: !prev.italic }));
+            return;
+        }
+    };
+
+    const handleEmoticonSelect = (emoticon: Emoticon) => {
+        // Insert emoticon shortcut at cursor position
+        if (textareaRef.current) {
+            const start = textareaRef.current.selectionStart;
+            const end = textareaRef.current.selectionEnd;
+            const text = messageInput;
+            const before = text.substring(0, start);
+            const after = text.substring(end);
+            const newText = before + emoticon.shortcuts[0] + ' ' + after;
+
+            setMessageInput(newText);
+
+            // Set cursor position after the inserted emoticon
+            setTimeout(() => {
+                if (textareaRef.current) {
+                    const newPosition = start + emoticon.shortcuts[0].length + 1;
+                    textareaRef.current.selectionStart = newPosition;
+                    textareaRef.current.selectionEnd = newPosition;
+                    textareaRef.current.focus();
+                }
+            }, 0);
+        }
+
+        setShowEmoticonPicker(false);
     };
 
     return (
@@ -386,10 +453,19 @@ export function ChatWindow() {
                                             return (
                                                 <div key={message.id} className="text-lg">
                                                     <div className="flex flex-col">
-                                                        <div className={`font-verdana`}>
+                                                        <div
+                                                            style={{
+                                                                fontFamily: 'Pixelated MS Sans Serif'
+                                                            }}
+                                                        >
                                                             {`${sender?.displayName || 'Unknown'} says`}:
                                                         </div>
-                                                        <div className="font-verdana text-black ml-4">{message.content}</div>
+                                                        <div className="font-verdana text-black ml-4">
+                                                            <MessageContent
+                                                                content={message.content}
+                                                                metadata={message.metadata}
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
                                             );
@@ -436,17 +512,32 @@ export function ChatWindow() {
                                         }}
                                         className="flex items-center gap-2 px-2 py-1 border-b-[1px] border-[#31497C] rounded-t-xl">
                                         <div
+                                            onClick={() => setShowFontPicker(true)}
                                             style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                                            className="flex items-center gap-0.5 cursor-pointer"
+                                            className="flex items-center gap-0.5 cursor-pointer relative"
                                         >
                                             <img src="/text.png" className="size-8" />
                                             Font
+                                            {showFontPicker && (
+                                                <TextFormatter
+                                                    onFormatChange={setFormatting}
+                                                    currentFormatting={formatting}
+                                                    onClose={() => setShowFontPicker(false)}
+                                                />
+                                            )}
                                         </div>
                                         <div
+                                            onClick={() => setShowEmoticonPicker(true)}
                                             style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                                            className="flex items-center gap-0.5 cursor-pointer"
+                                            className="flex items-center gap-0.5 cursor-pointer relative"
                                         >
                                             <img src="/emoticon.png" className="size-8" />
+                                            {showEmoticonPicker && (
+                                                <EmoticonPicker
+                                                    onSelect={handleEmoticonSelect}
+                                                    onClose={() => setShowEmoticonPicker(false)}
+                                                />
+                                            )}
                                         </div>
                                         <div
                                             style={{ fontFamily: 'Pixelated MS Sans Serif' }}
@@ -464,12 +555,16 @@ export function ChatWindow() {
                                     </div>
                                     <div className="flex py-4 px-2">
                                         <textarea
+                                            ref={textareaRef}
                                             value={messageInput}
                                             onChange={handleInputChange}
                                             onKeyDown={handleKeyPress}
                                             placeholder="Type a message..."
                                             disabled={sendMessageMutation.isPending}
-                                            className="w-full flex-1 !text-lg border border-[#ACA899] rounded resize-none focus:outline-none focus:border-msn-blue disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className={`w-full flex-1 !font-verdana !text-lg border border-[#ACA899] rounded resize-none focus:outline-none focus:border-msn-blue disabled:opacity-50 disabled:cursor-not-allowed ${formatting.bold ? 'font-bold' : ''} ${formatting.italic ? 'italic' : ''}`}
+                                            style={{
+                                                color: formatting.color || 'inherit'
+                                            }}
                                         />
                                         <div
                                             aria-disabled={!canSend}

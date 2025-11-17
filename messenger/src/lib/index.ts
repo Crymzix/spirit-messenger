@@ -1,6 +1,7 @@
 export * from './api-client';
 export * from './services/auth-service';
 export * from './services/presence-service';
+export * from './emoticons';
 export {
     useCurrentUser,
     useSignIn,

@@ -433,30 +433,28 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - _Requirements: 13.5_
 
 - [ ] 16. Implement emoticons and rich text formatting
-  - [ ] 30.1 Create emoticon system
+  - [x] 30.1 Create emoticon system
     - Create emoticons.ts data structure with codes and image URLs
-    - Implement 30+ classic MSN emoticons (19x19px)
     - Create emoticon shortcut mapping (e.g., `:)` → smile)
-    - Store emoticon images in public/emoticons directory
+    - Use emoticon images already stored in public/emoticons directory
     - _Requirements: 5.1, 17.1, 16.3_
-  - [ ] 30.2 Build emoticon picker component
+  - [x] 30.2 Build emoticon picker component
     - Create emoticon-picker.tsx with grid layout
     - Implement emoticon selection handler
     - Add recently used emoticons section
     - Create search/filter functionality
-    - Style with classic MSN design
     - _Requirements: 5.2, 17.1, 16.3_
-  - [ ] 24.3 Implement emoticon insertion
+  - [x] 24.3 Implement emoticon insertion
     - Insert emoticon at cursor position in message input
     - Convert emoticon shortcuts to graphics automatically
     - Store emoticon metadata in message
     - _Requirements: 5.2, 5.3_
-  - [ ] 24.4 Implement emoticon rendering in messages
+  - [x] 24.4 Implement emoticon rendering in messages
     - Create emoticon-renderer.ts to parse message content
     - Replace codes with emoticon images
     - Support animated GIF emoticons
     - _Requirements: 5.5_
-  - [ ] 24.5 Implement text formatting
+  - [x] 24.5 Implement text formatting
     - Create text-formatter.tsx with bold, italic, and color formatting buttons
     - Apply formatting to selected text
     - Store formatting metadata in message

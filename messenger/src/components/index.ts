@@ -12,3 +12,5 @@ export { OptionsWindow } from './windows/options-window';
 export { ContactList } from './contact-list';
 export { ContactItem } from './contact-item';
 export { ContactRequestNotification } from './contact-request-notification';
+export { EmoticonPicker } from './emoticon-picker';
+export { MessageContent } from './message-content';
