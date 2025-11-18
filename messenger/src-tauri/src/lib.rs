@@ -243,10 +243,40 @@ async fn show_notification(app: AppHandle, title: String, body: String) -> Resul
     Ok(())
 }
 
+/// Play a sound file from the public/sounds directory
+#[tauri::command]
+async fn play_sound(app: AppHandle, sound_type: String, volume: f32) -> Result<(), String> {
+    // Map sound types to file paths
+    let sound_file = match sound_type.as_str() {
+        "message" => "new_mesage.mp3",
+        "contact_online" => "contact_online.mp3",
+        "contact_offline" => "contact_online.mp3", // Reuse same sound for offline
+        "nudge" => "nudge.mp3",
+        "video_call" => "video_call.mp3",
+        _ => return Err(format!("Unknown sound type: {}", sound_type)),
+    };
+
+    // Construct the asset URL
+    let asset_url = format!("sounds/{}", sound_file);
+
+    // Emit an event to the frontend to play the sound
+    // We use the frontend's Audio API because Tauri doesn't have built-in audio playback
+    app.emit(
+        "play-sound",
+        serde_json::json!({
+            "soundFile": asset_url,
+            "volume": volume.clamp(0.0, 1.0)
+        }),
+    )
+    .map_err(|e| format!("Failed to emit play-sound event: {}", e))?;
+
+    Ok(())
+}
+
 #[tauri::command]
 fn open_chat_window(
     handle: AppHandle,
-    webview_window: tauri::WebviewWindow,
+    _webview_window: tauri::WebviewWindow,
     dialog_window: String,
     contact_name: Option<String>,
 ) -> Result<(), String> {
@@ -278,8 +308,6 @@ fn open_chat_window(
                 .inner_size(630.0, 530.0)
                 .min_inner_size(600.0, 500.0)
                 .center()
-                .parent(&webview_window)
-                .unwrap()
                 .build()
                 .unwrap();
     }
@@ -328,7 +356,8 @@ pub fn run() {
             get_profile,
             open_chat_window,
             request_notification_permission,
-            show_notification
+            show_notification,
+            play_sound
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

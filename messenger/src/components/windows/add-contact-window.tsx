@@ -7,15 +7,17 @@ export function AddContactWindow() {
     const [email, setEmail] = useState('');
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const sendContactMutation = useSendContactRequest();
+    const [sectionIndex, setSectionIndex] = useState(0)
 
     const validateEmail = (email: string): boolean => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const onAddContact = async (e: React.FormEvent) => {
         e.preventDefault();
         setSuccessMessage(null);
+        setSectionIndex(1)
 
         // Validate email format
         if (!email.trim()) {
@@ -54,66 +56,103 @@ export function AddContactWindow() {
                 {/* Dialog Content */}
                 <div className="p-4 flex flex-col gap-6 h-full flex-1">
                     <img src="/spirit-banner.png" className="h-22 ml-auto" />
-                    <form onSubmit={handleSubmit} className="flex flex-col flex-1">
-                        <div className="mb-4 flex flex-col gap-4">
-                            <label htmlFor="contact-email" className="block text-[11px] font-bold text-black mb-2">
-                                Please type your contact's complete e-mail address
-                            </label>
-                            <input
-                                id="contact-email"
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                placeholder="example@email.com"
-                                className="w-full px-3 py-2 text-[11px] border border-gray-400 rounded focus:outline-none focus:border-msn-blue"
-                                disabled={sendContactMutation.isPending}
-                                autoFocus
-                            />
-                            <div className="flex items-center justify-center w-full">
-                                <div className="flex gap-4">
-                                    <label className="self-start">
-                                        Example:
+                    {
+                        sectionIndex === 0 ? (
+                            <form className="flex flex-col flex-1">
+                                <div className="mb-4 flex flex-col gap-4">
+                                    <label htmlFor="contact-email" className="block text-[11px] font-bold text-black mb-2">
+                                        Please type your contact's complete e-mail address
                                     </label>
-                                    <div className="flex flex-col gap-2">
-                                        <label>name_123@hotmail.com</label>
-                                        <label>myname@msn.com</label>
-                                        <label>example@passport.com</label>
+                                    <input
+                                        id="contact-email"
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        placeholder="example@email.com"
+                                        className="w-full px-3 py-2 text-[11px] border border-gray-400 rounded focus:outline-none focus:border-msn-blue"
+                                        disabled={sendContactMutation.isPending}
+                                        autoFocus
+                                    />
+                                    <div className="flex items-center justify-center w-full">
+                                        <div className="flex gap-4">
+                                            <label className="self-start">
+                                                Example:
+                                            </label>
+                                            <div className="flex flex-col gap-2">
+                                                <label>name_123@hotmail.com</label>
+                                                <label>myname@msn.com</label>
+                                                <label>example@passport.com</label>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                            </form>
+                        ) : null
+                    }
+                    {
+                        sectionIndex === 1 ? (
+                            <form className="flex flex-col flex-1">
+                                <div className="mb-4 flex flex-col gap-4">
+                                    {/* Error Message  */}
+                                    {sendContactMutation.error && (
+                                        sendContactMutation.error.message === 'User with this email not found' ?
+                                            <div
+                                                style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                                className="font-bold"
+                                            >
+                                                We can't add {email} to your contact list because their address isn't associated with a Spirit account.
+                                            </div> :
+                                            sendContactMutation.error.message === 'Contact already exists' ?
+                                                <div
+                                                    style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                                    className="font-bold"
+                                                >
+                                                    Contact with email {email} already exists in your contact list.
+                                                </div> :
+                                                <div className="mb-4 p-2 bg-red-50 border border-red-300 rounded">
+                                                    <p className="text-sm text-red-700">{sendContactMutation.error.message}</p>
+                                                </div>
+                                    )}
+                                    {/* Success Message */}
+                                    {successMessage && (
+                                        <div
+                                            style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                            className="font-bold"
+                                        >
+                                            We have sent a request to {email} to add to your contact list.
+                                        </div>
+                                    )}
+                                </div>
+                            </form>
+                        ) : null
+                    }
 
-                        {/* Error Message */}
-                        {sendContactMutation.error && (
-                            <div className="mb-4 p-2 bg-red-50 border border-red-300 rounded">
-                                <p className="text-sm text-red-700">{sendContactMutation.error.message}</p>
-                            </div>
-                        )}
-
-                        {/* Success Message */}
-                        {successMessage && (
-                            <div className="mb-4 p-2 bg-green-50 border border-green-300 rounded">
-                                <p className="text-sm text-green-700">{successMessage}</p>
-                            </div>
-                        )}
-
-                        {/* Dialog Actions */}
-                        <div className="flex justify-end gap-2 mt-auto">
-                            <button
-                                type="button"
-                                onClick={handleClose}
-                                disabled={sendContactMutation.isPending}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={sendContactMutation.isPending}
-                            >
-                                {sendContactMutation.isPending ? 'Loading...' : 'Add'}
-                            </button>
-                        </div>
-                    </form>
+                    {/* Dialog Actions */}
+                    <div className="flex justify-end gap-2 mt-auto">
+                        <button
+                            className={sectionIndex === 0 ? 'opacity-50' : ''}
+                            disabled={sendContactMutation.isPending || sectionIndex === 0}
+                            onClick={() => {
+                                setSectionIndex(0)
+                            }}
+                        >
+                            Back
+                        </button>
+                        <button
+                            onClick={sectionIndex === 1 ? handleClose : onAddContact}
+                            className={!email?.trim() ? 'opacity-50' : ''}
+                            disabled={!email?.trim() || sendContactMutation.isPending}
+                        >
+                            {sendContactMutation.isPending ? 'Loading...' : sectionIndex === 1 ? 'Finish' : 'Next'}
+                        </button>
+                        <button
+                            className="ml-4"
+                            onClick={handleClose}
+                            disabled={sendContactMutation.isPending}
+                        >
+                            Cancel
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

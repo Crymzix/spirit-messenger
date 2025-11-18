@@ -348,7 +348,7 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Implement delete group functionality
     - Subscribe to contact_groups table changes via Supabase Realtime (Use React Query and hooks)
     - _Requirements: 17.2, 16.6, 16.7, 17.1, 17.3_
-  - [ ] 13.3 Implement add/remove contacts to groups
+  - [-] 13.3 Implement add/remove contacts to groups
     - Add "Add to Group" option to contact context menu
     - Create group-selector-dialog.tsx for selecting groups
     - Implement add contact to group functionality
@@ -564,7 +564,7 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Include message preview in notification
     - Handle notification click to focus chat window
     - _Requirements: 4.4, 8.5, 17.1, 16.3_
-  - [ ] 31.3 Create sound system
+  - [x] 31.3 Create sound system
     - Implement play_sound Rust command in lib.rs
     - Add classic MSN sound files to public/sounds directory (message.wav, sign-in.wav, sign-out.wav)
     - Create sound-service.ts with volume control
