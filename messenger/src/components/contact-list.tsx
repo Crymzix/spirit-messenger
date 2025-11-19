@@ -2,11 +2,27 @@ import { useEffect, useMemo, useState } from 'react';
 import { Contact } from '@/types';
 import { ContactItem } from './contact-item';
 import { usePendingContactRequests, useContactRealtimeUpdates, useContacts } from '@/lib/hooks/contact-hooks';
-import { useContactGroups, useContactGroupMemberships, useContactGroupRealtimeUpdates } from '@/lib/hooks/contact-group-hooks';
+import { useContactGroups, useContactGroupMemberships, useContactGroupRealtimeUpdates, useReorderContactGroups } from '@/lib/hooks/contact-group-hooks';
 import { ContactRequestNotification } from './contact-request-notification';
 import { ContactGroupHeader } from './contact-group-header';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { WINDOW_EVENTS } from '@/lib/utils/constants';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { SortableGroupItem } from './sortable-group-item';
 
 interface GroupedContacts {
     online: Contact[];
@@ -22,10 +38,23 @@ export function ContactList() {
     const { data: acceptedContacts = [], isLoading: contactsLoading } = useContacts('accepted');
     const { data: customGroups = [], isLoading: groupsLoading, refetch: refetchGroups } = useContactGroups();
     const { data: groupMemberships, refetch: refetchMemberships } = useContactGroupMemberships();
+    const reorderGroups = useReorderContactGroups();
 
     // Set up real-time updates
     useContactRealtimeUpdates();
     useContactGroupRealtimeUpdates();
+
+    // Set up drag-and-drop sensors
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8, // Require 8px movement before drag starts
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
 
     // Auto-expand Online group if user has no contacts or no online contacts
     const shouldAutoExpandOnline = acceptedContacts.length === 0 ||
@@ -101,6 +130,34 @@ export function ContactList() {
             }
             return next;
         });
+    };
+
+    // Handle drag end for group reordering
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (!over || active.id === over.id) {
+            return;
+        }
+
+        const oldIndex = customGroups.findIndex((group) => group.id === active.id);
+        const newIndex = customGroups.findIndex((group) => group.id === over.id);
+
+        if (oldIndex === -1 || newIndex === -1) {
+            return;
+        }
+
+        // Reorder the groups array
+        const reorderedGroups = arrayMove(customGroups, oldIndex, newIndex);
+
+        // Create the new display orders
+        const groupOrders = reorderedGroups.map((group, index) => ({
+            groupId: group.id,
+            displayOrder: index,
+        }));
+
+        // Send reorder request to backend with optimistic update
+        reorderGroups.mutate(groupOrders);
     };
 
     const isGroupCollapsed = (groupId: string) => {
@@ -221,11 +278,43 @@ export function ContactList() {
                 {/* Online Contacts - Always show */}
                 {renderGroup('Online', groupedContacts.online, 'online', true, onlinePlaceholderText)}
 
-                {/* Custom Groups */}
-                {customGroups.map((group) => {
-                    const groupContacts = groupedContacts.custom.get(group.id) || [];
-                    return renderGroup(group.name, groupContacts, group.id, false, undefined, true);
-                })}
+                {/* Custom Groups with Drag-and-Drop */}
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                >
+                    <SortableContext
+                        items={customGroups.map((group) => group.id)}
+                        strategy={verticalListSortingStrategy}
+                    >
+                        {customGroups.map((group) => {
+                            const groupContacts = groupedContacts.custom.get(group.id) || [];
+                            const isCollapsed = isGroupCollapsed(group.id);
+
+                            return (
+                                <SortableGroupItem
+                                    key={group.id}
+                                    id={group.id}
+                                    groupId={group.id}
+                                    title={group.name}
+                                    count={groupContacts.length}
+                                    isCollapsed={isCollapsed}
+                                    onToggle={() => toggleGroup(group.id)}
+                                    isCustomGroup={true}
+                                >
+                                    {!isCollapsed && (
+                                        <div className="py-1">
+                                            {groupContacts.length > 0 ? (
+                                                groupContacts.map((contact) => renderContactItem(contact))
+                                            ) : null}
+                                        </div>
+                                    )}
+                                </SortableGroupItem>
+                            );
+                        })}
+                    </SortableContext>
+                </DndContext>
 
                 {/* Offline Contacts - Always show */}
                 {renderGroup('Offline', groupedContacts.offline, 'offline', true)}

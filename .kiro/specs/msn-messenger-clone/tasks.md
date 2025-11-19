@@ -355,7 +355,7 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Implement remove contact from group functionality
     - Subscribe to contact_group_memberships table changes via Supabase Realtime
     - _Requirements: 17.3, 16.4, 16.10, 17.1, 17.3_
-  - [ ] 13.4 Implement group reordering
+  - [x] 13.4 Implement group reordering
     - Install react-beautiful-dnd or @dnd-kit/core for drag-and-drop
     - Implement drag-and-drop for group reordering
     - Send reorder request to Backend Service API

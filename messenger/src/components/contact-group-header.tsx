@@ -107,7 +107,7 @@ export function ContactGroupHeader({
         });
 
         const appWindow = getCurrentWindow()
-        appWindow.listen(eventName, async (event) => {
+        appWindow.listen(eventName, async () => {
             await deleteGroup.mutateAsync(groupId);
         });
     };
