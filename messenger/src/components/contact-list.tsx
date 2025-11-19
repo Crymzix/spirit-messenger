@@ -1,13 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Contact } from '@/types';
 import { ContactItem } from './contact-item';
 import { usePendingContactRequests, useContactRealtimeUpdates, useContacts } from '@/lib/hooks/contact-hooks';
 import { useContactGroups, useContactGroupMemberships, useContactGroupRealtimeUpdates } from '@/lib/hooks/contact-group-hooks';
 import { ContactRequestNotification } from './contact-request-notification';
-
-interface ContactListProps {
-    onAddToGroup?: (contact: Contact) => void;
-}
+import { ContactGroupHeader } from './contact-group-header';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { WINDOW_EVENTS } from '@/lib/utils/constants';
 
 interface GroupedContacts {
     online: Contact[];
@@ -16,16 +15,13 @@ interface GroupedContacts {
     custom: Map<string, Contact[]>;
 }
 
-export function ContactList({
-    onAddToGroup
-}: ContactListProps) {
+export function ContactList() {
     const { pendingRequests } = usePendingContactRequests();
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
-    // Fetch real data using hooks
     const { data: acceptedContacts = [], isLoading: contactsLoading } = useContacts('accepted');
-    const { data: customGroups = [], isLoading: groupsLoading } = useContactGroups();
-    const { data: groupMemberships } = useContactGroupMemberships();
+    const { data: customGroups = [], isLoading: groupsLoading, refetch: refetchGroups } = useContactGroups();
+    const { data: groupMemberships, refetch: refetchMemberships } = useContactGroupMemberships();
 
     // Set up real-time updates
     useContactRealtimeUpdates();
@@ -77,6 +73,24 @@ export function ContactList({
         return grouped;
     }, [acceptedContacts, customGroups, groupMemberships])
 
+    useEffect(() => {
+        const appWindow = getCurrentWindow()
+
+        const unsubscribeAddGroup = appWindow.listen(WINDOW_EVENTS.ADD_GROUP, () => {
+            refetchGroups()
+        })
+
+        const unsubscribeUpdateGroups = appWindow.listen(WINDOW_EVENTS.UPDATE_GROUPS, () => {
+            refetchGroups()
+            refetchMemberships()
+        })
+
+        return () => {
+            unsubscribeAddGroup.then(fn => fn()).catch(err => console.error(err))
+            unsubscribeUpdateGroups.then(fn => fn()).catch(err => console.error(err))
+        }
+    }, [refetchGroups])
+
     const toggleGroup = (groupId: string) => {
         setCollapsedGroups((prev) => {
             const next = new Set(prev);
@@ -102,33 +116,22 @@ export function ContactList({
             <ContactItem
                 key={contact.id}
                 contact={contact}
-                onAddToGroup={onAddToGroup}
             />
         );
     };
 
-    const renderGroupHeader = (title: string, count: number, groupId: string) => {
+    const renderGroupHeader = (title: string, count: number, groupId: string, isCustomGroup: boolean = false) => {
         const isCollapsed = isGroupCollapsed(groupId);
 
         return (
-            <div
-                onClick={() => toggleGroup(groupId)}
-                className="flex items-center gap-1 px-1 py-1 cursor-pointer transition-colors"
-            >
-                <span className="text-[10px] text-gray-700">
-                    {
-                        isCollapsed ?
-                            <img src='/group-plus.png' className='size-10' /> :
-                            <img src='/group-minus.png' className='size-10' />
-                    }
-                </span>
-                <span
-                    style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                    className="!text-lg font-bold text-[#00005D]"
-                >
-                    {title} ({count})
-                </span>
-            </div>
+            <ContactGroupHeader
+                groupId={groupId}
+                title={title}
+                count={count}
+                isCollapsed={isCollapsed}
+                onToggle={() => toggleGroup(groupId)}
+                isCustomGroup={isCustomGroup}
+            />
         );
     };
 
@@ -137,9 +140,10 @@ export function ContactList({
         groupContacts: Contact[],
         groupId: string,
         alwaysShow: boolean = false,
-        placeholderText?: string
+        placeholderText?: string,
+        isCustomGroup: boolean = false
     ) => {
-        if (groupContacts.length === 0 && !alwaysShow) {
+        if (groupContacts.length === 0 && !alwaysShow && !isCustomGroup) {
             return null;
         }
 
@@ -147,7 +151,7 @@ export function ContactList({
 
         return (
             <div key={groupId}>
-                {renderGroupHeader(title, groupContacts.length, groupId)}
+                {renderGroupHeader(title, groupContacts.length, groupId, isCustomGroup)}
                 {!isCollapsed && (
                     <div className="py-1">
                         {groupContacts.length > 0 ? (
@@ -193,7 +197,6 @@ export function ContactList({
         );
     }
 
-    // Show loading state while initial data is being fetched
     if (contactsLoading || groupsLoading) {
         return (
             <div className="flex-1 overflow-y-auto h-[calc(100vh-210px)] flex items-center justify-center">
@@ -211,7 +214,7 @@ export function ContactList({
 
     return (
         <>
-            <div className="flex-1 overflow-y-auto h-[calc(100vh-210px)]">
+            <div className="flex-1 overflow-y-auto h-[calc(100vh-210px)] ml-[2px]">
                 {/* Pending Contact Requests */}
                 {renderPendingInvites()}
 
@@ -221,7 +224,7 @@ export function ContactList({
                 {/* Custom Groups */}
                 {customGroups.map((group) => {
                     const groupContacts = groupedContacts.custom.get(group.id) || [];
-                    return renderGroup(group.name, groupContacts, `custom-${group.id}`);
+                    return renderGroup(group.name, groupContacts, group.id, false, undefined, true);
                 })}
 
                 {/* Offline Contacts - Always show */}

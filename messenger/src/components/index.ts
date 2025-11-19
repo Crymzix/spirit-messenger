@@ -14,3 +14,4 @@ export { ContactItem } from './contact-item';
 export { ContactRequestNotification } from './contact-request-notification';
 export { EmoticonPicker } from './emoticon-picker';
 export { MessageContent } from './message-content';
+export { ContactGroupHeader } from './contact-group-header';

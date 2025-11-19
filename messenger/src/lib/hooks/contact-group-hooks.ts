@@ -19,6 +19,7 @@ import {
     reorderContactGroups,
     addContactToGroup,
     removeContactFromGroup,
+    bulkUpdateContactGroupMemberships,
 } from '../services/contact-group-service';
 import { useAuthStore } from '../store/auth-store';
 import type { ContactGroup, ContactGroupMembership } from '@/types';
@@ -417,5 +418,37 @@ export function useContactGroupMemberships() {
         },
         enabled: isAuthenticated,
         staleTime: 1000 * 60 * 5, // 5 minutes
+    });
+}
+
+/**
+ * Hook for bulk updating contact group memberships
+ * Updates which groups a contact belongs to in a single operation
+ */
+export function useBulkUpdateContactGroupMemberships() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({
+            contactId,
+            groupIds,
+        }: {
+            contactId: string;
+            groupIds: string[];
+        }) => {
+            const response = await bulkUpdateContactGroupMemberships({
+                contactId,
+                groupIds,
+            });
+            return response.memberships;
+        },
+        onSuccess: () => {
+            // Invalidate contact groups and memberships
+            queryClient.invalidateQueries({ queryKey: contactGroupKeys.all });
+            queryClient.invalidateQueries({ queryKey: ['contact-group-memberships'] });
+        },
+        onError: (error) => {
+            console.error('Failed to bulk update contact group memberships:', error);
+        },
     });
 }

@@ -178,3 +178,31 @@ export async function removeContactFromGroup(
 
     return response.data;
 }
+
+export interface BulkUpdateContactGroupsData {
+    contactId: string;
+    groupIds: string[];
+}
+
+export interface BulkUpdateContactGroupsResponse {
+    memberships: ContactGroupMembership[];
+}
+
+/**
+ * Bulk update contact group memberships
+ * Updates which groups a contact belongs to in a single operation
+ */
+export async function bulkUpdateContactGroupMemberships(
+    data: BulkUpdateContactGroupsData
+): Promise<BulkUpdateContactGroupsResponse> {
+    const response = await apiPut<BulkUpdateContactGroupsResponse>(
+        '/api/contact-groups/contacts/bulk-update',
+        data
+    );
+
+    if (!response.success || !response.data) {
+        throw new Error(response.error || 'Failed to bulk update contact group memberships');
+    }
+
+    return response.data;
+}

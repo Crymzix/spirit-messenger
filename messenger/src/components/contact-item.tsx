@@ -5,10 +5,9 @@ import { createWindow } from '@/lib/utils/window-utils';
 
 interface ContactItemProps {
     contact: Contact;
-    onAddToGroup?: (contact: Contact) => void;
 }
 
-export function ContactItem({ contact, onAddToGroup }: ContactItemProps) {
+export function ContactItem({ contact }: ContactItemProps) {
     const [showContextMenu, setShowContextMenu] = useState(false);
     const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
     const contextMenuRef = useRef<HTMLDivElement>(null);
@@ -61,13 +60,22 @@ export function ContactItem({ contact, onAddToGroup }: ContactItemProps) {
 
     const handleAddToGroup = () => {
         setShowContextMenu(false);
-        onAddToGroup?.(contact);
+
+        createWindow('add-to-group', `/add-to-group.html?contactId=${contact.id}&contactName=${contactUser.displayName || contactUser.username}`, {
+            title: 'Add to Group',
+            width: 640,
+            height: 500,
+            resizable: false,
+            decorations: false,
+            transparent: true,
+            center: true,
+        });
     };
 
     const handleRemoveContact = () => {
         setShowContextMenu(false);
 
-        const path = `/remove-contact.html?contactId=${contactUser.id}&contactName=${contactUser.displayName || contactUser.username}`;
+        const path = `/remove-contact.html?contactId=${contact.id}&contactName=${contactUser.displayName || contactUser.username}`;
 
         createWindow('remove-contact', path, {
             title: 'Remove Contact',

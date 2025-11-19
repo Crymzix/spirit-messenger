@@ -33,11 +33,6 @@ export function AddContactWindow() {
 
             setSuccessMessage('Contact request sent successfully!');
             setEmail('');
-
-            // Close dialog after a short delay
-            setTimeout(() => {
-                handleClose();
-            }, 1500);
         } catch (err) {
             // Error is already tracked by react-query
             console.error('Failed to send contact request:', err);

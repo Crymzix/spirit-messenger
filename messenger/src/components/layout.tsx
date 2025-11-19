@@ -2,6 +2,7 @@ import { ReactNode, useEffect, useRef, useState } from 'react';
 import { TitleBar } from './title-bar';
 import "xp.css/dist/XP.css";
 import { useSignOut } from '@/lib';
+import { createWindow } from '@/lib/utils/window-utils';
 
 interface LayoutProps {
   children: ReactNode;
@@ -15,7 +16,10 @@ export function Layout({ children, title = 'Spirit Messenger', showIcon = true, 
   const fileDropdownRef = useRef<HTMLDivElement>(null);
 
   const [isContactsDropdownOpen, setIsContactsDropdownOpen] = useState(false);
-  const contactsDropdownRef = useRef<HTMLDivElement>(null)
+  const contactsDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [isManageGroupsDropdownOpen, setIsManageGroupsDropdownOpen] = useState(false);
+  const manageGroupsDropdownRef = useRef<HTMLDivElement>(null)
 
   const signOutMutation = useSignOut();
 
@@ -48,6 +52,47 @@ export function Layout({ children, title = 'Spirit Messenger', showIcon = true, 
       };
     }
   }, [isContactsDropdownOpen]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (manageGroupsDropdownRef.current && !manageGroupsDropdownRef.current.contains(event.target as Node)) {
+        setIsManageGroupsDropdownOpen(false);
+      }
+    }
+
+    if (isManageGroupsDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isManageGroupsDropdownOpen]);
+
+  const handleAddContact = () => {
+    setIsContactsDropdownOpen(false)
+    createWindow('add-contact', '/add-contact.html', {
+      title: 'Add a Contact',
+      width: 640,
+      height: 500,
+      resizable: false,
+      decorations: false,
+      transparent: true,
+      center: true,
+    });
+  }
+
+  const handleAddGroup = () => {
+    setIsContactsDropdownOpen(false)
+    createWindow('add-group', '/add-group.html', {
+      title: 'Add a New Group',
+      width: 640,
+      height: 500,
+      resizable: false,
+      decorations: false,
+      transparent: true,
+      center: true,
+    });
+  }
 
   const handleSignOut = async () => {
     await signOutMutation.mutateAsync();
@@ -105,9 +150,10 @@ export function Layout({ children, title = 'Spirit Messenger', showIcon = true, 
                       borderRight: '1px solid #404040',
                       borderBottom: '1px solid #404040',
                     }}
-                    className="absolute top-full left-0 bg-white border border-gray-400 min-w-64 z-50">
+                    className="absolute top-full left-0 bg-white border border-gray-400 w-64 z-50">
                     <div
                       key="add-contact"
+                      onClick={handleAddContact}
                       className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-[#274997] hover:text-white text-left whitespace-nowrap"
                     >
                       <div className='w-4' />
@@ -142,8 +188,10 @@ export function Layout({ children, title = 'Spirit Messenger', showIcon = true, 
                       </span>
                     </div>
                     <div
+                      ref={manageGroupsDropdownRef}
+                      onClick={() => setIsManageGroupsDropdownOpen(true)}
                       key="manage-groups"
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-[#274997] hover:text-white text-left whitespace-nowrap"
+                      className="group relative w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-[#274997] hover:text-white text-left whitespace-nowrap"
                     >
                       <div className='w-4' />
                       <span
@@ -151,6 +199,60 @@ export function Layout({ children, title = 'Spirit Messenger', showIcon = true, 
                       >
                         Manage Groups
                       </span>
+                      <div className='ml-auto'>
+                        <svg
+                          className="pointer-events-none rotate-270"
+                          width="8"
+                          height="5"
+                          viewBox="0 0 8 5"
+                          fill="none"
+                        >
+                          <path d="M0 0L4 5L8 0H0Z" fill="#24245D" />
+                        </svg>
+                      </div>
+                      <div
+                        style={{
+                          borderLeft: '1px solid #DFDFDF',
+                          borderTop: '1px solid #DFDFDF',
+                          borderRight: '1px solid #404040',
+                          borderBottom: '1px solid #404040',
+                        }}
+                        className="group-hover:block hidden absolute top-0 left-64 -ml-[1px] bg-white border border-gray-400 w-64 z-50">
+                        <div
+                          key="create-group"
+                          className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-[#274997] text-black hover:text-white text-left whitespace-nowrap"
+                          onClick={handleAddGroup}
+                        >
+                          <div className='w-4' />
+                          <span
+                            style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                          >
+                            Create a new group
+                          </span>
+                        </div>
+                        <div
+                          key="delete-group"
+                          className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-[#274997] text-black hover:text-white text-left whitespace-nowrap"
+                        >
+                          <div className='w-4' />
+                          <span
+                            style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                          >
+                            Delete a group
+                          </span>
+                        </div>
+                        <div
+                          key="rename-group"
+                          className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-[#274997] text-black hover:text-white text-left whitespace-nowrap"
+                        >
+                          <div className='w-4' />
+                          <span
+                            style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                          >
+                            Rename a group
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}

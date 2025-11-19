@@ -7,6 +7,8 @@ import {
     addContactToGroup,
     removeContactFromGroup,
     reorderContactGroups,
+    getAllUserGroupMemberships,
+    bulkUpdateContactGroupMemberships,
     ContactGroupServiceError,
     type CreateContactGroupData,
     type UpdateContactGroupData,
@@ -33,6 +35,11 @@ interface ReorderGroupsBody {
     groupOrders: ReorderGroupData[];
 }
 
+interface BulkUpdateContactGroupsBody {
+    contactId: string;
+    groupIds: string[];
+}
+
 interface GroupsResponse {
     groups: SelectContactGroup[];
 }
@@ -43,6 +50,10 @@ interface GroupResponse {
 
 interface MembershipResponse {
     membership: SelectContactGroupMembership;
+}
+
+interface MembershipsResponse {
+    memberships: SelectContactGroupMembership[];
 }
 
 const contactGroupsRoutes: FastifyPluginAsync = async (fastify) => {
@@ -439,6 +450,49 @@ const contactGroupsRoutes: FastifyPluginAsync = async (fastify) => {
         }
     );
 
+    // GET /api/contact-groups/memberships - Get all memberships for user's groups
+    fastify.get<{
+        Reply: ApiResponse<MembershipsResponse>;
+    }>(
+        '/memberships',
+        {
+            preHandler: fastify.authenticate
+        },
+        async (request, reply) => {
+            try {
+                if (!request.user) {
+                    return reply.status(401).send({
+                        success: false,
+                        error: 'Unauthorized'
+                    });
+                }
+
+                const userId = request.user.id;
+                const memberships = await getAllUserGroupMemberships(userId);
+
+                return reply.status(200).send({
+                    success: true,
+                    data: {
+                        memberships
+                    }
+                });
+            } catch (error) {
+                if (error instanceof ContactGroupServiceError) {
+                    return reply.status(error.statusCode).send({
+                        success: false,
+                        error: error.message
+                    });
+                }
+
+                fastify.log.error(error);
+                return reply.status(500).send({
+                    success: false,
+                    error: 'Internal server error'
+                });
+            }
+        }
+    );
+
     // PUT /api/contact-groups/reorder - Reorder multiple contact groups
     fastify.put<{
         Body: ReorderGroupsBody;
@@ -492,6 +546,75 @@ const contactGroupsRoutes: FastifyPluginAsync = async (fastify) => {
                     success: true,
                     data: {
                         groups
+                    }
+                });
+            } catch (error) {
+                if (error instanceof ContactGroupServiceError) {
+                    return reply.status(error.statusCode).send({
+                        success: false,
+                        error: error.message
+                    });
+                }
+
+                fastify.log.error(error);
+                return reply.status(500).send({
+                    success: false,
+                    error: 'Internal server error'
+                });
+            }
+        }
+    );
+
+    // PUT /api/contact-groups/contacts/bulk-update - Bulk update contact group memberships
+    fastify.put<{
+        Body: BulkUpdateContactGroupsBody;
+        Reply: ApiResponse<MembershipsResponse>;
+    }>(
+        '/contacts/bulk-update',
+        {
+            preHandler: fastify.authenticate,
+            schema: {
+                body: {
+                    type: 'object',
+                    required: ['contactId', 'groupIds'],
+                    properties: {
+                        contactId: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        groupIds: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                format: 'uuid'
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        async (request, reply) => {
+            try {
+                if (!request.user) {
+                    return reply.status(401).send({
+                        success: false,
+                        error: 'Unauthorized'
+                    });
+                }
+
+                const userId = request.user.id;
+                const { contactId, groupIds } = request.body;
+
+                const memberships = await bulkUpdateContactGroupMemberships(
+                    contactId,
+                    groupIds,
+                    userId
+                );
+
+                return reply.status(200).send({
+                    success: true,
+                    data: {
+                        memberships
                     }
                 });
             } catch (error) {

@@ -71,14 +71,28 @@ export async function createContactGroup(
             throw new ContactGroupServiceError('Group name cannot be empty', 'EMPTY_GROUP_NAME', 400);
         }
 
+        // Check for duplicate group name (case-insensitive)
+        const trimmedName = data.name.trim();
+        const existingGroups = await db
+            .select()
+            .from(contactGroups)
+            .where(eq(contactGroups.userId, userId));
+
+        const duplicateGroup = existingGroups.find(
+            group => group.name.toLowerCase() === trimmedName.toLowerCase()
+        );
+
+        if (duplicateGroup) {
+            throw new ContactGroupServiceError(
+                'A contact group with this name already exists',
+                'DUPLICATE_GROUP_NAME',
+                409
+            );
+        }
+
         // If displayOrder is not provided, get the next available order
         let displayOrder = data.displayOrder ?? 0;
         if (displayOrder === undefined || displayOrder === null) {
-            const existingGroups = await db
-                .select()
-                .from(contactGroups)
-                .where(eq(contactGroups.userId, userId));
-
             displayOrder = existingGroups.length > 0
                 ? Math.max(...existingGroups.map(g => g.displayOrder ?? 0)) + 1
                 : 0;
@@ -87,7 +101,7 @@ export async function createContactGroup(
         // Create contact group
         const groupData: InsertContactGroup = {
             userId,
-            name: data.name.trim(),
+            name: trimmedName,
             displayOrder,
         };
 
@@ -254,7 +268,27 @@ export async function updateContactGroup(
                 throw new ContactGroupServiceError('Group name cannot be empty', 'EMPTY_GROUP_NAME', 400);
             }
 
-            updateData.name = data.name.trim();
+            const trimmedName = data.name.trim();
+
+            // Check for duplicate group name (case-insensitive), excluding current group
+            const existingGroups = await db
+                .select()
+                .from(contactGroups)
+                .where(eq(contactGroups.userId, userId));
+
+            const duplicateGroup = existingGroups.find(
+                g => g.id !== groupId && g.name.toLowerCase() === trimmedName.toLowerCase()
+            );
+
+            if (duplicateGroup) {
+                throw new ContactGroupServiceError(
+                    'A contact group with this name already exists',
+                    'DUPLICATE_GROUP_NAME',
+                    409
+                );
+            }
+
+            updateData.name = trimmedName;
         }
 
         if (data.displayOrder !== undefined) {
@@ -609,6 +643,170 @@ export async function getGroupMemberships(
         throw new ContactGroupServiceError(
             'Failed to get group memberships',
             'GET_MEMBERSHIPS_FAILED',
+            500
+        );
+    }
+}
+
+/**
+ * Get all memberships for all groups owned by a user
+ */
+export async function getAllUserGroupMemberships(
+    userId: string
+): Promise<SelectContactGroupMembership[]> {
+    try {
+        // Validate input
+        if (!userId) {
+            throw new ContactGroupServiceError('User ID is required', 'INVALID_USER_ID', 400);
+        }
+
+        // Get all groups owned by the user
+        const userGroups = await db
+            .select()
+            .from(contactGroups)
+            .where(eq(contactGroups.userId, userId));
+
+        if (userGroups.length === 0) {
+            return [];
+        }
+
+        // Get all memberships for these groups
+        const groupIds = userGroups.map(group => group.id);
+        const memberships = await db
+            .select()
+            .from(contactGroupMemberships)
+            .where(inArray(contactGroupMemberships.groupId, groupIds));
+
+        return memberships;
+    } catch (error) {
+        if (error instanceof ContactGroupServiceError) {
+            throw error;
+        }
+        throw new ContactGroupServiceError(
+            'Failed to get user group memberships',
+            'GET_USER_MEMBERSHIPS_FAILED',
+            500
+        );
+    }
+}
+
+/**
+ * Bulk update contact group memberships for a specific contact
+ * Adds contact to specified groups and removes from others in a single operation
+ */
+export async function bulkUpdateContactGroupMemberships(
+    contactId: string,
+    groupIds: string[],
+    userId: string
+): Promise<SelectContactGroupMembership[]> {
+    try {
+        // Validate input
+        if (!contactId) {
+            throw new ContactGroupServiceError('Contact ID is required', 'INVALID_CONTACT_ID', 400);
+        }
+
+        if (!userId) {
+            throw new ContactGroupServiceError('User ID is required', 'INVALID_USER_ID', 400);
+        }
+
+        if (!Array.isArray(groupIds)) {
+            throw new ContactGroupServiceError('Group IDs must be an array', 'INVALID_GROUP_IDS', 400);
+        }
+
+        // Verify contact exists and belongs to user
+        const [contact] = await db
+            .select()
+            .from(contacts)
+            .where(eq(contacts.id, contactId))
+            .limit(1);
+
+        if (!contact) {
+            throw new ContactGroupServiceError('Contact not found', 'CONTACT_NOT_FOUND', 404);
+        }
+
+        // Verify the contact belongs to the user
+        if (contact.userId !== userId && contact.contactUserId !== userId) {
+            throw new ContactGroupServiceError('Contact does not belong to user', 'UNAUTHORIZED_CONTACT', 403);
+        }
+
+        // Get all groups owned by the user
+        const userGroups = await db
+            .select()
+            .from(contactGroups)
+            .where(eq(contactGroups.userId, userId));
+
+        const userGroupIds = userGroups.map(g => g.id);
+
+        // Verify all specified groups belong to the user
+        const invalidGroupIds = groupIds.filter(id => !userGroupIds.includes(id));
+        if (invalidGroupIds.length > 0) {
+            throw new ContactGroupServiceError(
+                'One or more groups not found or do not belong to user',
+                'GROUPS_NOT_FOUND',
+                404
+            );
+        }
+
+        // Get current memberships for this contact across all user's groups
+        const currentMemberships = await db
+            .select()
+            .from(contactGroupMemberships)
+            .where(
+                and(
+                    eq(contactGroupMemberships.contactId, contactId),
+                    inArray(contactGroupMemberships.groupId, userGroupIds)
+                )
+            );
+
+        const currentGroupIds = currentMemberships.map(m => m.groupId);
+
+        // Determine which groups to add and remove
+        const groupsToAdd = groupIds.filter(id => !currentGroupIds.includes(id));
+        const groupsToRemove = currentGroupIds.filter(id => !groupIds.includes(id));
+
+        // Remove from groups
+        if (groupsToRemove.length > 0) {
+            await db
+                .delete(contactGroupMemberships)
+                .where(
+                    and(
+                        eq(contactGroupMemberships.contactId, contactId),
+                        inArray(contactGroupMemberships.groupId, groupsToRemove)
+                    )
+                );
+        }
+
+        // Add to groups
+        if (groupsToAdd.length > 0) {
+            const membershipData: InsertContactGroupMembership[] = groupsToAdd.map(groupId => ({
+                groupId,
+                contactId,
+            }));
+
+            await db
+                .insert(contactGroupMemberships)
+                .values(membershipData);
+        }
+
+        // Get and return updated memberships
+        const updatedMemberships = await db
+            .select()
+            .from(contactGroupMemberships)
+            .where(
+                and(
+                    eq(contactGroupMemberships.contactId, contactId),
+                    inArray(contactGroupMemberships.groupId, userGroupIds)
+                )
+            );
+
+        return updatedMemberships;
+    } catch (error) {
+        if (error instanceof ContactGroupServiceError) {
+            throw error;
+        }
+        throw new ContactGroupServiceError(
+            'Failed to bulk update contact group memberships',
+            'BULK_UPDATE_FAILED',
             500
         );
     }

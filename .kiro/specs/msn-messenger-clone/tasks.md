@@ -333,7 +333,7 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - _Requirements: 2.1, 3.3, 18.7_
 
 - [ ] 13. Implement frontend custom contact groups
-  - [ ] 13.1 Create contact group management UI
+  - [x] 13.1 Create contact group management UI
     - Build contact-group-manager.tsx component
     - Add "Create Group" button and dialog
     - Implement group name input with 50 character limit
@@ -348,7 +348,7 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Implement delete group functionality
     - Subscribe to contact_groups table changes via Supabase Realtime (Use React Query and hooks)
     - _Requirements: 17.2, 16.6, 16.7, 17.1, 17.3_
-  - [-] 13.3 Implement add/remove contacts to groups
+  - [x] 13.3 Implement add/remove contacts to groups
     - Add "Add to Group" option to contact context menu
     - Create group-selector-dialog.tsx for selecting groups
     - Implement add contact to group functionality

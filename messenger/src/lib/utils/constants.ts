@@ -1,0 +1,5 @@
+
+export const WINDOW_EVENTS = {
+    ADD_GROUP: 'ADD_GROUP',
+    UPDATE_GROUPS: 'UPDATE_GROUPS'
+}
