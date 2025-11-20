@@ -37,6 +37,8 @@
             "core:window:allow-is-maximized",
             "core:window:allow-start-dragging",
             "core:window:allow-create",
+            "core:window:allow-show",
+            "core:window:allow-hide",
             "core:event:allow-listen",
             "core:event:default",
             "core:webview:allow-create-webview-window",
@@ -44,6 +46,7 @@
             "core:window:default",
             "core:window:allow-set-size",
             "core:window:allow-set-position",
+            "core:tray:default",
             "notification:allow-is-permission-granted",
             "notification:default"
           ]
