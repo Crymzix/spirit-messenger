@@ -242,6 +242,47 @@ export const files = pgTable('files', {
     }),
 ]);
 
+// AI Conversations table schema
+export const aiConversations = pgTable('ai_conversations', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
+}, (table) => [
+    index('idx_ai_conversations_user_id').on(table.userId),
+    index('idx_ai_conversations_updated_at').on(table.updatedAt.desc()),
+    pgPolicy('users_can_view_own_ai_conversations', {
+        for: 'select',
+        to: 'public',
+        using: sql`user_id = (select auth.uid())`,
+    }),
+]);
+
+// AI Messages table schema
+export const aiMessages = pgTable('ai_messages', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    conversationId: uuid('conversation_id').notNull().references(() => aiConversations.id, { onDelete: 'cascade' }),
+    role: varchar('role', { length: 20 }).notNull(), // 'user' | 'assistant'
+    content: text('content').notNull(),
+    metadata: jsonb('metadata'), // sources, model, webSearchEnabled, etc.
+    createdAt: timestamp('created_at').defaultNow(),
+}, (table) => [
+    index('idx_ai_messages_conversation_id').on(table.conversationId, table.createdAt.desc()),
+    index('idx_ai_messages_created_at').on(table.createdAt.desc()),
+    pgPolicy('users_can_view_own_ai_messages', {
+        for: 'select',
+        to: 'public',
+        using: sql`
+            EXISTS (
+                SELECT 1 FROM ai_conversations
+                WHERE ai_conversations.id = ai_messages.conversation_id
+                AND ai_conversations.user_id = (select auth.uid())
+            )
+        `,
+    }),
+]);
+
 export type SelectUser = InferSelectModel<typeof users>;
 export type InsertUser = InferInsertModel<typeof users>;
 
@@ -271,3 +312,9 @@ export type InsertFileTransferRequest = InferInsertModel<typeof fileTransferRequ
 
 export type SelectUserProfilePicture = InferSelectModel<typeof userProfilePictures>;
 export type InsertUserProfilePicture = InferInsertModel<typeof userProfilePictures>;
+
+export type SelectAIConversation = InferSelectModel<typeof aiConversations>;
+export type InsertAIConversation = InferInsertModel<typeof aiConversations>;
+
+export type SelectAIMessage = InferSelectModel<typeof aiMessages>;
+export type InsertAIMessage = InferInsertModel<typeof aiMessages>;

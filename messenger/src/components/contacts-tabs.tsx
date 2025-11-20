@@ -1,13 +1,18 @@
-import { useState } from "react";
+interface Tab {
+    icon: string
+    color: string
+    label: string
+}
 
-const tabs = [
-    { icon: '/msn-person.png', color: 'fill-blue-400', label: 'Contacts' },
-    { icon: '/msn-ai.png', color: 'fill-blue-400', label: 'AI' },
-];
-
-export function ContactsTabs() {
-    const [activeTab, setActiveTab] = useState(0);
-
+export function ContactsTabs({
+    tabs,
+    activeTab,
+    onTabSelected
+}: {
+    tabs: Tab[]
+    activeTab: number
+    onTabSelected: (index: number) => void
+}) {
     return (
         <div className='w-14 h-full flex flex-col ml-[1px] mt-[1px] z-10 -mr-[4px] border-t-[0.5px] border-[#B8C6EA]'>
             <div className="relative flex flex-col">
@@ -16,7 +21,7 @@ export function ContactsTabs() {
                         key={index}
                         className="relative overflow-hidden w-14 h-28 cursor-pointer group -mb-6 first:mt-0"
                         style={{ zIndex: activeTab === index ? 30 : undefined }}
-                        onClick={() => setActiveTab(index)}
+                        onClick={() => onTabSelected(index)}
                     >
                         <svg
                             viewBox="0 0 48 85"
