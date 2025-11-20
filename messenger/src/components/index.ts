@@ -15,3 +15,4 @@ export { ContactRequestNotification } from './contact-request-notification';
 export { EmoticonPicker } from './emoticon-picker';
 export { MessageContent } from './message-content';
 export { ContactGroupHeader } from './contact-group-header';
+export { FileTransferRequestMessage } from './file-transfer-request-message';

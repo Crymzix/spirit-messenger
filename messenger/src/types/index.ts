@@ -56,6 +56,7 @@ export interface Message {
     emoticons?: Array<{ position: number; code: string }>;
     formatting?: { bold?: boolean; italic?: boolean; color?: string };
     fileInfo?: { filename: string; size: number; mimeType: string };
+    fileTransferRequest?: { filename: string; size: number; mimeType: string };
   };
   createdAt: Date;
   deliveredAt?: Date;

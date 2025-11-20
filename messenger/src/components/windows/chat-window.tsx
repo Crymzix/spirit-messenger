@@ -10,6 +10,9 @@ import { EmoticonPicker } from "../emoticon-picker";
 import { MessageContent } from "../message-content";
 import { TextFormatter } from "../text-formatter";
 import { Emoticon, findEmoticonMatches } from "@/lib/emoticons";
+import { FileTransferRequestMessage } from "../file-transfer-request-message";
+import { useInitiateFileTransfer } from "@/lib/hooks/file-hooks";
+import { createFileInput, validateFile } from "@/lib/utils/file-utils";
 
 export function ChatWindow() {
     // Extract contactId and contactName from URL query parameters
@@ -34,6 +37,12 @@ export function ChatWindow() {
     const messageHistoryRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+    // File transfer state
+    const [, setSelectedFile] = useState<File | null>(null);
+
+    // File transfer mutations
+    const initiateTransferMutation = useInitiateFileTransfer();
+
     const sendMessageMutation = useSendMessage(conversation?.id || '');
     const {
         data: messagesQueryData,
@@ -54,6 +63,8 @@ export function ChatWindow() {
         return conversation?.participants.filter(p => p.id !== user?.id) || []
     }, [conversation, user?.id])
 
+    useParticipantRealtimeUpdates(participants, conversation?.id);
+
     // Map typing user IDs to usernames based on conversation participants
     const typingUsernames = useMemo(() => {
         if (!typingUsers || typingUsers.length === 0 || !conversation?.participants) {
@@ -67,8 +78,6 @@ export function ChatWindow() {
             })
             .filter(Boolean);
     }, [typingUsers, conversation?.participants])
-
-    useParticipantRealtimeUpdates(participants, conversation?.id);
 
     // Use contactName from URL if available, otherwise derive from participants
     const displayName = useMemo(() => {
@@ -131,7 +140,6 @@ export function ChatWindow() {
         return `Last message received at ${timeStr} on ${dateStr}.`;
     }, [lastMessageReceived])
 
-    // Scroll to bottom when messages change
     useEffect(() => {
         if (messageHistoryRef.current) {
             // Use requestAnimationFrame to ensure DOM has updated
@@ -253,6 +261,39 @@ export function ChatWindow() {
         setShowEmoticonPicker(false);
     };
 
+    const handleSendFileClick = () => {
+        createFileInput((file) => {
+            const validation = validateFile(file);
+            if (!validation.valid) {
+                return;
+            }
+            setSelectedFile(file);
+            handleInitiateFileTransfer(file);
+        });
+    };
+
+    const handleInitiateFileTransfer = async (file: File) => {
+        if (!conversation?.id || !user) return;
+
+        // For one-on-one conversations, get the receiver ID
+        const receiverId = conversation.type === 'one_on_one'
+            ? participants[0]?.id
+            : null;
+
+        try {
+            await initiateTransferMutation.mutateAsync({
+                conversationId: conversation.id,
+                receiverId,
+                filename: file.name,
+                fileSize: file.size,
+                mimeType: file.type || 'application/octet-stream',
+            });
+
+        } catch (error) {
+            console.error('Failed to initiate file transfer:', error);
+        }
+    };
+
     return (
         <div className="window w-full h-screen flex flex-col">
             <TitleBar title={`${displayName} - Conversation`} />
@@ -318,7 +359,10 @@ export function ChatWindow() {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="whitespace-nowrap box-border hidden min-[346px]:block cursor-pointer">
+                                    <div
+                                        onClick={handleSendFileClick}
+                                        className="whitespace-nowrap box-border hidden min-[346px]:block cursor-pointer hover:opacity-80"
+                                    >
                                         <div className="flex flex-col items-center">
                                             <img src="/toolbar/send-files.png" alt="" />
                                             <div className="text">
@@ -449,6 +493,7 @@ export function ChatWindow() {
                                         )}
                                         {messagesData.map((message) => {
                                             const sender = message.sender || conversation?.participants.find((p: User) => p.id === message.senderId);
+                                            const isFileTransfer = message.messageType === 'file';
 
                                             return (
                                                 <div key={message.id} className="text-lg">
@@ -458,13 +503,19 @@ export function ChatWindow() {
                                                                 fontFamily: 'Pixelated MS Sans Serif'
                                                             }}
                                                         >
-                                                            {`${sender?.displayName || 'Unknown'} says`}:
+                                                            {`${sender?.displayName || 'Unknown'} ${isFileTransfer ? 'sends' : 'says'}`}:
                                                         </div>
                                                         <div className="font-verdana text-black ml-4">
-                                                            <MessageContent
-                                                                content={message.content}
-                                                                metadata={message.metadata}
-                                                            />
+                                                            {
+                                                                isFileTransfer ?
+                                                                    <FileTransferRequestMessage
+                                                                        message={message}
+                                                                    /> :
+                                                                    <MessageContent
+                                                                        content={message.content}
+                                                                        metadata={message.metadata}
+                                                                    />
+                                                            }
                                                         </div>
                                                     </div>
                                                 </div>

@@ -184,10 +184,40 @@ export const messages = pgTable('messages', {
     }),
 ]);
 
+// File transfer requests table schema
+export const fileTransferRequests = pgTable('file_transfer_requests', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    conversationId: uuid('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+    senderId: uuid('sender_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    receiverId: uuid('receiver_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    filename: text('filename').notNull(),
+    fileSize: bigint('file_size', { mode: 'number' }).notNull(),
+    mimeType: text('mime_type').notNull(),
+    status: varchar('status', { length: 20 }).default('pending').notNull(),
+    messageId: uuid('message_id').references(() => messages.id, { onDelete: 'cascade' }),
+    expiresAt: timestamp('expires_at').notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
+}, (table) => [
+    index('idx_file_transfer_requests_conversation_id').on(table.conversationId),
+    index('idx_file_transfer_requests_sender_id').on(table.senderId),
+    index('idx_file_transfer_requests_receiver_id').on(table.receiverId),
+    index('idx_file_transfer_requests_status').on(table.status),
+    index('idx_file_transfer_requests_expires_at').on(table.expiresAt),
+    pgPolicy('users_can_view_file_transfer_requests_in_their_conversations', {
+        for: 'select',
+        to: 'public',
+        using: sql`
+            sender_id = (select auth.uid()) OR receiver_id = (select auth.uid())
+        `,
+    }),
+]);
+
 // Files table schema
 export const files = pgTable('files', {
     id: uuid('id').primaryKey().defaultRandom(),
     messageId: uuid('message_id').references(() => messages.id, { onDelete: 'cascade' }),
+    transferRequestId: uuid('transfer_request_id').references(() => fileTransferRequests.id, { onDelete: 'cascade' }),
     filename: text('filename').notNull(),
     fileSize: bigint('file_size', { mode: 'number' }).notNull(),
     mimeType: text('mime_type').notNull(),
@@ -196,6 +226,7 @@ export const files = pgTable('files', {
     createdAt: timestamp('created_at').defaultNow(),
 }, (table) => [
     index('idx_files_message_id').on(table.messageId),
+    index('idx_files_transfer_request_id').on(table.transferRequestId),
     pgPolicy('users_can_view_files_in_their_conversations', {
         for: 'select',
         to: 'public',
@@ -234,6 +265,9 @@ export type InsertMessage = InferInsertModel<typeof messages>;
 
 export type SelectFile = InferSelectModel<typeof files>;
 export type InsertFile = InferInsertModel<typeof files>;
+
+export type SelectFileTransferRequest = InferSelectModel<typeof fileTransferRequests>;
+export type InsertFileTransferRequest = InferInsertModel<typeof fileTransferRequests>;
 
 export type SelectUserProfilePicture = InferSelectModel<typeof userProfilePictures>;
 export type InsertUserProfilePicture = InferInsertModel<typeof userProfilePictures>;

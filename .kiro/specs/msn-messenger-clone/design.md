@@ -788,13 +788,39 @@ async fn set_auto_launch(enabled: bool) -> Result<(), String>
 ```
 
 #### File Transfer Endpoints
+
+File transfers follow the classic MSN Messenger flow:
+1. Sender initiates transfer (creates pending request)
+2. Receiver gets notification and accepts/declines
+3. If accepted, sender uploads file
+4. Receiver downloads file
+
 ```typescript
+// POST /api/files/initiate
+// Headers: Authorization: Bearer <token>
+// Body: JSON
+{
+  conversation_id: string,
+  filename: string,
+  file_size: number,
+  mime_type: string
+}
+// Returns: { transfer_request: FileTransferRequest, message: Message }
+
+// POST /api/files/transfer/:transferId/accept
+// Headers: Authorization: Bearer <token>
+// Returns: { success: boolean, transfer_request: FileTransferRequest }
+
+// POST /api/files/transfer/:transferId/decline
+// Headers: Authorization: Bearer <token>
+// Returns: { success: boolean }
+
 // POST /api/files/upload
 // Headers: Authorization: Bearer <token>
 // Body: FormData with file
 {
-  conversation_id: string,
-  filename: string
+  transfer_id: string,
+  file: File
 }
 // Returns: { file: File, message: Message }
 
@@ -1663,6 +1689,89 @@ class AIService {
 - Show typing indicator while AI bot generates response
 - Implement exponential backoff for OpenRouter API failures
 - Cache bot personalities to reduce database queries
+
+### File Transfer Flow
+
+File transfers follow the classic MSN Messenger accept/decline pattern to replicate the authentic experience:
+
+**Phase 1: Transfer Initiation (Sender)**
+1. User clicks "Send File" button in chat window
+2. Tauri file dialog opens for file selection
+3. Frontend validates file (size ≤ 100MB, allowed types)
+4. Frontend sends transfer request to Backend Service (POST /api/files/initiate)
+   - Includes: conversation_id, filename, file_size, mime_type
+   - Does NOT upload file yet
+5. Backend Service creates file_transfer_request record with status "pending"
+6. Backend Service creates message record with type "file" and transfer metadata
+7. Backend Service returns transfer_request_id
+8. Frontend displays "Waiting for [recipient] to accept..." in chat window
+
+**Phase 2: Transfer Response (Receiver)**
+1. Receiver's frontend receives new message via Supabase Realtime subscription
+2. Frontend detects message type is "file" with pending transfer
+3. Frontend displays file transfer notification with:
+   - Sender name
+   - Filename and size
+   - Accept and Decline buttons
+4. User clicks Accept or Decline
+5. Frontend sends response to Backend Service:
+   - Accept: POST /api/files/transfer/:transferId/accept
+   - Decline: POST /api/files/transfer/:transferId/decline
+6. Backend Service updates transfer_request status to "accepted" or "declined"
+7. Both sender and receiver get status update via Supabase Realtime
+
+**Phase 3: File Upload (Sender - only if accepted)**
+1. Sender's frontend receives "accepted" status via Supabase Realtime
+2. Frontend uploads file to Backend Service (POST /api/files/upload)
+   - Includes: transfer_id, file (multipart)
+3. Backend Service validates transfer_id is accepted
+4. Backend Service uploads file to Supabase Storage (file-transfers bucket)
+   - Path: {sender_id}/{conversation_id}/{timestamp}-{filename}
+5. Backend Service creates file record with storage_path
+6. Backend Service updates transfer_request status to "completed"
+7. Backend Service updates message metadata with file_id
+8. Sender's frontend displays upload progress, then "File sent"
+
+**Phase 4: File Download (Receiver)**
+1. Receiver's frontend receives "completed" status via Supabase Realtime
+2. Frontend displays "Download" button in chat window
+3. User clicks Download
+4. Frontend requests file from Backend Service (GET /api/files/:fileId/download)
+5. Backend Service verifies user has access (is conversation participant)
+6. Backend Service streams file from Supabase Storage
+7. Frontend displays download progress
+8. Tauri saves file to designated downloads folder
+9. Frontend displays "File received" with "Open folder" option
+
+**Timeout and Expiration**
+- Transfer requests expire after 24 hours if not accepted
+- Expired requests show as "Transfer expired" in chat
+- Backend Service periodically cleans up expired transfer records
+
+**Database Schema for File Transfers**
+```typescript
+file_transfer_requests {
+  id: uuid (primary key)
+  conversation_id: uuid (foreign key)
+  sender_id: uuid (foreign key to users)
+  receiver_id: uuid (foreign key to users) // for one-on-one, null for group
+  filename: string
+  file_size: number
+  mime_type: string
+  status: enum ('pending', 'accepted', 'declined', 'completed', 'expired', 'failed')
+  message_id: uuid (foreign key to messages)
+  file_id: uuid (foreign key to files, nullable until upload)
+  created_at: timestamp
+  responded_at: timestamp (nullable)
+  expires_at: timestamp
+}
+```
+
+**Error Handling**
+- If upload fails after acceptance, status becomes "failed"
+- User can retry upload from chat window
+- If download fails, user can retry download
+- All errors logged and displayed to user with actionable messages
 
 ## Code Standards and Conventions
 

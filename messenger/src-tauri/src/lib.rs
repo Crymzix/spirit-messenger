@@ -273,6 +273,33 @@ async fn play_sound(app: AppHandle, sound_type: String, volume: f32) -> Result<(
     Ok(())
 }
 
+/// Open a file dialog for selecting a file to send
+/// Note: In Tauri v2, file dialogs should be handled from the frontend
+#[tauri::command]
+async fn open_file_dialog(_app: AppHandle) -> Result<Option<String>, String> {
+    // File dialog should be handled from frontend using HTML input element
+    // This is a placeholder for compatibility
+    Err("File dialog should be handled from frontend".to_string())
+}
+
+/// Save a file to the designated downloads folder
+#[tauri::command]
+async fn save_file(app: AppHandle, file_data: Vec<u8>, filename: String) -> Result<String, String> {
+    // Get the downloads directory
+    let downloads_dir = app
+        .path()
+        .download_dir()
+        .map_err(|e| format!("Failed to get downloads directory: {}", e))?;
+
+    // Create the full path
+    let file_path = downloads_dir.join(&filename);
+
+    // Write the file
+    fs::write(&file_path, file_data).map_err(|e| format!("Failed to write file: {}", e))?;
+
+    Ok(file_path.to_string_lossy().to_string())
+}
+
 #[tauri::command]
 fn open_chat_window(
     handle: AppHandle,
@@ -357,7 +384,9 @@ pub fn run() {
             open_chat_window,
             request_notification_permission,
             show_notification,
-            play_sound
+            play_sound,
+            open_file_dialog,
+            save_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -502,15 +502,15 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - _Requirements: 6.5_
 
 - [ ] 19. Implement Backend Service file transfer endpoints with TypeScript
-  - [ ] 31.1 Create file service
+  - [x] 31.1 Create file service
     - Create file-service.ts with Drizzle ORM queries
     - Implement functions for file upload, download, and validation
     - Add proper error handling
     - _Requirements: 11.2, 17.2, 16.5_
-  - [ ] 31.2 Create file transfer routes
+  - [x] 31.2 Create file transfer routes (NEEDS UPDATE - missing accept/decline flow)
     - Create files.ts route file
     - Implement POST /api/files/upload endpoint with @fastify/multipart
-    - Add file validation (size max 100MB, type)
+    - Add file validation (size max 10MB, type)
     - Upload file to Supabase Storage file-transfers bucket
     - Create file record using Drizzle ORM
     - Create message record with file metadata
@@ -519,38 +519,59 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Stream file from Supabase Storage
     - Register routes in index.ts
     - _Requirements: 11.2, 11.3, 11.4, 17.2, 16.5_
+    - **NOTE**: Current implementation uploads file immediately. Needs refactoring to support accept/decline flow per Requirements 7.3 and 7.4
+  - [x] 31.3 Refactor file transfer for accept/decline flow
+    - Modify POST /api/files/initiate endpoint to create pending transfer request without uploading file
+    - Create file_transfer_requests table with status (pending, accepted, declined, expired)
+    - Store file metadata (filename, size, mimeType) in transfer request
+    - Create message record with transfer request metadata
+    - Implement POST /api/files/transfer/:transferId/accept endpoint
+    - Implement POST /api/files/transfer/:transferId/decline endpoint
+    - Modify POST /api/files/upload endpoint to accept transferId and upload only after acceptance
+    - Update file record with completed status after successful upload
+    - Add transfer request expiration logic (24 hours)
+    - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 17.2, 16.5_
 
-- [ ] 20. Implement frontend file transfer functionality
-  - [ ] 32.1 Create file transfer UI components
-    - Add "Send File" button to chat toolbar
+- [x] 20. Implement frontend file transfer functionality
+  - [x] 32.1 Create file transfer UI components
+    - Hook up actions to the "Send File" button to chat toolbar
     - Create file-transfer-progress.tsx indicator component
-    - Build file-transfer-notification.tsx component
-    - Display file transfer status in chat window
-    - Style with classic MSN design
-    - _Requirements: 11.2, 11.5, 17.1, 16.3_
-  - [ ] 32.2 Implement file selection and validation
+    - Build file-transfer-request.tsx component showing pending transfer with accept/decline buttons
+    - Create file-transfer-notification.tsx component for incoming transfer requests
+    - Display file transfer status in chat window (pending, accepted, declined, uploading, completed, failed)
+    - _Requirements: 7.1, 7.3, 11.2, 11.5, 17.1, 16.3_
+  - [x] 32.2 Implement file selection and validation
     - Create Tauri command in lib.rs for file dialog (open_file_dialog)
-    - Implement file size validation (max 100 MB)
+    - Implement file size validation (max 10 MB)
     - Show file preview with name and size
-    - _Requirements: 11.1_
-  - [ ] 32.3 Implement file upload
-    - Create file-service.ts with upload handler
-    - Upload file to Backend Service API
-    - Track upload progress
-    - Display file message in chat window
-    - _Requirements: 11.2, 17.1, 16.3_
-  - [ ] 29.4 Implement file transfer notifications
-    - Receive file transfer notifications via Supabase Realtime
-    - Display notification with accept/decline buttons
+    - _Requirements: 7.1, 11.1_
+  - [x] 32.3 Implement file transfer initiation (sender side)
+    - Create file-service.ts with transfer initiation handler
+    - Send transfer request to Backend Service API (POST /api/files/initiate)
+    - Display pending transfer request in chat window
+    - Wait for receiver acceptance before uploading file
+    - _Requirements: 7.1, 7.2, 17.1, 16.3_
+  - [x] 32.4 Implement file transfer response (receiver side)
+    - Receive file transfer request notifications via Supabase Realtime
+    - Display notification with file details and accept/decline buttons
+    - Send acceptance to Backend Service (POST /api/files/transfer/:transferId/accept)
+    - Send decline to Backend Service (POST /api/files/transfer/:transferId/decline)
     - Update UI based on user action
-    - _Requirements: 11.3_
-  - [ ] 20.5 Implement file download
-    - Download file from Backend Service on accept
+    - _Requirements: 7.3, 7.4, 17.1, 16.3_
+  - [x] 32.5 Implement file upload after acceptance (sender side)
+    - Listen for transfer acceptance via Supabase Realtime
+    - Upload file to Backend Service API (POST /api/files/upload with transferId)
+    - Track upload progress
+    - Display upload progress in chat window
+    - Update transfer status to completed
+    - _Requirements: 7.2, 7.5, 17.1, 16.3_
+  - [x] 32.6 Implement file download (receiver side)
+    - Download file from Backend Service after upload completes
     - Show download progress
     - Create Tauri command in lib.rs for saving file (save_file)
     - Save file to designated folder
     - Open file location on completion
-    - _Requirements: 11.4_
+    - _Requirements: 7.4, 7.5, 17.1, 16.3_
 
 - [ ] 22. Implement notifications and sounds
   - [x] 31.1 Create Tauri notification commands
