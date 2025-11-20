@@ -13,6 +13,7 @@ import { Emoticon, findEmoticonMatches } from "@/lib/emoticons";
 import { FileTransferRequestMessage } from "../file-transfer-request-message";
 import { useInitiateFileTransfer } from "@/lib/hooks/file-hooks";
 import { createFileInput, validateFile } from "@/lib/utils/file-utils";
+import { useFileUploadStore, fileToArrayBuffer } from "@/lib/store/file-upload-store";
 
 export function ChatWindow() {
     // Extract contactId and contactName from URL query parameters
@@ -37,11 +38,9 @@ export function ChatWindow() {
     const messageHistoryRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    // File transfer state
-    const [, setSelectedFile] = useState<File | null>(null);
-
     // File transfer mutations
     const initiateTransferMutation = useInitiateFileTransfer();
+    const emitFileTransferInitiated = useFileUploadStore((state) => state.emitFileTransferInitiated);
 
     const sendMessageMutation = useSendMessage(conversation?.id || '');
     const {
@@ -267,7 +266,6 @@ export function ChatWindow() {
             if (!validation.valid) {
                 return;
             }
-            setSelectedFile(file);
             handleInitiateFileTransfer(file);
         });
     };
@@ -281,12 +279,27 @@ export function ChatWindow() {
             : null;
 
         try {
-            await initiateTransferMutation.mutateAsync({
+            // Initiate the transfer request on the backend
+            const result = await initiateTransferMutation.mutateAsync({
                 conversationId: conversation.id,
                 receiverId,
                 filename: file.name,
                 fileSize: file.size,
                 mimeType: file.type || 'application/octet-stream',
+            });
+
+            // Convert file to array buffer for cross-window transfer
+            const fileData = await fileToArrayBuffer(file);
+
+            // Emit event to main window to store the file for upload
+            await emitFileTransferInitiated({
+                transferId: result.transferRequest.id,
+                conversationId: conversation.id,
+                receiverId,
+                filename: file.name,
+                fileSize: file.size,
+                mimeType: file.type || 'application/octet-stream',
+                fileData,
             });
 
         } catch (error) {

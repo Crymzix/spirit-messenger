@@ -79,6 +79,25 @@ export function useDeclineFileTransfer() {
 }
 
 /**
+ * Hook to cancel a file transfer request
+ */
+export function useCancelFileTransfer() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (transferId: string) => fileService.cancelFileTransfer(transferId),
+        onSuccess: () => {
+            // Invalidate queries to update transfer status
+            queryClient.invalidateQueries({ queryKey: ['messages'] });
+            queryClient.invalidateQueries({ queryKey: fileTransferKeys.all });
+        },
+        onError: (error) => {
+            console.error('Failed to cancel file transfer:', error);
+        },
+    });
+}
+
+/**
  * Hook to upload a file after transfer has been accepted
  */
 export function useUploadFile() {

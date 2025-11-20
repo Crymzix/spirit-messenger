@@ -205,6 +205,7 @@ export async function createFile(
             mimeType: data.mimeType,
             storagePath: data.storagePath,
             uploadStatus: data.uploadStatus || 'pending',
+            transferRequestId: data.transferRequestId,
         };
 
         const [newFile] = await db
@@ -964,6 +965,141 @@ export async function getFileTransferRequestsByConversation(
         throw new FileServiceError(
             'Failed to get file transfer requests',
             'GET_REQUESTS_FAILED',
+            500
+        );
+    }
+}
+
+/**
+ * Cancel a file transfer request
+ * Can be called by either sender or receiver
+ */
+export async function cancelFileTransferRequest(
+    userId: string,
+    transferId: string
+): Promise<SelectFileTransferRequest> {
+    try {
+        // Validate input
+        if (!userId) {
+            throw new FileServiceError('User ID is required', 'INVALID_USER_ID', 400);
+        }
+
+        if (!transferId) {
+            throw new FileServiceError('Transfer ID is required', 'MISSING_TRANSFER_ID', 400);
+        }
+
+        // Get and verify request
+        const request = await getFileTransferRequestById(userId, transferId);
+
+        if (!request) {
+            throw new FileServiceError('File transfer request not found', 'REQUEST_NOT_FOUND', 404);
+        }
+
+        // Check if request can be cancelled (not already in terminal state)
+        const terminalStates = ['completed', 'failed', 'declined', 'expired', 'cancelled'];
+        if (terminalStates.includes(request.status)) {
+            throw new FileServiceError(
+                `Cannot cancel file transfer request with status "${request.status}"`,
+                'INVALID_STATUS',
+                400
+            );
+        }
+
+        // Update status to cancelled
+        const [updatedRequest] = await db
+            .update(fileTransferRequests)
+            .set({ status: 'cancelled' })
+            .where(eq(fileTransferRequests.id, transferId))
+            .returning();
+
+        if (!updatedRequest) {
+            throw new FileServiceError('Failed to cancel file transfer request', 'CANCEL_REQUEST_FAILED', 500);
+        }
+
+        return updatedRequest;
+    } catch (error) {
+        if (error instanceof FileServiceError) {
+            throw error;
+        }
+        throw new FileServiceError(
+            'Failed to cancel file transfer request',
+            'CANCEL_REQUEST_FAILED',
+            500
+        );
+    }
+}
+
+/**
+ * Update file transfer request status to completed or failed
+ * Called after file upload completes or fails
+ */
+export async function updateFileTransferRequestStatus(
+    userId: string,
+    transferId: string,
+    status: 'completed' | 'failed'
+): Promise<SelectFileTransferRequest> {
+    try {
+        // Validate input
+        if (!userId) {
+            throw new FileServiceError('User ID is required', 'INVALID_USER_ID', 400);
+        }
+
+        if (!transferId) {
+            throw new FileServiceError('Transfer ID is required', 'MISSING_TRANSFER_ID', 400);
+        }
+
+        if (!['completed', 'failed'].includes(status)) {
+            throw new FileServiceError(
+                'Status must be either "completed" or "failed"',
+                'INVALID_STATUS',
+                400
+            );
+        }
+
+        // Get and verify request
+        const request = await getFileTransferRequestById(userId, transferId);
+
+        if (!request) {
+            throw new FileServiceError('File transfer request not found', 'REQUEST_NOT_FOUND', 404);
+        }
+
+        // Verify user is the sender (only sender can complete/fail the upload)
+        if (request.senderId !== userId) {
+            throw new FileServiceError(
+                'Only the sender can update the transfer status',
+                'NOT_SENDER',
+                403
+            );
+        }
+
+        // Check if request is in accepted status (ready for upload)
+        if (request.status !== 'accepted') {
+            throw new FileServiceError(
+                `Cannot update transfer request with status "${request.status}". Request must be accepted first.`,
+                'INVALID_STATUS',
+                400
+            );
+        }
+
+        // Update status
+        const [updatedRequest] = await db
+            .update(fileTransferRequests)
+            .set({ status })
+            .where(eq(fileTransferRequests.id, transferId))
+            .returning();
+
+        if (!updatedRequest) {
+            throw new FileServiceError('Failed to update file transfer request status', 'UPDATE_REQUEST_FAILED', 500);
+        }
+
+        return updatedRequest;
+    } catch (error) {
+        if (error instanceof FileServiceError) {
+            throw error;
+        }
+        throw new FileServiceError(
+            'Failed to update file transfer request status',
+            'UPDATE_REQUEST_FAILED',
             500
         );
     }

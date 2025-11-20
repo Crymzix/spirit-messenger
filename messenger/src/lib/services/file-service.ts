@@ -15,7 +15,7 @@ export interface FileTransferRequest {
     filename: string;
     fileSize: number;
     mimeType: string;
-    status: 'pending' | 'accepted' | 'declined' | 'completed' | 'expired' | 'failed';
+    status: 'pending' | 'accepted' | 'declined' | 'completed' | 'expired' | 'failed' | 'cancelled';
     messageId: string;
     fileId: string | null;
     createdAt: Date;
@@ -122,6 +122,24 @@ export async function declineFileTransfer(
 
     if (!response.success || !response.data) {
         throw new Error(response.error || 'Failed to decline file transfer');
+    }
+
+    return response.data.transferRequest;
+}
+
+/**
+ * Cancel a file transfer request
+ */
+export async function cancelFileTransfer(
+    transferId: string
+): Promise<FileTransferRequest> {
+    const response = await apiPost<{ transferRequest: FileTransferRequest }>(
+        `/api/files/transfer/${transferId}/cancel`,
+        {}
+    );
+
+    if (!response.success || !response.data) {
+        throw new Error(response.error || 'Failed to cancel file transfer');
     }
 
     return response.data.transferRequest;
@@ -259,6 +277,7 @@ export const fileService = {
     initiateFileTransfer,
     acceptFileTransfer,
     declineFileTransfer,
+    cancelFileTransfer,
     uploadFile,
     getTransferRequests,
     getTransferRequestByMessageId,

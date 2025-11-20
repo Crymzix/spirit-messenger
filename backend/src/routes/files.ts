@@ -10,6 +10,8 @@ import {
     getFileTransferRequestsByConversation,
     acceptFileTransferRequest,
     declineFileTransferRequest,
+    cancelFileTransferRequest,
+    updateFileTransferRequestStatus,
     FileServiceError,
 } from '../services/file-service.js';
 import {
@@ -279,6 +281,12 @@ const filesRoutes: FastifyPluginAsync = async (fastify) => {
 
                 if (uploadError) {
                     fastify.log.error({ error: uploadError }, 'Supabase storage upload error');
+                    // Update transfer request status to failed
+                    try {
+                        await updateFileTransferRequestStatus(userId, transferId, 'failed');
+                    } catch (statusError) {
+                        fastify.log.error({ error: statusError }, 'Failed to update transfer request status');
+                    }
                     return reply.status(500).send({
                         success: false,
                         error: 'Failed to upload file to storage'
@@ -316,6 +324,13 @@ const filesRoutes: FastifyPluginAsync = async (fastify) => {
                         .from('file-transfers')
                         .remove([storagePath]);
 
+                    // Update transfer request status to failed
+                    try {
+                        await updateFileTransferRequestStatus(userId, transferId, 'failed');
+                    } catch (statusError) {
+                        fastify.log.error({ error: statusError }, 'Failed to update transfer request status');
+                    }
+
                     if (fileError instanceof FileServiceError) {
                         return reply.status(fileError.statusCode).send({
                             success: false,
@@ -323,6 +338,13 @@ const filesRoutes: FastifyPluginAsync = async (fastify) => {
                         });
                     }
                     throw fileError;
+                }
+
+                // Update transfer request status to completed
+                try {
+                    await updateFileTransferRequestStatus(userId, transferId, 'completed');
+                } catch (statusError) {
+                    fastify.log.error({ error: statusError }, 'Failed to update transfer request status to completed');
                 }
 
                 // Get the message to return
@@ -440,6 +462,57 @@ const filesRoutes: FastifyPluginAsync = async (fastify) => {
                         });
                     }
                     throw declineError;
+                }
+
+                return reply.status(200).send({
+                    success: true,
+                    data: {
+                        transferRequest
+                    }
+                });
+            } catch (error) {
+                fastify.log.error(error);
+                return reply.status(500).send({
+                    success: false,
+                    error: 'Internal server error'
+                });
+            }
+        }
+    );
+
+    // POST /api/files/transfer/:transferId/cancel
+    fastify.post<{
+        Params: { transferId: string };
+        Reply: ApiResponse<{ transferRequest: SelectFileTransferRequest }>;
+    }>(
+        '/transfer/:transferId/cancel',
+        {
+            preHandler: fastify.authenticate,
+        },
+        async (request, reply) => {
+            try {
+                if (!request.user) {
+                    return reply.status(401).send({
+                        success: false,
+                        error: 'Unauthorized'
+                    });
+                }
+
+                const userId = request.user.id;
+                const { transferId } = request.params;
+
+                // Cancel the transfer request
+                let transferRequest: SelectFileTransferRequest;
+                try {
+                    transferRequest = await cancelFileTransferRequest(userId, transferId);
+                } catch (cancelError) {
+                    if (cancelError instanceof FileServiceError) {
+                        return reply.status(cancelError.statusCode).send({
+                            success: false,
+                            error: cancelError.message
+                        });
+                    }
+                    throw cancelError;
                 }
 
                 return reply.status(200).send({

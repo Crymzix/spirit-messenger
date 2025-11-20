@@ -10,6 +10,7 @@ import {
 } from "@/lib/hooks/auth-hooks";
 import { ContactsScreen } from "../screens/contacts-screen";
 import { Loading } from "../loading";
+import { useFileUploadStore } from "@/lib/store/file-upload-store";
 
 type AuthView = 'signin' | 'register' | 'main';
 
@@ -21,6 +22,7 @@ export function MainWindow() {
     const isAuthInitialized = useAuthInitialized();
     const signInMutation = useSignIn();
     const signUpMutation = useSignUp();
+    const initializeMainWindow = useFileUploadStore((state) => state.initializeMainWindow);
 
     useEffect(() => {
         if (isAuthInitialized && isAuthenticated) {
@@ -29,6 +31,19 @@ export function MainWindow() {
             setCurrentView('signin');
         }
     }, [isAuthInitialized, isAuthenticated]);
+
+    // Initialize file upload manager for main window
+    useEffect(() => {
+        let cleanup: (() => void) | undefined;
+
+        initializeMainWindow().then((cleanupFn) => {
+            cleanup = cleanupFn;
+        });
+
+        return () => {
+            cleanup?.();
+        };
+    }, [initializeMainWindow]);
 
     const handleSignIn = async (email: string, password: string) => {
         try {
