@@ -5,9 +5,9 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { streamText, generateText, CoreMessage } from 'ai';
 
 // Initialize OpenRouter client
-const apiKey = process.env.OPEN_ROUTER_API_KEY;
+const apiKey = process.env.OPENROUTER_API_KEY;
 if (!apiKey) {
-    console.warn('WARNING: OPEN_ROUTER_API_KEY is not set. AI features will not work.');
+    console.warn('WARNING: OPENROUTER_API_KEY is not set. AI features will not work.');
 }
 
 const openrouter = createOpenAI({

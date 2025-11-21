@@ -57,6 +57,27 @@ const botRoutes: FastifyPluginAsync = async (fastify) => {
         Reply: ApiResponse<{ queued: boolean; delay?: number }>;
     }>(
         '/bot/handle-message',
+        {
+            preHandler: async (request, reply) => {
+                const authHeader = request.headers.authorization;
+                const webhookSecret = process.env.WEBHOOK_SECRET;
+
+                if (!webhookSecret) {
+                    fastify.log.error('WEBHOOK_SECRET environment variable not set');
+                    return reply.status(500).send({
+                        success: false,
+                        error: 'Server configuration error',
+                    });
+                }
+
+                if (!authHeader || authHeader !== `Bearer ${webhookSecret}`) {
+                    return reply.status(401).send({
+                        success: false,
+                        error: 'Unauthorized',
+                    });
+                }
+            },
+        },
         async (request, reply) => {
             try {
                 const { record } = request.body;

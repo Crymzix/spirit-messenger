@@ -18,20 +18,20 @@ import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
  * - If a conversation already exists, the backend returns it
  * - If no conversation exists, the backend creates a new one
  *
- * @param contactId - The ID of the contact to start a conversation with
+ * @param userId - The ID of the contact to start a conversation with
  * @returns Query result containing conversation data, loading state, and error
  */
-export function useConversation(contactId: string | null) {
+export function useConversation(userId: string | null) {
     return useQuery<ConversationWithParticipants, Error>({
-        queryKey: ['conversation', 'one-on-one', contactId],
+        queryKey: ['conversation', 'one-on-one', userId],
         queryFn: async () => {
-            if (!contactId) {
+            if (!userId) {
                 throw new Error('Contact ID is required');
             }
 
             const result = await createConversation({
                 type: 'one_on_one',
-                participantIds: [contactId],
+                participantIds: [userId],
             });
 
             if (!result.success || !result.conversation) {
@@ -40,7 +40,7 @@ export function useConversation(contactId: string | null) {
 
             return result.conversation;
         },
-        enabled: !!contactId, // Only run query if contactId is provided
+        enabled: !!userId, // Only run query if contactId is provided
         staleTime: Infinity, // Conversation data doesn't change often
         retry: 3,
     });

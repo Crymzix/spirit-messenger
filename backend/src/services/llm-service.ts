@@ -12,11 +12,21 @@ import {
     buildSystemPrompt,
 } from './personality-service.js';
 
-// Initialize OpenRouter client via AI SDK's OpenAI provider
-const openrouter = createOpenAI({
-    apiKey: process.env.OPENROUTER_API_KEY || '',
-    baseURL: 'https://openrouter.ai/api/v1',
-});
+// Lazy initialization of OpenRouter client
+let openrouterInstance: ReturnType<typeof createOpenAI> | null = null;
+
+function getOpenRouter() {
+    if (!openrouterInstance) {
+        if (!process.env.OPENROUTER_API_KEY) {
+            throw new Error('OPENROUTER_API_KEY environment variable is required');
+        }
+        openrouterInstance = createOpenAI({
+            apiKey: process.env.OPENROUTER_API_KEY,
+            baseURL: 'https://openrouter.ai/api/v1',
+        });
+    }
+    return openrouterInstance;
+}
 
 export interface Message {
     role: 'user' | 'assistant' | 'system';
@@ -54,7 +64,7 @@ export async function generateResponse(options: LLMResponseOptions): Promise<LLM
         userName,
         currentTime,
         enableWebSearch = false,
-        model = 'google/gemini-flash-1.5',
+        model = 'x-ai/grok-4.1-fast:free',
     } = options;
 
     // Append :online suffix for web search capability
@@ -91,7 +101,7 @@ export async function generateResponse(options: LLMResponseOptions): Promise<LLM
 
     try {
         const response = await generateText({
-            model: openrouter(modelId),
+            model: getOpenRouter()(modelId),
             system: systemPrompt,
             messages,
             maxTokens: 500, // Keep responses reasonably sized
@@ -149,7 +159,7 @@ export async function generateAutonomousMessage(options: {
         botName,
         userName,
         currentTime,
-        model = 'google/gemini-flash-1.5',
+        model = 'x-ai/grok-4.1-fast:free',
     } = options;
 
     const systemPrompt = buildSystemPrompt(personality, {
@@ -182,7 +192,7 @@ Keep it natural and conversational. Don't be too eager or overwhelming. Just one
 
     try {
         const response = await generateText({
-            model: openrouter(model),
+            model: getOpenRouter()(model),
             system: systemPrompt,
             prompt,
             maxTokens: 200,

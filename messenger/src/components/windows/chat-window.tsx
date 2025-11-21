@@ -16,11 +16,12 @@ import { FileTransferRequestMessage } from "../file-transfer-request-message";
 import { useInitiateFileTransfer } from "@/lib/hooks/file-hooks";
 import { createFileInput, validateFile } from "@/lib/utils/file-utils";
 import { useFileUploadStore, fileToArrayBuffer } from "@/lib/store/file-upload-store";
+import Avatar from "boring-avatars";
 
 export function ChatWindow() {
     // Extract contactId and contactName from URL query parameters
     const params = new URLSearchParams(window.location.search);
-    const contactId = params.get('contactId');
+    const contactUserId = params.get('contactUserId');
     const contactName = params.get('contactName');
 
     // Find or create conversation with the contact
@@ -28,7 +29,7 @@ export function ChatWindow() {
         data: conversation,
         isLoading: isLoadingConversation,
         error: conversationError
-    } = useConversation(contactId);
+    } = useConversation(contactUserId);
 
     const user = useUser()
     const [messageInput, setMessageInput] = useState("");
@@ -614,7 +615,13 @@ export function ChatWindow() {
                                 {/* MSN Messenger Avatar */}
                                 <div className="hidden min-[470px]:block">
                                     <div className="w-[104px] flex items-center flex-col border border-[#586170] pt-[3px] rounded-lg relative bg-[#dee7f7]">
-                                        <img className="size-[96px] border border-[#586170] rounded-[7px]" src={participants[0]?.displayPictureUrl || '/default-profile-pictures/friendly_dog.png'} alt="" />
+                                        {
+                                            participants[0] ?
+                                                participants[0]?.isAiBot ?
+                                                    <Avatar name={participants[0]?.displayName || participants[0]?.username} colors={["#0481f6", "#4edfb3", "#ff005b", "#ff7d10", "#ffb238"]} variant="marble" square className='size-[96px] rounded-[7px]' /> :
+                                                        <img className="size-[96px] border border-[#586170] rounded-[7px]" src={participants[0]?.displayPictureUrl || '/default-profile-pictures/friendly_dog.png'} alt="" /> :
+                                                        <div className="size-[96px] bg-gray-300 rounded-[7px]" />
+                                        }
                                         <img className="self-end m-[3px_5px]" src="/down.png" alt="" />
                                         <img className="absolute top-1 right-0 translate-x-[9px]" src="/expand-left.png" alt="" />
                                     </div>

@@ -189,7 +189,7 @@ function selectConversation(
 /**
  * Start the scheduler interval
  */
-export function startAutonomousMessageScheduler(intervalMs: number = 60000): NodeJS.Timeout {
+export function startAutonomousMessageScheduler(intervalMs: number = 30000): NodeJS.Timeout {
     console.log(`🕐 Starting autonomous message scheduler (interval: ${intervalMs}ms)`);
 
     // Run immediately

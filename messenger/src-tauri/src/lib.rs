@@ -317,7 +317,7 @@ fn open_chat_window(
         .unwrap_or_else(|| dialog_window.clone());
     let url = if let Some(name) = contact_name {
         format!(
-            "chat-window.html?contactId={}&contactName={}",
+            "chat-window.html?contactUserId={}&contactName={}",
             dialog_window,
             urlencoding::encode(&name)
         )

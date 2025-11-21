@@ -5,9 +5,36 @@
  * Run with: npx tsx src/scripts/seed-bots.ts
  */
 
-import { db } from '../db/client.js';
 import { users, botConfigs, botAutonomousSchedules } from '../db/schema.js';
-import { getSupabase } from '../lib/supabase.js';
+import { createClient } from '@supabase/supabase-js';
+import { drizzle } from "drizzle-orm/node-postgres"
+import * as dotenv from "dotenv"
+
+dotenv.config()
+
+// Load environment variables
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const DATABASE_URL = process.env.DATABASE_URL;
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !DATABASE_URL) {
+    console.error('❌ Missing required environment variables:');
+    console.error('   - SUPABASE_URL');
+    console.error('   - SUPABASE_SERVICE_ROLE_KEY');
+    console.error('   - DATABASE_URL');
+    process.exit(1);
+}
+
+// Initialize Supabase client with service role key
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: {
+        autoRefreshToken: true,
+        persistSession: false
+    }
+});
+
+// Initialize PostgreSQL client
+const db = drizzle(process.env.DATABASE_URL);
 
 interface BotSeed {
     username: string;
@@ -113,7 +140,6 @@ const sampleBots: BotSeed[] = [
 async function seedBots() {
     console.log('🤖 Starting bot seeding...\n');
 
-    const supabase = getSupabase();
     const createdBots: string[] = [];
 
     for (const botSeed of sampleBots) {

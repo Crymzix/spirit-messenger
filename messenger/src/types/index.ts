@@ -16,6 +16,7 @@ export interface User {
   personalMessage: string;
   displayPictureUrl: string;
   presenceStatus: PresenceStatus;
+  isAiBot: boolean;
   lastSeen: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -97,4 +98,28 @@ export interface AppSettings {
     downloadLocation: string;
     autoAcceptFrom: string[];
   };
+}
+
+export interface BotConfig {
+  id: string;
+  userId: string;
+  personalityTemplate: string;
+  customPersonalityConfig?: Record<string, any>;
+  responseDelayMin: number;
+  responseDelayMax: number;
+  typingSpeed: number;
+  autonomousMessagingEnabled: boolean;
+  autonomousIntervalMin: number;
+  autonomousIntervalMax: number;
+  ignoreMessageProbability: number;
+  nudgeProbability: number;
+  emoticonUsageFrequency: number;
+  webSearchEnabled: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Bot extends User {
+  isAiBot: true;
+  config: BotConfig;
 }

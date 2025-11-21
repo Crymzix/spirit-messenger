@@ -364,6 +364,12 @@ export async function generateAutonomousBotMessage(
         currentTime: new Date(),
     });
 
+    // Validate content
+    if (!content || typeof content !== 'string' || content.trim().length === 0) {
+        console.error('Generated autonomous message is empty');
+        return null;
+    }
+
     // Calculate delay (shorter for autonomous messages)
     const delay = Math.random() * 5000 + 2000; // 2-7 seconds
     const typingDuration = Math.min(content.length * (bot.config.typingSpeed || 50), 5000);

@@ -19,8 +19,8 @@ console.log('🚀 Starting bot workers...');
 const botResponseWorker = createBotResponseWorker();
 const autonomousMessageWorker = createAutonomousMessageWorker();
 
-// Start the autonomous message scheduler (runs every minute)
-const schedulerInterval = startAutonomousMessageScheduler(60000);
+// Start the autonomous message scheduler (runs 30 seconds)
+const schedulerInterval = startAutonomousMessageScheduler(30000);
 
 // Graceful shutdown
 async function shutdown(): Promise<void> {

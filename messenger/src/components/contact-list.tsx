@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Contact } from '@/types';
+import { Contact, Bot } from '@/types';
 import { ContactItem } from './contact-item';
+import { BotItem } from './bot-item';
 import { usePendingContactRequests, useContactRealtimeUpdates, useContacts } from '@/lib/hooks/contact-hooks';
 import { useContactGroups, useContactGroupMemberships, useContactGroupRealtimeUpdates, useReorderContactGroups } from '@/lib/hooks/contact-group-hooks';
+import { useBots } from '@/lib/hooks/bot-hooks';
 import { ContactRequestNotification } from './contact-request-notification';
 import { ContactGroupHeader } from './contact-group-header';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -38,6 +40,7 @@ export function ContactList() {
     const { data: acceptedContacts = [], isLoading: contactsLoading } = useContacts('accepted');
     const { data: customGroups = [], isLoading: groupsLoading, refetch: refetchGroups } = useContactGroups();
     const { data: groupMemberships, refetch: refetchMemberships } = useContactGroupMemberships();
+    const { data: bots = [], isLoading: botsLoading } = useBots();
     const reorderGroups = useReorderContactGroups();
 
     // Set up real-time updates
@@ -254,7 +257,7 @@ export function ContactList() {
         );
     }
 
-    if (contactsLoading || groupsLoading) {
+    if (contactsLoading || groupsLoading || botsLoading) {
         return (
             <div className="flex-1 overflow-y-auto h-[calc(100vh-210px)] flex items-center justify-center">
                 <div style={{ fontFamily: 'Pixelated MS Sans Serif' }} className="text-[11px] text-gray-600">
@@ -277,6 +280,20 @@ export function ContactList() {
 
                 {/* Online Contacts - Always show */}
                 {renderGroup('Online', groupedContacts.online, 'online', true, onlinePlaceholderText)}
+
+                {/* AI Bots */}
+                {bots.length > 0 && (
+                    <div key="bots">
+                        {renderGroupHeader('Spirits', bots.length, 'bots')}
+                        {!isGroupCollapsed('bots') && (
+                            <div className="py-1">
+                                {bots.map((bot) => (
+                                    <BotItem key={bot.id} bot={bot} />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Custom Groups with Drag-and-Drop */}
                 <DndContext
