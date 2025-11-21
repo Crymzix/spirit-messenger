@@ -208,7 +208,7 @@ export async function generateAIResponse(
     // Stream response from OpenRouter
     console.log('Generating AI response with', conversationHistory.length, 'messages');
     const result = streamText({
-        model: openrouter('anthropic/claude-3.5-sonnet'),
+        model: openrouter('x-ai/grok-4.1-fast:free:online'),
         system: systemMessage,
         messages: conversationHistory,
     });

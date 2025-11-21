@@ -14,7 +14,7 @@ function MessageBubble({ message }: { message: AIMessage }) {
     return (
         <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
             <div
-                className={`max-w-[80%] px-3 py-2 rounded text-sm ${isUser
+                className={`max-w-[80%] px-3 py-2 rounded text-lg ${isUser
                     ? 'bg-[#31497C] text-white'
                     : 'bg-[#E6ECF9] text-[#31497C] border border-[#31497C]'
                     }`}
@@ -53,7 +53,6 @@ export function AIChat() {
         activeConversationId,
         webSearchEnabled,
         setActiveConversation,
-        setWebSearchEnabled
     } = useAIChatStore();
 
     const { data: conversations = [], isLoading: isLoadingConversations } = useAIConversations();
@@ -164,7 +163,6 @@ export function AIChat() {
 
     const handleDeleteConversation = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!confirm('Delete this conversation?')) return;
 
         try {
             await deleteAIConversation(id);
@@ -198,16 +196,8 @@ export function AIChat() {
                     </span>
                     <div className="flex items-center gap-1">
                         <div
-                            onClick={handleNewConversation}
-                            className="text-[#31497C] hover:text-[#245DDA] text-sm px-1 cursor-pointer"
-                            style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                            title="New conversation"
-                        >
-                            +
-                        </div>
-                        <div
                             onClick={() => setSidebarOpen(false)}
-                            className="text-[#31497C] hover:text-[#245DDA] text-sm px-1 cursor-pointer"
+                            className="text-[#31497C] hover:text-[#245DDA] !text-2xl px-1 cursor-pointer"
                             style={{ fontFamily: 'Pixelated MS Sans Serif' }}
                         >
                             ✕
@@ -236,13 +226,13 @@ export function AIChat() {
                                 style={{ fontFamily: 'Pixelated MS Sans Serif' }}
                                 title={conversation.title}
                             >
-                                <span className="truncate flex-1 !text-sm">{conversation.title}</span>
+                                <span className="truncate flex-1 !text-[12px]">{conversation.title}</span>
                                 <span
                                     onClick={(e) => handleDeleteConversation(conversation.id, e)}
                                     className={`ml-1 opacity-0 group-hover:opacity-100 hover:text-red-500 ${activeConversationId === conversation.id ? 'text-white' : ''}`}
                                     title="Delete"
                                 >
-                                    🗑
+                                    <img src='/trash.png' className='size-5' />
                                 </span>
                             </div>
                         ))
@@ -255,7 +245,7 @@ export function AIChat() {
                 <div className="flex items-center gap-4">
                     <div
                         onClick={() => setSidebarOpen(true)}
-                        className="text-[#31497C] hover:text-[#245DDA] text-sm cursor-pointer"
+                        className="text-[#31497C] hover:text-[#245DDA] text-sm cursor-pointer !text-2xl flex items-center mb-1"
                         style={{ fontFamily: 'Pixelated MS Sans Serif' }}
                         title="Open conversations"
                     >
@@ -268,20 +258,14 @@ export function AIChat() {
                         {activeConversation?.title || 'AI Chat'}
                     </div>
                 </div>
-                <label className="flex items-center gap-1.5 cursor-pointer shrink-0">
-                    <input
-                        type="checkbox"
-                        checked={webSearchEnabled}
-                        onChange={(e) => setWebSearchEnabled(e.target.checked)}
-                        className="w-3 h-3"
-                    />
-                    <span
-                        className="text-xs text-[#31497C]"
-                        style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                    >
-                        Web Search
-                    </span>
-                </label>
+                <div
+                    onClick={handleNewConversation}
+                    className="text-[#31497C] hover:text-[#245DDA] text-sm px-1 cursor-pointer"
+                    style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                    title="New conversation"
+                >
+                    <img src='/chat-plus.png' className='size-8' />
+                </div>
             </div>
 
             {/* Messages */}
@@ -327,7 +311,7 @@ export function AIChat() {
             </div>
 
             {/* Input Area */}
-            <div className="border-t border-[#31497C] p-2 shrink-0">
+            <div className="border-t border-[#31497C] py-4 px-2 shrink-0">
                 <div className="flex gap-2">
                     <textarea
                         value={messageInput}
@@ -335,9 +319,7 @@ export function AIChat() {
                         onKeyDown={handleKeyPress}
                         placeholder="Type your message..."
                         disabled={isStreaming}
-                        rows={2}
-                        className="flex-1 p-2 border border-[#31497C] rounded resize-none focus:outline-none focus:border-[#245DDA] disabled:opacity-50 disabled:bg-gray-100 text-sm"
-                        style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                        className={`w-full flex-1 !font-verdana !text-lg border border-[#ACA899] rounded resize-none focus:outline-none focus:border-msn-blue disabled:opacity-50 disabled:cursor-not-allowed`}
                     />
                     <div
                         aria-disabled={!canSend}
@@ -348,6 +330,6 @@ export function AIChat() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
