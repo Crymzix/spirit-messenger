@@ -6,6 +6,7 @@
 import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
+import { emit } from '@tauri-apps/api/event';
 import {
     sendMessage,
     createConversation,
@@ -13,10 +14,12 @@ import {
     getConversation,
     getUserConversations,
     leaveConversation,
+    sendNudge,
     type SendMessageData,
     type CreateConversationData,
     type MessageWithSender,
 } from '../services/message-service';
+import { soundService } from '../services/sound-service';
 import { useAuthStore } from '../store/auth-store';
 import type { User } from '@/types';
 
@@ -320,4 +323,107 @@ export function useConversationRealtimeUpdates(conversationId: string | undefine
             supabase.removeChannel(channel);
         };
     }, [conversationId, queryClient]);
+}
+
+/**
+ * Hook for sending a nudge to a conversation
+ */
+export function useSendNudge(conversationId: string) {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: () => {
+            return sendNudge(conversationId);
+        },
+        onSuccess: (response) => {
+            if (response.success) {
+                // Play nudge sound for sender
+                soundService.playNudgeSound();
+
+                // Invalidate messages to show the nudge
+                queryClient.invalidateQueries({ queryKey: messageKeys.messages(conversationId) });
+
+                // Also invalidate conversations list to update last message
+                queryClient.invalidateQueries({ queryKey: messageKeys.conversations() });
+            }
+        },
+        onError: (error) => {
+            console.error('Failed to send nudge:', error);
+        },
+    });
+}
+
+/**
+ * Hook to set up global real-time message updates for all user conversations
+ * Listens to all new messages where the sender is NOT the current user
+ * Should be used in MainWindow to listen across all conversations
+ */
+export function useGlobalMessageUpdates(
+    onMessageReceived?: (payload: {
+        conversationId: string;
+        senderId: string;
+        messageType: string;
+        metadata?: any;
+    }) => void
+) {
+    const queryClient = useQueryClient();
+    const currentUser = useAuthStore((state) => state.user);
+
+    useEffect(() => {
+        if (!currentUser?.id) return;
+
+        // Subscribe to all messages NOT sent by the current user
+        // This filters at the database level using sender_id != current user
+        const channel = supabase
+            .channel(`global-messages-${currentUser.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `sender_id=neq.${currentUser.id}`,
+                },
+                async (payload) => {
+                    const newMessage = payload.new as any;
+                    const conversationId = newMessage.conversation_id;
+                    const senderId = newMessage.sender_id;
+
+                    // Check if this is a nudge message
+                    if (newMessage.metadata?.action === 'nudge') {
+                        // Play nudge sound
+                        soundService.playNudgeSound();
+
+                        // Emit event to notify the specific chat window
+                        await emit('nudge-received', {
+                            conversationId,
+                            senderId,
+                        });
+                    }
+
+                    // Invalidate the specific conversation messages
+                    queryClient.invalidateQueries({
+                        queryKey: messageKeys.messages(conversationId)
+                    });
+
+                    // Invalidate conversations list to update last message preview
+                    queryClient.invalidateQueries({
+                        queryKey: messageKeys.conversations()
+                    });
+
+                    // Call the callback if provided
+                    onMessageReceived?.({
+                        conversationId,
+                        senderId,
+                        messageType: newMessage.message_type,
+                        metadata: newMessage.metadata,
+                    });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [currentUser?.id, queryClient, onMessageReceived]);
 }

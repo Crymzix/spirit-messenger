@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, varchar, jsonb, bigint, index, boolean, pgPolicy, integer } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, varchar, jsonb, bigint, index, boolean, pgPolicy, integer, doublePrecision } from 'drizzle-orm/pg-core';
 import { InferInsertModel, InferSelectModel, sql } from 'drizzle-orm';
 
 // Users table schema
@@ -283,6 +283,72 @@ export const aiMessages = pgTable('ai_messages', {
     }),
 ]);
 
+// Bot configuration table schema
+export const botConfigs = pgTable('bot_configs', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    personalityTemplate: varchar('personality_template', { length: 50 }).notNull(), // 'friendly', 'professional', 'quirky', etc.
+    customPersonalityConfig: jsonb('custom_personality_config'), // extends template with custom traits
+    responseDelayMin: integer('response_delay_min').default(1000), // ms
+    responseDelayMax: integer('response_delay_max').default(5000), // ms
+    typingSpeed: integer('typing_speed').default(50), // ms per character
+    autonomousMessagingEnabled: boolean('autonomous_messaging_enabled').default(true),
+    autonomousIntervalMin: integer('autonomous_interval_min').default(300000), // 5 min
+    autonomousIntervalMax: integer('autonomous_interval_max').default(3600000), // 60 min
+    ignoreMessageProbability: doublePrecision('ignore_message_probability').default(0.1), // 10% chance to ignore
+    nudgeProbability: doublePrecision('nudge_probability').default(0.05), // 5% chance to nudge
+    voiceClipProbability: doublePrecision('voice_clip_probability').default(0.02), // 2% chance to send voice
+    emoticonUsageFrequency: doublePrecision('emoticon_usage_frequency').default(0.3), // 30% of messages
+    webSearchEnabled: boolean('web_search_enabled').default(true),
+    voiceConfig: jsonb('voice_config'), // TTS voice settings
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
+}, (table) => [
+    index('idx_bot_configs_user_id').on(table.userId),
+]);
+
+// Bot conversation context table schema
+export const botConversationContexts = pgTable('bot_conversation_contexts', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    botUserId: uuid('bot_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    conversationId: uuid('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+    contextHistory: jsonb('context_history'), // Array of messages for LLM context
+    conversationSummary: text('conversation_summary'), // Summary of older messages
+    lastInteractionAt: timestamp('last_interaction_at'),
+    interactionCount: integer('interaction_count').default(0),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
+}, (table) => [
+    index('idx_bot_conversation_contexts_bot_conversation').on(table.botUserId, table.conversationId),
+]);
+
+// Bot autonomous message schedule table schema
+export const botAutonomousSchedules = pgTable('bot_autonomous_schedules', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    botUserId: uuid('bot_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    lastAutonomousMessageAt: timestamp('last_autonomous_message_at'),
+    nextScheduledCheck: timestamp('next_scheduled_check'),
+    createdAt: timestamp('created_at').defaultNow(),
+}, (table) => [
+    index('idx_bot_autonomous_schedules_bot_user_id').on(table.botUserId),
+    index('idx_bot_autonomous_schedules_next_check').on(table.nextScheduledCheck),
+]);
+
+// Bot action logs table schema
+export const botActionLogs = pgTable('bot_action_logs', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    botUserId: uuid('bot_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    conversationId: uuid('conversation_id').references(() => conversations.id, { onDelete: 'cascade' }),
+    actionType: varchar('action_type', { length: 50 }).notNull(), // 'nudge', 'voice_clip', 'web_search', 'emoticon'
+    actionMetadata: jsonb('action_metadata'),
+    createdAt: timestamp('created_at').defaultNow(),
+}, (table) => [
+    index('idx_bot_action_logs_bot_user_id').on(table.botUserId),
+    index('idx_bot_action_logs_conversation_id').on(table.conversationId),
+    index('idx_bot_action_logs_action_type').on(table.actionType),
+    index('idx_bot_action_logs_created_at').on(table.createdAt.desc()),
+]);
+
 export type SelectUser = InferSelectModel<typeof users>;
 export type InsertUser = InferInsertModel<typeof users>;
 
@@ -318,3 +384,15 @@ export type InsertAIConversation = InferInsertModel<typeof aiConversations>;
 
 export type SelectAIMessage = InferSelectModel<typeof aiMessages>;
 export type InsertAIMessage = InferInsertModel<typeof aiMessages>;
+
+export type SelectBotConfig = InferSelectModel<typeof botConfigs>;
+export type InsertBotConfig = InferInsertModel<typeof botConfigs>;
+
+export type SelectBotConversationContext = InferSelectModel<typeof botConversationContexts>;
+export type InsertBotConversationContext = InferInsertModel<typeof botConversationContexts>;
+
+export type SelectBotAutonomousSchedule = InferSelectModel<typeof botAutonomousSchedules>;
+export type InsertBotAutonomousSchedule = InferInsertModel<typeof botAutonomousSchedules>;
+
+export type SelectBotActionLog = InferSelectModel<typeof botActionLogs>;
+export type InsertBotActionLog = InferInsertModel<typeof botActionLogs>;

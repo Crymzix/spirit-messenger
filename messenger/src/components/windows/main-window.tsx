@@ -8,6 +8,7 @@ import {
     useAuthLoading,
     useAuthInitialized,
 } from "@/lib/hooks/auth-hooks";
+import { useGlobalMessageUpdates } from "@/lib/hooks/message-hooks";
 import { ContactsScreen } from "../screens/contacts-screen";
 import { Loading } from "../loading";
 import { useFileUploadStore } from "@/lib/store/file-upload-store";
@@ -23,6 +24,9 @@ export function MainWindow() {
     const signInMutation = useSignIn();
     const signUpMutation = useSignUp();
     const initializeMainWindow = useFileUploadStore((state) => state.initializeMainWindow);
+
+    // Global message listener for all conversations
+    useGlobalMessageUpdates();
 
     useEffect(() => {
         if (isAuthInitialized && isAuthenticated) {

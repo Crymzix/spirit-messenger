@@ -127,6 +127,13 @@
       "when": 1763647469876,
       "tag": "0017_tired_boomer",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1763696548526,
+      "tag": "0018_wealthy_blur",
+      "breakpoints": true
     }
   ]
 }

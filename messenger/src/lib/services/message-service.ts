@@ -197,3 +197,29 @@ export async function leaveConversation(conversationId: string): Promise<{
         error: response.error || 'Failed to leave conversation',
     };
 }
+
+/**
+ * Send a nudge to a conversation
+ */
+export async function sendNudge(conversationId: string): Promise<{
+    success: boolean;
+    message?: Message;
+    error?: string;
+}> {
+    const response = await apiPost<{ message: Message }>(
+        `/api/conversations/${conversationId}/nudge`,
+        {}
+    );
+
+    if (response.success && response.data) {
+        return {
+            success: true,
+            message: response.data.message,
+        };
+    }
+
+    return {
+        success: false,
+        error: response.error || 'Failed to send nudge',
+    };
+}

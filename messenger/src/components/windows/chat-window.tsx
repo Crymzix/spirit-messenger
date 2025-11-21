@@ -1,8 +1,10 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { User } from "@/types";
 import { TitleBar } from "../title-bar";
 import { useUser } from "@/lib";
-import { useSendMessage, useConversationMessagesInfinite, useConversationRealtimeUpdates } from "@/lib/hooks/message-hooks";
+import { useSendMessage, useConversationMessagesInfinite, useConversationRealtimeUpdates, useSendNudge } from "@/lib/hooks/message-hooks";
+import { getCurrentWindow, PhysicalPosition } from '@tauri-apps/api/window';
+import { listen } from '@tauri-apps/api/event';
 import { useTypingIndicator } from "@/lib/hooks/typing-hooks";
 import { useConversation, useParticipantRealtimeUpdates } from "@/lib/hooks/conversation-hooks";
 import { TypingIndicator } from "../typing-indicator";
@@ -43,6 +45,7 @@ export function ChatWindow() {
     const emitFileTransferInitiated = useFileUploadStore((state) => state.emitFileTransferInitiated);
 
     const sendMessageMutation = useSendMessage(conversation?.id || '');
+    const sendNudgeMutation = useSendNudge(conversation?.id || '');
     const {
         data: messagesQueryData,
         isLoading: isLoadingMessages,
@@ -53,7 +56,58 @@ export function ChatWindow() {
 
     const messagesData = messagesQueryData?.messages || [];
 
+    // Shake window when nudge is received
+    const handleNudgeReceived = useCallback(async () => {
+        const window = getCurrentWindow();
+        const position = await window.outerPosition();
+        const originalX = position.x;
+        const originalY = position.y;
+
+        const shakeIntensity = 10;
+        const shakeDuration = 500;
+        const shakeInterval = 50;
+
+        const iterations = shakeDuration / shakeInterval;
+        let count = 0;
+
+        const interval = setInterval(async () => {
+            if (count >= iterations) {
+                clearInterval(interval);
+                await window.setPosition(new PhysicalPosition(originalX, originalY));
+                return;
+            }
+
+            const offsetX = (Math.random() - 0.5) * shakeIntensity * 2;
+            const offsetY = (Math.random() - 0.5) * shakeIntensity * 2;
+
+            await window.setPosition(new PhysicalPosition(
+                Math.round(originalX + offsetX),
+                Math.round(originalY + offsetY)
+            ));
+
+            count++;
+        }, shakeInterval);
+    }, []);
+
     useConversationRealtimeUpdates(conversation?.id);
+
+    // Listen for nudge events from the global message listener
+    useEffect(() => {
+        if (!conversation?.id) return;
+
+        const unlisten = listen<{ conversationId: string; senderId: string }>(
+            'nudge-received',
+            (event) => {
+                if (event.payload.conversationId === conversation.id) {
+                    handleNudgeReceived();
+                }
+            }
+        );
+
+        return () => {
+            unlisten.then((fn) => fn());
+        };
+    }, [conversation?.id, handleNudgeReceived]);
 
     // Typing indicator hook
     const { typingUsers, setTyping } = useTypingIndicator(conversation?.id || null);
@@ -612,7 +666,12 @@ export function ChatWindow() {
                                         </div>
                                         <div
                                             style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                                            className="flex items-center gap-0.5 cursor-pointer"
+                                            className={`flex items-center gap-0.5 ${sendNudgeMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                            onClick={() => {
+                                                if (!sendNudgeMutation.isPending && conversation?.id) {
+                                                    sendNudgeMutation.mutate();
+                                                }
+                                            }}
                                         >
                                             <img src="/nudge.png" className="size-8" />
                                         </div>

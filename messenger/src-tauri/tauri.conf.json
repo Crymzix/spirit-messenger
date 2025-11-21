@@ -143,7 +143,9 @@
             "core:event:allow-listen",
             "core:event:default",
             "notification:allow-is-permission-granted",
-            "notification:default"
+            "notification:default",
+            "core:window:allow-outer-position",
+            "core:window:allow-set-position"
           ]
         },
         {

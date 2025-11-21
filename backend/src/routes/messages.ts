@@ -447,6 +447,72 @@ const messagesRoutes: FastifyPluginAsync = async (fastify) => {
             }
         }
     );
+
+    // POST /api/conversations/:conversationId/nudge - Send a nudge to a conversation
+    fastify.post<{
+        Params: ConversationParams;
+        Reply: ApiResponse<{ message: SelectMessage }>;
+    }>(
+        '/conversations/:conversationId/nudge',
+        {
+            preHandler: fastify.authenticate,
+            schema: {
+                params: {
+                    type: 'object',
+                    required: ['conversationId'],
+                    properties: {
+                        conversationId: {
+                            type: 'string',
+                            format: 'uuid',
+                        },
+                    },
+                },
+            },
+        },
+        async (request, reply) => {
+            try {
+                if (!request.user) {
+                    return reply.status(401).send({
+                        success: false,
+                        error: 'Unauthorized',
+                    });
+                }
+
+                const userId = request.user.id;
+                const { conversationId } = request.params;
+
+                // Create a system message for the nudge
+                const message = await createMessage(userId, {
+                    conversationId,
+                    content: 'sent a nudge',
+                    messageType: 'system',
+                    metadata: {
+                        action: 'nudge',
+                    },
+                });
+
+                return reply.status(201).send({
+                    success: true,
+                    data: {
+                        message,
+                    },
+                });
+            } catch (error) {
+                if (error instanceof MessageServiceError) {
+                    return reply.status(error.statusCode).send({
+                        success: false,
+                        error: error.message,
+                    });
+                }
+
+                fastify.log.error(error);
+                return reply.status(500).send({
+                    success: false,
+                    error: 'Internal server error',
+                });
+            }
+        }
+    );
 };
 
 export default messagesRoutes;
