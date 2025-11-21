@@ -8,10 +8,15 @@
         "dev": "tsx watch src/index.ts",
         "build": "tsc",
         "start": "node dist/index.js",
+        "workers": "tsx src/workers/index.ts",
+        "workers:dev": "tsx watch src/workers/index.ts",
+        "dev:all": "concurrently \"npm run dev\" \"npm run workers:dev\"",
+        "start:all": "concurrently \"npm run start\" \"npm run workers\"",
         "db:generate": "drizzle-kit generate",
         "db:migrate": "drizzle-kit migrate",
         "db:studio": "drizzle-kit studio",
-        "db:setup": "tsx src/db/setup-database.ts"
+        "db:setup": "tsx src/db/setup-database.ts",
+        "db:seed-bots": "tsx src/scripts/seed-bots.ts"
     },
     "keywords": [
         "messenger",
@@ -41,6 +46,7 @@
     "devDependencies": {
         "@types/node": "^20.11.5",
         "@types/sharp": "^0.31.1",
+        "concurrently": "^9.2.1",
         "drizzle-kit": "^0.31.6",
         "tsx": "^4.7.0",
         "typescript": "^5.3.3"

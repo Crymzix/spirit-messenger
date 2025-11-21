@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { emit } from '@tauri-apps/api/event';
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import {
     sendMessage,
     createConversation,
@@ -399,6 +400,20 @@ export function useGlobalMessageUpdates(
                             conversationId,
                             senderId,
                         });
+                    } else {
+                        // Check if chat window for this conversation is open and focused
+                        // Window is labeled with the contact's user ID, and senderId is who sent the message
+                        const chatWindowLabel = `chat-${senderId}`;
+                        const chatWindow = await WebviewWindow.getByLabel(chatWindowLabel);
+
+                        if (!chatWindow) {
+                            soundService.playMessageSound();
+                        } else {
+                            const isFocused = await chatWindow.isFocused();
+                            if (!isFocused) {
+                                soundService.playMessageSound();
+                            }
+                        }
                     }
 
                     // Invalidate the specific conversation messages
