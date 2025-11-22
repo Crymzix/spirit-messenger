@@ -279,7 +279,7 @@ export function Layout({ children, title = 'Spirit Messenger', showIcon = true, 
                   background: 'linear-gradient(to bottom, rgba(184, 198, 234, 0) 0%, rgba(184, 198, 234, 0.8) 50%, rgba(184, 198, 234, 0) 100%)'
                 }}
               />
-              <img src="/background-logo.webp" className='opacity-15 w-64 mt-auto ml-auto mb-10 mr-4' />
+              <img src="/background-logo.png" className='opacity-15 w-64 mt-auto ml-auto mb-10 mr-4' />
             </div>
 
             <div className="flex flex-col h-full z-10">

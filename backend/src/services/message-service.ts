@@ -1,4 +1,4 @@
-import { eq, and, desc, isNull, inArray, lt } from 'drizzle-orm';
+import { eq, and, desc, isNull, inArray, lt, ne, sql, count } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import {
     messages,
@@ -777,6 +777,139 @@ export async function getUserConversations(userId: string): Promise<Conversation
         throw new MessageServiceError(
             'Failed to get user conversations',
             'GET_USER_CONVERSATIONS_FAILED',
+            500
+        );
+    }
+}
+
+/**
+ * Get unread message counts for all one-on-one conversations where user is a participant
+ * Returns a map of otherUserId -> unread count (for 1-to-1 conversations only)
+ */
+export async function getUnreadCounts(
+    userId: string
+): Promise<Record<string, number>> {
+    try {
+        if (!userId) {
+            throw new MessageServiceError('User ID is required', 'INVALID_USER_ID', 400);
+        }
+
+        // Get all one-on-one conversations where user is a participant
+        const userConversations = await db
+            .select({
+                conversationId: conversationParticipants.conversationId,
+            })
+            .from(conversationParticipants)
+            .innerJoin(conversations, eq(conversations.id, conversationParticipants.conversationId))
+            .where(
+                and(
+                    eq(conversationParticipants.userId, userId),
+                    isNull(conversationParticipants.leftAt),
+                    eq(conversations.type, 'one_on_one')
+                )
+            );
+
+        if (userConversations.length === 0) {
+            return {};
+        }
+
+        const conversationIds = userConversations.map(c => c.conversationId);
+
+        // Count unread messages per sender (the other user in 1-to-1 conversations)
+        // Unread = messages not sent by the user AND readAt is NULL
+        const unreadCounts = await db
+            .select({
+                senderId: messages.senderId,
+                count: count(messages.id),
+            })
+            .from(messages)
+            .where(
+                and(
+                    inArray(messages.conversationId, conversationIds),
+                    ne(messages.senderId, userId),
+                    isNull(messages.readAt)
+                )
+            )
+            .groupBy(messages.senderId);
+
+        // Convert to Record<userId, count>
+        const result: Record<string, number> = {};
+        for (const row of unreadCounts) {
+            result[row.senderId] = Number(row.count);
+        }
+
+        return result;
+    } catch (error) {
+        if (error instanceof MessageServiceError) {
+            throw error;
+        }
+        throw new MessageServiceError(
+            'Failed to get unread counts',
+            'GET_UNREAD_COUNTS_FAILED',
+            500
+        );
+    }
+}
+
+/**
+ * Mark messages as read in a conversation
+ * Marks all unread messages from other users as read
+ */
+export async function markMessagesAsRead(
+    userId: string,
+    conversationId: string
+): Promise<number> {
+    try {
+        if (!userId) {
+            throw new MessageServiceError('User ID is required', 'INVALID_USER_ID', 400);
+        }
+
+        if (!conversationId) {
+            throw new MessageServiceError('Conversation ID is required', 'MISSING_CONVERSATION_ID', 400);
+        }
+
+        // Verify user is a participant
+        const [participant] = await db
+            .select()
+            .from(conversationParticipants)
+            .where(
+                and(
+                    eq(conversationParticipants.conversationId, conversationId),
+                    eq(conversationParticipants.userId, userId),
+                    isNull(conversationParticipants.leftAt)
+                )
+            )
+            .limit(1);
+
+        if (!participant) {
+            throw new MessageServiceError(
+                'You are not a participant in this conversation',
+                'NOT_PARTICIPANT',
+                403
+            );
+        }
+
+        // Mark all unread messages from other users as read
+        const result = await db
+            .update(messages)
+            .set({ readAt: new Date() })
+            .where(
+                and(
+                    eq(messages.conversationId, conversationId),
+                    ne(messages.senderId, userId),
+                    isNull(messages.readAt)
+                )
+            )
+            .returning({ id: messages.id });
+
+        return result.length;
+    } catch (error) {
+        if (error instanceof MessageServiceError) {
+            throw error;
+        }
+        throw new MessageServiceError(
+            'Failed to mark messages as read',
+            'MARK_READ_FAILED',
             500
         );
     }

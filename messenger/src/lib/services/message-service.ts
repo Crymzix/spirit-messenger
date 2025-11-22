@@ -3,7 +3,7 @@
  * Handles message operations through Backend Service API
  */
 
-import { apiPost, apiGet } from '../api-client';
+import { apiPost, apiGet, apiPut } from '../api-client';
 import type { Message, Conversation, User } from '@/types';
 
 export interface SendMessageData {
@@ -221,5 +221,56 @@ export async function sendNudge(conversationId: string): Promise<{
     return {
         success: false,
         error: response.error || 'Failed to send nudge',
+    };
+}
+
+/**
+ * Get unread message counts for all conversations
+ */
+export async function getUnreadCounts(): Promise<{
+    success: boolean;
+    counts?: Record<string, number>;
+    error?: string;
+}> {
+    const response = await apiGet<{ counts: Record<string, number> }>(
+        '/api/conversations/unread-counts'
+    );
+
+    if (response.success && response.data) {
+        return {
+            success: true,
+            counts: response.data.counts,
+        };
+    }
+
+    return {
+        success: false,
+        error: response.error || 'Failed to get unread counts',
+    };
+}
+
+/**
+ * Mark messages as read in a conversation
+ */
+export async function markMessagesAsRead(conversationId: string): Promise<{
+    success: boolean;
+    markedCount?: number;
+    error?: string;
+}> {
+    const response = await apiPut<{ markedCount: number }>(
+        `/api/conversations/${conversationId}/read`,
+        {}
+    );
+
+    if (response.success && response.data) {
+        return {
+            success: true,
+            markedCount: response.data.markedCount,
+        };
+    }
+
+    return {
+        success: false,
+        error: response.error || 'Failed to mark messages as read',
     };
 }

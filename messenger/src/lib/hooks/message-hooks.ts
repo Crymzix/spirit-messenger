@@ -16,6 +16,8 @@ import {
     getUserConversations,
     leaveConversation,
     sendNudge,
+    getUnreadCounts,
+    markMessagesAsRead,
     type SendMessageData,
     type CreateConversationData,
     type MessageWithSender,
@@ -203,7 +205,8 @@ export function useConversationMessagesInfinite(conversationId: string, pageSize
             // If we got a full page, there might be more messages
             // Use the oldest message ID as the cursor for the next page
             if (lastPage.length === pageSize) {
-                return lastPage[0]?.id || null; // First message is the oldest
+                // Backend returns messages ordered by desc(createdAt), so last item is the oldest
+                return lastPage[lastPage.length - 1]?.id || null;
             }
             return null; // No more pages
         },
@@ -441,4 +444,116 @@ export function useGlobalMessageUpdates(
             supabase.removeChannel(channel);
         };
     }, [currentUser?.id, queryClient, onMessageReceived]);
+}
+
+/**
+ * Hook for fetching unread message counts by user ID
+ * Returns a map of userId -> unread count
+ * Includes realtime subscription for incremental updates
+ */
+export function useUnreadCounts() {
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    const currentUser = useAuthStore((state) => state.user);
+    const queryClient = useQueryClient();
+
+    // Set up realtime subscription for incremental updates
+    useEffect(() => {
+        if (!currentUser?.id) return;
+
+        const channel = supabase
+            .channel(`unread-updates-${currentUser.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `sender_id=neq.${currentUser.id}`,
+                },
+                (payload) => {
+                    // Increment count for this sender
+                    const senderId = payload.new.sender_id as string;
+                    queryClient.setQueryData<Record<string, number>>(['unreadCounts'], (old) => {
+                        if (!old) return { [senderId]: 1 };
+                        return {
+                            ...old,
+                            [senderId]: (old[senderId] || 0) + 1,
+                        };
+                    });
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `sender_id=neq.${currentUser.id}`,
+                },
+                (payload) => {
+                    // If readAt was set (message marked as read), decrement count
+                    const oldReadAt = payload.old.read_at;
+                    const newReadAt = payload.new.read_at;
+                    const senderId = payload.new.sender_id as string;
+
+                    if (!oldReadAt && newReadAt) {
+                        // Message was marked as read
+                        queryClient.setQueryData<Record<string, number>>(['unreadCounts'], (old) => {
+                            if (!old) return {};
+                            const newCount = Math.max(0, (old[senderId] || 0) - 1);
+                            if (newCount === 0) {
+                                const { [senderId]: _, ...rest } = old;
+                                return rest;
+                            }
+                            return {
+                                ...old,
+                                [senderId]: newCount,
+                            };
+                        });
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [currentUser?.id, queryClient]);
+
+    return useQuery({
+        queryKey: ['unreadCounts'],
+        queryFn: async () => {
+            const response = await getUnreadCounts();
+            if (!response.success) {
+                throw new Error(response.error || 'Failed to fetch unread counts');
+            }
+            return response.counts || {};
+        },
+        staleTime: Infinity, // Don't refetch automatically, we update via realtime
+        gcTime: 1000 * 60 * 30, // 30 minutes
+        enabled: isAuthenticated,
+    });
+}
+
+/**
+ * Hook for marking messages as read in a conversation
+ */
+export function useMarkMessagesAsRead() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (conversationId: string) => {
+            return markMessagesAsRead(conversationId);
+        },
+        onSuccess: (response, conversationId) => {
+            if (response.success) {
+                // The realtime subscription will handle updating the counts
+                // Also invalidate the conversation messages to update readAt fields
+                queryClient.invalidateQueries({ queryKey: messageKeys.messages(conversationId) });
+            }
+        },
+        onError: (error) => {
+            console.error('Failed to mark messages as read:', error);
+        },
+    });
 }

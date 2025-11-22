@@ -4,9 +4,10 @@ import Avatar from 'boring-avatars';
 
 interface BotItemProps {
     bot: Bot;
+    hasUnread?: boolean;
 }
 
-export function BotItem({ bot }: BotItemProps) {
+export function BotItem({ bot, hasUnread }: BotItemProps) {
     const getPresenceColor = (status: PresenceStatus): string => {
         switch (status) {
             case 'online':
@@ -32,7 +33,9 @@ export function BotItem({ bot }: BotItemProps) {
     return (
         <div
             onDoubleClick={handleDoubleClick}
-            className="flex items-center gap-2 px-2 py-1.5 hover:bg-msn-light-blue cursor-pointer transition-colors"
+            className={`flex items-center gap-2 px-2 py-1.5 hover:bg-msn-light-blue cursor-pointer transition-colors ${
+                hasUnread ? 'bg-blue-50' : ''
+            }`}
         >
             {/* Display Picture */}
             <div className="relative flex-shrink-0">
@@ -57,7 +60,9 @@ export function BotItem({ bot }: BotItemProps) {
             {/* Bot Info */}
             <div className="flex-1 min-w-0">
                 {/* Display Name */}
-                <div className="text-[11px] font-bold text-black truncate">
+                <div className={`text-[11px] text-black truncate font-verdana ${
+                        hasUnread ? 'font-bold' : 'font-medium'
+                    }`}>
                     {bot.displayName || bot.username}
                 </div>
                 {/* Personal Message */}

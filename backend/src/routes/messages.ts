@@ -16,6 +16,8 @@ import {
     getConversationById,
     getUserConversations,
     removeParticipant,
+    getUnreadCounts,
+    markMessagesAsRead,
     MessageServiceError,
     type MessageWithSender,
     type ConversationWithParticipants,
@@ -495,6 +497,107 @@ const messagesRoutes: FastifyPluginAsync = async (fastify) => {
                     success: true,
                     data: {
                         message,
+                    },
+                });
+            } catch (error) {
+                if (error instanceof MessageServiceError) {
+                    return reply.status(error.statusCode).send({
+                        success: false,
+                        error: error.message,
+                    });
+                }
+
+                fastify.log.error(error);
+                return reply.status(500).send({
+                    success: false,
+                    error: 'Internal server error',
+                });
+            }
+        }
+    );
+
+    // GET /api/conversations/unread-counts - Get unread message counts for all conversations
+    fastify.get<{
+        Reply: ApiResponse<{ counts: Record<string, number> }>;
+    }>(
+        '/conversations/unread-counts',
+        {
+            preHandler: fastify.authenticate,
+        },
+        async (request, reply) => {
+            try {
+                if (!request.user) {
+                    return reply.status(401).send({
+                        success: false,
+                        error: 'Unauthorized',
+                    });
+                }
+
+                const userId = request.user.id;
+                const counts = await getUnreadCounts(userId);
+
+                return reply.status(200).send({
+                    success: true,
+                    data: {
+                        counts,
+                    },
+                });
+            } catch (error) {
+                if (error instanceof MessageServiceError) {
+                    return reply.status(error.statusCode).send({
+                        success: false,
+                        error: error.message,
+                    });
+                }
+
+                fastify.log.error(error);
+                return reply.status(500).send({
+                    success: false,
+                    error: 'Internal server error',
+                });
+            }
+        }
+    );
+
+    // PUT /api/conversations/:conversationId/read - Mark messages as read in a conversation
+    fastify.put<{
+        Params: ConversationParams;
+        Reply: ApiResponse<{ markedCount: number }>;
+    }>(
+        '/conversations/:conversationId/read',
+        {
+            preHandler: fastify.authenticate,
+            schema: {
+                params: {
+                    type: 'object',
+                    required: ['conversationId'],
+                    properties: {
+                        conversationId: {
+                            type: 'string',
+                            format: 'uuid',
+                        },
+                    },
+                },
+            },
+        },
+        async (request, reply) => {
+            try {
+                if (!request.user) {
+                    return reply.status(401).send({
+                        success: false,
+                        error: 'Unauthorized',
+                    });
+                }
+
+                const userId = request.user.id;
+                const { conversationId } = request.params;
+
+                const markedCount = await markMessagesAsRead(userId, conversationId);
+
+                return reply.status(200).send({
+                    success: true,
+                    data: {
+                        markedCount,
                     },
                 });
             } catch (error) {

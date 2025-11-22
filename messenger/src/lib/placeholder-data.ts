@@ -12,6 +12,7 @@ export const placeholderContacts: Contact[] = [
     contactUser: {
       id: "user-1",
       email: "sarah.johnson@example.com",
+      isAiBot: false,
       username: "sarah_j",
       displayName: "Sarah Johnson",
       personalMessage: "Coffee enthusiast ☕",
@@ -30,6 +31,7 @@ export const placeholderContacts: Contact[] = [
     contactUser: {
       id: "user-2",
       email: "mike.chen@example.com",
+      isAiBot: false,
       username: "mike_c",
       displayName: "Mike Chen",
       personalMessage: "Coding at 3 AM 💻",
@@ -48,6 +50,7 @@ export const placeholderContacts: Contact[] = [
     contactUser: {
       id: "user-3",
       email: "emma.davis@example.com",
+      isAiBot: false,
       username: "emma_d",
       displayName: "Emma Davis",
       personalMessage: "Living my best life! 🌟",
@@ -66,6 +69,7 @@ export const placeholderContacts: Contact[] = [
     contactUser: {
       id: "user-4",
       email: "james.wilson@example.com",
+      isAiBot: false,
       username: "james_w",
       displayName: "James Wilson",
       personalMessage: "In a meeting, DND",
@@ -84,6 +88,7 @@ export const placeholderContacts: Contact[] = [
     contactUser: {
       id: "user-5",
       email: "olivia.brown@example.com",
+      isAiBot: false,
       username: "olivia_b",
       displayName: "Olivia Brown",
       personalMessage: "Design is my passion 🎨",
@@ -104,6 +109,7 @@ export const placeholderContacts: Contact[] = [
     contactUser: {
       id: "user-6",
       email: "alex.taylor@example.com",
+      isAiBot: false,
       username: "alex_t",
       displayName: "Alex Taylor",
       personalMessage: "Gamer 4 life 🎮",
@@ -122,6 +128,7 @@ export const placeholderContacts: Contact[] = [
     contactUser: {
       id: "user-7",
       email: "sophia.martinez@example.com",
+      isAiBot: false,
       username: "sophia_m",
       displayName: "Sophia Martinez",
       personalMessage: "Wanderlust ✈️",
@@ -140,6 +147,7 @@ export const placeholderContacts: Contact[] = [
     contactUser: {
       id: "user-8",
       email: "daniel.lee@example.com",
+      isAiBot: false,
       username: "daniel_l",
       displayName: "Daniel Lee",
       personalMessage: "Fitness junkie 💪",
@@ -158,6 +166,7 @@ export const placeholderContacts: Contact[] = [
     contactUser: {
       id: "user-9",
       email: "rachel.kim@example.com",
+      isAiBot: false,
       username: "rachel_k",
       displayName: "Rachel Kim",
       personalMessage: "Foodie adventures 🍜",
@@ -176,6 +185,7 @@ export const placeholderContacts: Contact[] = [
     contactUser: {
       id: "user-10",
       email: "chris.anderson@example.com",
+      isAiBot: false,
       username: "chris_a",
       displayName: "Chris Anderson",
       personalMessage: "Music producer 🎵",
@@ -196,6 +206,7 @@ export const placeholderContacts: Contact[] = [
     contactUser: {
       id: "user-11",
       email: "blocked.user@example.com",
+      isAiBot: false,
       username: "blocked_user",
       displayName: "Blocked User",
       personalMessage: "",
@@ -246,6 +257,7 @@ export const placeholderPendingRequests: Contact[] = [
     contactUser: {
       id: "user-20",
       email: "lisa.walker@example.com",
+      isAiBot: false,
       username: "lisa_w",
       displayName: "Lisa Walker",
       personalMessage: "New to the platform!",
@@ -264,6 +276,7 @@ export const placeholderPendingRequests: Contact[] = [
     contactUser: {
       id: "user-21",
       email: "tom.hughes@example.com",
+      isAiBot: false,
       username: "tom_h",
       displayName: "Tom Hughes",
       personalMessage: "Let's connect!",

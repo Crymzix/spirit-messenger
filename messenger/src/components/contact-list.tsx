@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Contact, Bot } from '@/types';
+import { useEffect, useState, useMemo } from 'react';
+import { Contact } from '@/types';
 import { ContactItem } from './contact-item';
 import { BotItem } from './bot-item';
 import { usePendingContactRequests, useContactRealtimeUpdates, useContacts } from '@/lib/hooks/contact-hooks';
 import { useContactGroups, useContactGroupMemberships, useContactGroupRealtimeUpdates, useReorderContactGroups } from '@/lib/hooks/contact-group-hooks';
 import { useBots } from '@/lib/hooks/bot-hooks';
+import { useUnreadCounts } from '@/lib/hooks/message-hooks';
 import { ContactRequestNotification } from './contact-request-notification';
 import { ContactGroupHeader } from './contact-group-header';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -42,6 +43,9 @@ export function ContactList() {
     const { data: groupMemberships, refetch: refetchMemberships } = useContactGroupMemberships();
     const { data: bots = [], isLoading: botsLoading } = useBots();
     const reorderGroups = useReorderContactGroups();
+
+    // Unread message tracking (returns map of userId -> unread count)
+    const { data: unreadCounts = {} } = useUnreadCounts();
 
     // Set up real-time updates
     useContactRealtimeUpdates();
@@ -172,10 +176,14 @@ export function ContactList() {
     };
 
     const renderContactItem = (contact: Contact) => {
+        // Check if this contact has unread messages (unreadCounts is keyed by userId)
+        const hasUnread = (unreadCounts[contact.contactUser.id] ?? 0) > 0;
+
         return (
             <ContactItem
                 key={contact.id}
                 contact={contact}
+                hasUnread={hasUnread}
             />
         );
     };
@@ -287,9 +295,17 @@ export function ContactList() {
                         {renderGroupHeader('Spirits', bots.length, 'bots')}
                         {!isGroupCollapsed('bots') && (
                             <div className="py-1">
-                                {bots.map((bot) => (
-                                    <BotItem key={bot.id} bot={bot} />
-                                ))}
+                                {bots.map((bot) => {
+                                    const hasUnread = (unreadCounts[bot.id] ?? 0) > 0;
+
+                                    return (
+                                         <BotItem 
+                                            key={bot.id} 
+                                            bot={bot}
+                                            hasUnread={hasUnread}
+                                        />
+                                    )
+                                })}
                             </div>
                         )}
                     </div>

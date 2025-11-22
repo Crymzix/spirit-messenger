@@ -24,5 +24,6 @@
   "kiroAgent.configureMCP": "Disabled",
   "rust-analyzer.linkedProjects": [
     "messenger/src-tauri/Cargo.toml"
-  ]
+  ],
+  "editor.formatOnSave": true
 }

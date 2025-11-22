@@ -5,9 +5,10 @@ import { createWindow } from '@/lib/utils/window-utils';
 
 interface ContactItemProps {
     contact: Contact;
+    hasUnread?: boolean;
 }
 
-export function ContactItem({ contact }: ContactItemProps) {
+export function ContactItem({ contact, hasUnread = false }: ContactItemProps) {
     const [showContextMenu, setShowContextMenu] = useState(false);
     const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
     const contextMenuRef = useRef<HTMLDivElement>(null);
@@ -93,7 +94,9 @@ export function ContactItem({ contact }: ContactItemProps) {
             <div
                 onDoubleClick={handleDoubleClick}
                 onContextMenu={handleContextMenu}
-                className="flex items-center gap-2 px-2 py-1.5 hover:bg-msn-light-blue cursor-pointer transition-colors"
+                className={`flex items-center gap-2 px-2 py-1.5 hover:bg-msn-light-blue cursor-pointer transition-colors ${
+                    hasUnread ? 'bg-blue-50' : ''
+                }`}
             >
                 {/* Display Picture - 96x96px as per requirements, but scaled down for list view */}
                 <div className="relative flex-shrink-0">
@@ -123,7 +126,9 @@ export function ContactItem({ contact }: ContactItemProps) {
                 {/* Contact Info */}
                 <div className="flex-1 min-w-0">
                     {/* Display Name */}
-                    <div className="text-[11px] font-bold text-black truncate">
+                    <div className={`text-[11px] text-black truncate font-verdana ${
+                        hasUnread ? 'font-bold' : 'font-medium'
+                    }`}>
                         {contactUser.displayName || contactUser.username}
                     </div>
                     {/* Personal Message */}

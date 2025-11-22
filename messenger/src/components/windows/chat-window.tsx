@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { User } from "@/types";
 import { TitleBar } from "../title-bar";
 import { useUser } from "@/lib";
-import { useSendMessage, useConversationMessagesInfinite, useConversationRealtimeUpdates, useSendNudge } from "@/lib/hooks/message-hooks";
+import { useSendMessage, useConversationMessagesInfinite, useConversationRealtimeUpdates, useSendNudge, useMarkMessagesAsRead } from "@/lib/hooks/message-hooks";
 import { getCurrentWindow, PhysicalPosition } from '@tauri-apps/api/window';
 import { listen } from '@tauri-apps/api/event';
 import { useTypingIndicator } from "@/lib/hooks/typing-hooks";
@@ -40,6 +40,8 @@ export function ChatWindow() {
     const [formatting, setFormatting] = useState<{ bold?: boolean; italic?: boolean; color?: string }>({});
     const messageHistoryRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const prevMessageCountRef = useRef<number>(0);
+    const isLoadingOlderMessagesRef = useRef<boolean>(false);
 
     // File transfer mutations
     const initiateTransferMutation = useInitiateFileTransfer();
@@ -47,6 +49,7 @@ export function ChatWindow() {
 
     const sendMessageMutation = useSendMessage(conversation?.id || '');
     const sendNudgeMutation = useSendNudge(conversation?.id || '');
+    const markAsReadMutation = useMarkMessagesAsRead();
     const {
         data: messagesQueryData,
         isLoading: isLoadingMessages,
@@ -56,6 +59,13 @@ export function ChatWindow() {
     } = useConversationMessagesInfinite(conversation?.id || '', 50);
 
     const messagesData = messagesQueryData?.messages || [];
+
+    // Mark messages as read when conversation is loaded
+    useEffect(() => {
+        if (conversation?.id) {
+            markAsReadMutation.mutate(conversation.id);
+        }
+    }, [conversation?.id]);
 
     // Shake window when nudge is received
     const handleNudgeReceived = useCallback(async () => {
@@ -195,13 +205,26 @@ export function ChatWindow() {
     }, [lastMessageReceived])
 
     useEffect(() => {
-        if (messageHistoryRef.current) {
-            // Use requestAnimationFrame to ensure DOM has updated
-            requestAnimationFrame(() => {
-                if (messageHistoryRef.current) {
-                    messageHistoryRef.current.scrollTop = messageHistoryRef.current.scrollHeight;
-                }
-            });
+        if (messageHistoryRef.current && messagesData.length > 0) {
+            const prevCount = prevMessageCountRef.current;
+            const newCount = messagesData.length;
+
+            // Only scroll to bottom if:
+            // 1. Initial load (prevCount was 0)
+            // 2. New messages added at the end (not pagination of older messages)
+            const isInitialLoad = prevCount === 0;
+            const isNewMessageAtEnd = newCount > prevCount && !isLoadingOlderMessagesRef.current;
+
+            if (isInitialLoad || isNewMessageAtEnd) {
+                requestAnimationFrame(() => {
+                    if (messageHistoryRef.current) {
+                        messageHistoryRef.current.scrollTop = messageHistoryRef.current.scrollHeight;
+                    }
+                });
+            }
+
+            prevMessageCountRef.current = newCount;
+            isLoadingOlderMessagesRef.current = false;
         }
     }, [messagesData]);
 
@@ -549,14 +572,17 @@ export function ChatWindow() {
                                     >
                                         {!isLoadingMessages && hasNextPage && (
                                             <div className="text-center py-2">
-                                                <button
-                                                    onClick={() => fetchNextPage()}
-                                                    disabled={isFetchingNextPage}
-                                                    className="px-3 py-1 text-[10px] bg-[#E6ECF9] hover:bg-[#D8E8F7] border border-[#31497C] rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                                <div
+                                                    onClick={() => {
+                                                        if (isFetchingNextPage) return;
+                                                        isLoadingOlderMessagesRef.current = true;
+                                                        fetchNextPage();
+                                                    }}
+                                                    className="px-3 py-1 text-[11px] text-[#31497C] font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                                     style={{ fontFamily: 'Pixelated MS Sans Serif' }}
                                                 >
                                                     {isFetchingNextPage ? 'Loading...' : 'Load More Messages'}
-                                                </button>
+                                                </div>
                                             </div>
                                         )}
                                         {messagesData.map((message) => {
