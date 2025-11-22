@@ -23,8 +23,9 @@ import {
     type MessageWithSender,
 } from '../services/message-service';
 import { soundService } from '../services/sound-service';
+import { showNotificationWindow } from '../utils/window-utils';
 import { useAuthStore } from '../store/auth-store';
-import type { User } from '@/types';
+import type { User, Contact } from '@/types';
 
 /**
  * Query key factory for message-related queries
@@ -368,6 +369,11 @@ export function useGlobalMessageUpdates(
         senderId: string;
         messageType: string;
         metadata?: any;
+    }) => void,
+    onShowNotification?: (payload: {
+        senderId: string;
+        senderName: string;
+        messagePreview: string;
     }) => void
 ) {
     const queryClient = useQueryClient();
@@ -409,12 +415,23 @@ export function useGlobalMessageUpdates(
                         const chatWindowLabel = `chat-${senderId}`;
                         const chatWindow = await WebviewWindow.getByLabel(chatWindowLabel);
 
+                        // Get sender name from cached contacts
+                        const contacts = queryClient.getQueryData<Contact[]>(['contacts', 'accepted']);
+                        const contact = contacts?.find(c => c.contactUser?.id === senderId);
+                        const senderName = contact?.contactUser?.displayName || contact?.contactUser?.email || 'Unknown';
+                        const message = `${senderName} says:`
+                        const description = newMessage.content || '';
+
                         if (!chatWindow) {
                             soundService.playMessageSound();
+                            // Show notification with sender name from cache
+                            showNotificationWindow(message, description, senderId)
                         } else {
                             const isFocused = await chatWindow.isFocused();
                             if (!isFocused) {
                                 soundService.playMessageSound();
+                                // Show notification with sender name from cache
+                                showNotificationWindow(message, description, senderId)
                             }
                         }
                     }
@@ -443,7 +460,7 @@ export function useGlobalMessageUpdates(
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [currentUser?.id, queryClient, onMessageReceived]);
+    }, [currentUser?.id, queryClient, onMessageReceived, onShowNotification]);
 }
 
 /**

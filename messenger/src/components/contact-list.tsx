@@ -9,6 +9,8 @@ import { useUnreadCounts } from '@/lib/hooks/message-hooks';
 import { ContactRequestNotification } from './contact-request-notification';
 import { ContactGroupHeader } from './contact-group-header';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 import { WINDOW_EVENTS } from '@/lib/utils/constants';
 import {
     DndContext,
@@ -126,6 +128,28 @@ export function ContactList() {
             unsubscribeUpdateGroups.then(fn => fn()).catch(err => console.error(err))
         }
     }, [refetchGroups])
+
+
+    useEffect(() => {
+        // Listen for notification clicks to open chat windows
+        const unsubscribe = listen<{ senderId: string }>('chat-notification-clicked', async (event) => {
+            const { senderId } = event.payload;
+
+            // Find the contact to get their display name
+            const contact = acceptedContacts.find(c => c.contactUser.id === senderId);
+            const contactName = contact?.contactUser?.displayName || contact?.contactUser?.email;
+
+            // Open chat window with the sender
+            await invoke('open_chat_window', {
+                dialogWindow: senderId,
+                contactName: contactName,
+            });
+        });
+
+        return () => {
+            unsubscribe.then(fn => fn()).catch(err => console.error(err));
+        };
+    }, [acceptedContacts])
 
     const toggleGroup = (groupId: string) => {
         setCollapsedGroups((prev) => {
@@ -299,8 +323,8 @@ export function ContactList() {
                                     const hasUnread = (unreadCounts[bot.id] ?? 0) > 0;
 
                                     return (
-                                         <BotItem 
-                                            key={bot.id} 
+                                        <BotItem
+                                            key={bot.id}
                                             bot={bot}
                                             hasUnread={hasUnread}
                                         />

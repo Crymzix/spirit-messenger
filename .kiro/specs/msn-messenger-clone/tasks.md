@@ -94,15 +94,15 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Add token refresh logic using Supabase Auth
     - _Requirements: 1.4, 17.1, 16.3_
 
-- [ ] 5.5 Set up React Query infrastructure
-  - [ ] 5.5.1 Install and configure React Query
+- [x] 5.5 Set up React Query infrastructure
+  - [x] 5.5.1 Install and configure React Query
     - Install @tanstack/react-query and @tanstack/react-query-devtools
     - Create QueryClient with default configuration in main.tsx
     - Wrap App component with QueryClientProvider
     - Configure staleTime (5 minutes), gcTime (30 minutes), retry logic (3 attempts)
     - Add React Query DevTools for development
     - _Requirements: 18.1, 18.6, 17.1, 16.3_
-  - [ ] 5.5.2 Create React Query hooks for authentication
+  - [x] 5.5.2 Create React Query hooks for authentication
     - Create auth-hooks.ts in src/lib/hooks/
     - Implement useLogin() mutation hook wrapping auth-service.ts login function
     - Implement useRegister() mutation hook wrapping auth-service.ts register function
@@ -110,7 +110,7 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Add proper error handling and success callbacks
     - Invalidate auth queries on successful mutations
     - _Requirements: 18.2, 18.3, 18.4, 18.5, 18.7, 17.1, 16.3_
-  - [ ] 5.5.3 Update authentication components to use hooks
+  - [x] 5.5.3 Update authentication components to use hooks
     - Refactor sign-in-window.tsx to use useLogin() hook instead of calling auth-service directly
     - Refactor registration-window.tsx to use useRegister() hook instead of calling auth-service directly
     - Use hook's isPending state for loading indicators
@@ -178,7 +178,7 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Subscribe to user profile changes via Supabase Realtime
     - Refresh UI with updated profile information
     - _Requirements: 9.5, 17.1, 16.3_
-  - [ ] 8.4 Create React Query hooks for profile management
+  - [x] 8.4 Create React Query hooks for profile management
     - Create profile-hooks.ts in src/lib/hooks/
     - Implement useProfile(userId) query hook to fetch user profile from Supabase
     - Implement useProfileUpdate() mutation hook wrapping profile-service.ts updateProfile function
@@ -186,7 +186,7 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Add optimistic updates for profile changes
     - Invalidate profile queries on successful mutations
     - _Requirements: 18.2, 18.3, 18.4, 18.5, 18.7, 18.8, 17.1, 16.3_
-  - [ ] 8.5 Update profile components to use React Query hooks
+  - [x] 8.5 Update profile components to use React Query hooks
     - Refactor profile-settings.tsx to use useProfileUpdate() and useDisplayPictureUpload() hooks
     - Refactor user-profile.tsx to use useProfile() hook for fetching profile data
     - Remove direct service calls from components
@@ -211,19 +211,19 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Implement character limit (150 characters)
     - Send custom message to Backend Service
     - _Requirements: 3.4, 3.5_
-  - [ ] 9.4 Create React Query hooks for presence management
+  - [x] 9.4 Create React Query hooks for presence management
     - Create presence-hooks.ts in src/lib/hooks/
     - Implement usePresenceUpdate() mutation hook wrapping presence-service.ts updatePresence function
     - Implement usePresence(userId) query hook to fetch user presence from Supabase
     - Add optimistic updates for presence changes
     - Invalidate presence queries on successful mutations
     - _Requirements: 18.2, 18.3, 18.4, 18.5, 18.7, 18.8, 17.1, 16.3_
-  - [ ] 9.5 Update presence components to use React Query hooks
+  - [x] 9.5 Update presence components to use React Query hooks
     - Refactor status-selector.tsx to use usePresenceUpdate() hook
     - Remove direct service calls from components
     - Use hook states for loading and error feedback
     - _Requirements: 18.2, 18.9, 17.1, 16.3_
-  - [ ] 9.6 Set up real-time presence subscriptions
+  - [x] 9.6 Set up real-time presence subscriptions
     - Subscribe to users table changes via Supabase Realtime
     - Invalidate React Query presence cache when Supabase receives updates
     - Update contact list UI when presence changes
@@ -361,7 +361,7 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Send reorder request to Backend Service API
     - Update local state optimistically
     - _Requirements: 17.8, 17.1, 17.3_
-  - [ ] 13.5 Implement contact display within groups
+  - [x] 13.5 Implement contact display within groups
     - Display contacts within each custom group
     - Sort contacts alphabetically by display name
     - Show contact presence status within groups
@@ -590,7 +590,7 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Add classic MSN sound files to public/sounds directory (message.wav, sign-in.wav, sign-out.wav)
     - Create sound-service.ts with volume control
     - _Requirements: 8.1, 8.2, 8.3, 17.1, 16.3_
-  - [ ] 25.4 Implement sound triggers
+  - [x] 22.4 Implement sound triggers
     - Play message sound on new message
     - Play sign-in sound when contact comes online
     - Play sign-out sound when contact goes offline
@@ -603,13 +603,13 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Persist settings in localStorage
     - _Requirements: 8.4, 17.1, 16.3_
 
-- [ ] 23. Implement Backend Service AI bot integration with TypeScript
-  - [ ] 32.1 Create AI bot personality configuration
+- [x] 23. Implement Backend Service AI bot integration with TypeScript
+  - [x] 23.1 Create AI bot personality configuration
     - Create ai-bot-config.ts with personality configurations (system prompts, OpenRouter models)
     - Define TypeScript types for bot personalities
     - Map bot user IDs to personality configurations (Friendly Assistant, Casual Friend, Creative Companion)
     - _Requirements: 10.2, 17.2, 16.5_
-  - [ ] 32.2 Create AI service integration with OpenRouter
+  - [x] 23.2 Create AI service integration with OpenRouter
     - Install openrouter SDK or use fetch
     - Create ai-service.ts wrapper for OpenRouter API
     - Implement message generation with conversation history
@@ -617,14 +617,14 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Implement rate limiting (10 requests per minute per conversation)
     - Support multiple LLM models (Claude, GPT, Llama)
     - _Requirements: 10.4, 17.2, 16.5_
-  - [ ] 32.3 Create AI bot routes
-    - Create ai.ts route file
-    - Implement GET /api/ai/bots endpoint to list available AI bots
-    - Implement POST /api/ai/add-to-conversation endpoint to add AI bot to conversation
+  - [x] 23.3 Create AI bot routes
+    - Create bot.ts route file
+    - Implement GET /api/bots endpoint to list available AI bots
+    - Implement POST /api/bots endpoint to create AI bots
     - Add Fastify schema validation
     - Register routes in index.ts
     - _Requirements: 10.2, 10.6, 17.2, 16.5_
-  - [ ] 29.4 Implement automatic AI bot response generation
+  - [x] 23.4 Implement automatic AI bot response generation
     - Extend message-service.ts to detect AI bot participants
     - Fetch conversation history using Drizzle ORM
     - Generate AI response for each AI bot in conversation using OpenRouter
@@ -633,31 +633,31 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Add error handling for OpenRouter API failures
     - _Requirements: 10.4, 10.5, 10.7, 17.2, 16.5_
 
-- [ ] 24. Implement frontend AI bot system
-  - [ ] 30.1 Display AI bots in contact list
-    - Create ai-bot-service.ts to fetch AI bot users from Backend Service API
+- [x] 24. Implement frontend AI bot system
+  - [x] 24.1 Display AI bots in contact list
+    - Create bot-service.ts to fetch AI bot users from Backend Service API
     - Display AI bots in contact list with special badge/icon
     - Show AI bot personality name and always-online status
     - Filter AI bots to show only when user has no online contacts
     - _Requirements: 10.1, 10.2, 17.1, 16.3_
-  - [ ] 30.2 Implement AI bot chat initiation
+  - [x] 24.2 Implement AI bot chat initiation
     - Allow user to start conversation with AI bot like regular contact
     - Create conversation with AI bot as participant via Backend Service API
     - Open chat-window.tsx with AI bot
     - _Requirements: 10.3, 17.1, 16.3_
-  - [ ] 24.3 Enhance chat window for AI bots
+  - [x] 24.3 Enhance chat window for AI bots
     - Add visual indicator (badge/icon) for AI bot participants in chat-window.tsx
     - Create ai-response-loader.tsx loading indicator component
     - Display loading indicator while bot generates response
     - Use standard message rendering for AI bot messages
     - _Requirements: 10.3, 17.1, 16.3_
-  - [ ] 24.4 Implement AI bot message handling
+  - [x] 24.4 Implement AI bot message handling
     - Send messages to conversations with AI bots using standard message endpoint
     - Receive AI bot responses via Supabase Realtime subscriptions
     - Display AI bot messages identically to human messages
     - Handle loading states and errors
     - _Requirements: 10.4, 10.5_
-  - [ ] 24.5 Implement group conversations with AI bots
+  - [x] 24.5 Implement group conversations with AI bots
     - Allow adding AI bots to group conversations via new-group-chat-dialog.tsx
     - Display multiple AI bot participants in group chat
     - Handle responses from multiple AI bots in same conversation

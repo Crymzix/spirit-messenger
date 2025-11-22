@@ -47,3 +47,32 @@ export function createWindow(
 
     return window;
 }
+
+/**
+ * Show a notification window positioned at the bottom right of the screen.
+ * The window will auto-close after 5 seconds.
+ * @param senderName - Name of the message sender
+ * @param messagePreview - Preview of the message content
+ * @param senderId - ID of the sender (used when clicking to open chat)
+ */
+export function showNotificationWindow(
+    message: string,
+    description: string,
+    senderId?: string
+): WebviewWindow {
+    const label = `notification-${Date.now()}`;
+    const encodedMessage = encodeURIComponent(message);
+    const encodedDescription = encodeURIComponent(description);
+    const path = `/notification.html?message=${encodedMessage}&description=${encodedDescription}&senderId=${senderId}`;
+
+    return createWindow(label, path, {
+        width: 300,
+        height: 120,
+        decorations: false,
+        transparent: true,
+        alwaysOnTop: true,
+        skipTaskbar: true,
+        resizable: false,
+        focus: false,
+    });
+}

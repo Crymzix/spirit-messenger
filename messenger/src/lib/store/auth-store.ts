@@ -239,7 +239,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
             // Listen for auth changes from other windows
             await listen<AuthUser>('auth-changed', (event) => {
-                console.log('Auth changed event received:', event.payload);
                 const currentToken = get().token;
                 set({
                     user: event.payload,
@@ -251,7 +250,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
             // Listen for auth cleared from other windows
             await listen('auth-cleared', () => {
-                console.log('Auth cleared event received');
                 set({
                     user: null,
                     token: null,
@@ -261,8 +259,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
             // Set up Supabase auth state listener
             supabase.auth.onAuthStateChange(async (event, session) => {
-                console.log('Auth state changed:', event);
-
                 if (event === 'SIGNED_OUT') {
                     await get().clearAuth();
                 } else if (event === 'TOKEN_REFRESHED' && session) {

@@ -204,6 +204,19 @@
             "notification:allow-is-permission-granted",
             "notification:default"
           ]
+        },
+        {
+          "identifier": "notification-window-capability",
+          "windows": [
+            "notification-*"
+          ],
+          "permissions": [
+            "core:window:allow-close",
+            "core:event:allow-listen",
+            "core:event:default",
+            "positioner:default",
+            "os:default"
+          ]
         }
       ]
     }
