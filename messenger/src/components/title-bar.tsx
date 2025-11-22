@@ -1,12 +1,15 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { CSSProperties } from 'react';
 
 interface TitleBarProps {
   title?: string;
   showIcon?: boolean;
   icon?: React.ReactNode;
+  className?: string
+  style?: CSSProperties
 }
 
-export function TitleBar({ title = 'MSN Messenger', showIcon = true }: TitleBarProps) {
+export function TitleBar({ title = 'MSN Messenger', showIcon = true, className, style }: TitleBarProps) {
   const handleMinimize = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const appWindow = getCurrentWindow();
@@ -34,7 +37,8 @@ export function TitleBar({ title = 'MSN Messenger', showIcon = true }: TitleBarP
   return (
     <div
       data-tauri-drag-region
-      className="title-bar !h-[28px] flex items-center justify-between select-none"
+      style={style}
+      className={`title-bar !h-[28px] flex items-center justify-between select-none ${className}`}
     >
       <div className="flex items-center gap-2 title-bar-text" data-tauri-drag-region>
         {showIcon && (

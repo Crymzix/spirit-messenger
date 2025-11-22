@@ -134,6 +134,13 @@
       "when": 1763696548526,
       "tag": "0018_wealthy_blur",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1763782430321,
+      "tag": "0019_icy_magneto",
+      "breakpoints": true
     }
   ]
 }

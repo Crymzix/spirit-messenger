@@ -69,3 +69,32 @@ g indicator animation */
 .animate-typing-pulse {
   animation: typing-pulse 1.4s infinite;
 }
+
+/* Blinking orange animation for unread messages */
+@keyframes blink-orange {
+  0%, 49% {
+    box-shadow: inset -1px -1px #00138c,inset 1px 1px #0831d9,inset -2px -2px #001ea0,inset 2px 2px #166aee,inset -3px -3px #003bda,inset 3px 3px #0855dd;
+  }
+  50%, 100% {
+    box-shadow: rgba(216, 102, 12, 1) -1px -1px inset, rgb(216, 102, 12) 1px 1px inset, rgb(216, 102, 12) -2px -2px inset, rgb(216, 102, 12) 2px 2px inset, rgb(216, 102, 12) -3px -3px inset, rgb(216, 102, 12) 3px 3px inset;
+  }
+}
+
+@keyframes blink-orange-title {
+  0%, 49% {
+    background: linear-gradient(rgb(0, 88, 238) 0%, rgb(53, 147, 255) 4%, rgb(40, 142, 255) 6%, rgb(18, 125, 255) 8%, rgb(3, 111, 252) 10%, rgb(2, 98, 238) 14%, rgb(0, 87, 229) 20%, rgb(0, 84, 227) 24%, rgb(0, 85, 235) 56%, rgb(0, 91, 245) 66%, rgb(2, 106, 254) 76%, rgb(0, 98, 239) 86%, rgb(0, 82, 214) 92%, rgb(0, 64, 171) 94%, rgb(0, 48, 146) 100%);
+    border-color: rgb(0, 60, 165);
+  }
+  50%, 100% {
+    background: linear-gradient(180deg,#d8680c,#D8660C 8%,#D8660C 40%,#d8720c 88%,#d8720c 93%,#d8720c 95%,#d8720c 96%,#d8720c);
+    border-color: #D8660C;
+  }
+}
+
+.animate-blink-orange {
+  animation: blink-orange 1s infinite;
+}
+
+.animate-blink-orange-title {
+  animation: blink-orange-title 1s infinite;
+}

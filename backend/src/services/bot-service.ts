@@ -334,6 +334,15 @@ export async function generateAutonomousBotMessage(
     const bot = await getBotWithConfig(botUserId);
     if (!bot) return null;
 
+    // Check backoff - stop messaging after too many unanswered attempts
+    const unansweredCount = await getUnansweredCount(botUserId, conversationId);
+    const maxUnanswered = 3; // Stop after 3 unanswered messages
+
+    if (unansweredCount >= maxUnanswered) {
+        console.log(`Bot ${bot.user.username} backing off - ${unansweredCount} unanswered messages`);
+        return null;
+    }
+
     // Get conversation history
     const conversationHistory = await getConversationContext(botUserId, conversationId);
 
@@ -370,17 +379,22 @@ export async function generateAutonomousBotMessage(
         return null;
     }
 
-    // Calculate delay (shorter for autonomous messages)
-    const delay = Math.random() * 5000 + 2000; // 2-7 seconds
+    // Calculate delay with exponential backoff based on unanswered count
+    const baseDelay = Math.random() * 5000 + 2000; // 2-7 seconds
+    const backoffMultiplier = Math.pow(2, unansweredCount); // 1x, 2x, 4x
+    const delay = baseDelay * backoffMultiplier;
     const typingDuration = Math.min(content.length * (bot.config.typingSpeed || 50), 5000);
 
-    // Update autonomous schedule
+    // Update autonomous schedule and increment unanswered count
     await updateAutonomousSchedule(botUserId);
+    await incrementUnansweredCount(botUserId, conversationId);
 
     // Log the action
     await logBotAction(botUserId, conversationId, 'autonomous_message', {
         delay,
         typingDuration,
+        unansweredCount: unansweredCount + 1,
+        backoffMultiplier,
     });
 
     return {
@@ -451,7 +465,8 @@ async function updateConversationContext(
         .update(botConversationContexts)
         .set({
             lastInteractionAt: new Date(),
-            interactionCount: sql`${botConversationContexts.interactionCount} + 1`
+            interactionCount: sql`${botConversationContexts.interactionCount} + 1`,
+            unansweredCount: 0, // Reset when user interacts
         })
         .where(
             and(
@@ -459,6 +474,47 @@ async function updateConversationContext(
                 eq(botConversationContexts.conversationId, conversationId)
             )
         );
+}
+
+/**
+ * Increment unanswered count after autonomous message
+ */
+async function incrementUnansweredCount(
+    botUserId: string,
+    conversationId: string
+): Promise<void> {
+    await db
+        .update(botConversationContexts)
+        .set({
+            unansweredCount: sql`COALESCE(${botConversationContexts.unansweredCount}, 0) + 1`,
+        })
+        .where(
+            and(
+                eq(botConversationContexts.botUserId, botUserId),
+                eq(botConversationContexts.conversationId, conversationId)
+            )
+        );
+}
+
+/**
+ * Get unanswered count for backoff calculation
+ */
+async function getUnansweredCount(
+    botUserId: string,
+    conversationId: string
+): Promise<number> {
+    const [context] = await db
+        .select({ unansweredCount: botConversationContexts.unansweredCount })
+        .from(botConversationContexts)
+        .where(
+            and(
+                eq(botConversationContexts.botUserId, botUserId),
+                eq(botConversationContexts.conversationId, conversationId)
+            )
+        )
+        .limit(1);
+
+    return context?.unansweredCount || 0;
 }
 
 /**

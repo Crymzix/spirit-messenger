@@ -42,6 +42,7 @@ export function ChatWindow() {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const prevMessageCountRef = useRef<number>(0);
     const isLoadingOlderMessagesRef = useRef<boolean>(false);
+    const [isWindowFocused, setIsWindowFocused] = useState(true);
 
     // File transfer mutations
     const initiateTransferMutation = useInitiateFileTransfer();
@@ -60,12 +61,36 @@ export function ChatWindow() {
 
     const messagesData = messagesQueryData?.messages || [];
 
-    // Mark messages as read when conversation is loaded
+    // Mark messages as read when conversation is loaded and when window receives focus
     useEffect(() => {
-        if (conversation?.id) {
-            markAsReadMutation.mutate(conversation.id);
-        }
+        if (!conversation?.id) return;
+
+        // Mark as read on initial load
+        markAsReadMutation.mutate(conversation.id);
+
+        // Track focus state and mark as read when window receives focus
+        const appWindow = getCurrentWindow();
+        const unlisten = appWindow.onFocusChanged(({ payload: focused }) => {
+            setIsWindowFocused(focused);
+            if (focused && conversation?.id) {
+                markAsReadMutation.mutate(conversation.id);
+            }
+        });
+
+        return () => {
+            unlisten.then((fn) => fn());
+        };
     }, [conversation?.id]);
+
+    // Determine if we should show the blinking effect
+    // Blink if window is unfocused and there are unread messages from other users
+    const shouldBlink = useMemo(() => {
+        if (isWindowFocused || !user || messagesData.length === 0) {
+            return false;
+        }
+        // Check if any message from another user has readAt = null
+        return messagesData.some(m => m.senderId !== user.id && !m.readAt);
+    }, [isWindowFocused, user, messagesData]);
 
     // Shake window when nudge is received
     const handleNudgeReceived = useCallback(async () => {
@@ -386,8 +411,13 @@ export function ChatWindow() {
     };
 
     return (
-        <div className="window w-full h-screen flex flex-col">
-            <TitleBar title={`${displayName} - Conversation`} />
+        <div
+            className={`window w-full h-screen flex flex-col ${shouldBlink ? 'animate-blink-orange' : ''}`}
+        >
+            <TitleBar
+                title={`${displayName} - Conversation`}
+                className={shouldBlink ? 'animate-blink-orange-title' : ''}
+            />
             <div className="window-body flex-1 !my-[0px] !mx-[3px] relative flex flex-col min-h-0">
                 <div className="flex flex-col overflow-hidden">
                     {/* Menu Bar */}
@@ -645,8 +675,8 @@ export function ChatWindow() {
                                             participants[0] ?
                                                 participants[0]?.isAiBot ?
                                                     <Avatar name={participants[0]?.displayName || participants[0]?.username} colors={["#0481f6", "#4edfb3", "#ff005b", "#ff7d10", "#ffb238"]} variant="marble" square className='size-[96px] rounded-[7px]' /> :
-                                                        <img className="size-[96px] border border-[#586170] rounded-[7px]" src={participants[0]?.displayPictureUrl || '/default-profile-pictures/friendly_dog.png'} alt="" /> :
-                                                        <div className="size-[96px] bg-gray-300 rounded-[7px]" />
+                                                    <img className="size-[96px] border border-[#586170] rounded-[7px]" src={participants[0]?.displayPictureUrl || '/default-profile-pictures/friendly_dog.png'} alt="" /> :
+                                                <div className="size-[96px] bg-gray-300 rounded-[7px]" />
                                         }
                                         <img className="self-end m-[3px_5px]" src="/down.png" alt="" />
                                         <img className="absolute top-1 right-0 translate-x-[9px]" src="/expand-left.png" alt="" />

@@ -1,0 +1,1 @@
+ALTER TABLE "bot_conversation_contexts" ADD COLUMN "unanswered_count" integer DEFAULT 0;

@@ -105,7 +105,7 @@ export async function generateResponse(options: LLMResponseOptions): Promise<LLM
             system: systemPrompt,
             messages,
             maxTokens: 500, // Keep responses reasonably sized
-            temperature: 0.8 + (personality.traits.humor * 0.2), // More humor = more creative
+            temperature: 0.7 + (personality.traits.humor * 0.15), // Slightly lower for more realistic responses
         });
 
         const responseText = response.text;

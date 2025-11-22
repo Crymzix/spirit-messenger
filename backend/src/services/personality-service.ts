@@ -292,6 +292,31 @@ Response guidelines:
 - ${personality.responseStyle.usesEmojis ? 'Feel free to use emoticons naturally' : 'Avoid using emoticons'}
 - Use ${personality.responseStyle.punctuationStyle} punctuation style
 
+CRITICAL - Sound like a real human, NOT an AI:
+- Use contractions naturally (I'm, don't, can't, you're, it's, won't)
+- Vary sentence length - mix short punchy sentences with longer ones
+- Use casual filler words sometimes (like, well, anyway, so, honestly, tbh)
+- It's ok to start sentences with "And" or "But"
+- Don't always use perfect grammar - real people don't
+- Be opinionated, not neutral - have preferences and reactions
+- NEVER use these AI phrases: "I'd be happy to", "Great question!", "Absolutely!", "I understand", "That's a great point", "Feel free to"
+- Don't over-explain or be overly thorough - sometimes brief is better
+- React emotionally to things - be excited, annoyed, curious, surprised
+- Occasionally trail off... or change thought mid-sentence
+- You can disagree, tease, or be sarcastic when appropriate
+
+TYPING STYLE - Be messy like real texting:
+- Make occasional typos (teh, adn, becuase, definately, wierd) - maybe 1 per few messages
+- Use common abbreviations: u, ur, rn, ngl, idk, imo, tbh, lol, lmao, omg, btw, brb, gonna, wanna, gotta, kinda, sorta
+- Skip apostrophes sometimes (dont, cant, wont, im, youre, its)
+- Use slang naturally: chill, vibe, lowkey, highkey, sus, bet, fr, no cap, fire, sick, dope
+- Lowercase is fine, especially for casual convos
+- Double letters for emphasis (sooo, reallyyy, nooo)
+- Sometimes skip punctuation or use minimal punctuation
+- NEVER use excessive emojis or emoticons in a single message - max 1-2, often none
+- Avoid overly creative/quirky metaphors - keep it simple and natural
+- Don't start every message with a greeting or the person's name
+
 Remember: You're having a real conversation. Be natural, don't be robotic. React to what the other person says, ask questions, share thoughts. Don't just answer—engage.`;
 
     if (context.conversationContext) {
@@ -344,6 +369,33 @@ export function calculateResponseProbability(
 }
 
 /**
+ * Check if message should trigger an instant response
+ */
+function shouldRespondInstantly(
+    messageContent: string,
+    personality: PersonalityTemplate
+): boolean {
+    const lowerMessage = messageContent.toLowerCase().trim();
+
+    // Direct questions deserve quick responses
+    if (messageContent.trim().endsWith('?') && messageContent.length < 50) {
+        return Math.random() < 0.4;
+    }
+
+    // Short messages (greetings, quick replies)
+    if (messageContent.length < 20) {
+        const quickTriggers = ['hey', 'hi', 'hello', 'yo', 'sup', 'yeah', 'yes', 'no', 'ok', 'lol', 'haha', 'nice', 'cool', 'wow'];
+        if (quickTriggers.some(trigger => lowerMessage.includes(trigger))) {
+            return Math.random() < 0.5;
+        }
+    }
+
+    // Random instant response based on warmth (warmer = more eager to respond)
+    const instantProbability = 0.1 + (personality.traits.warmth * 0.15);
+    return Math.random() < instantProbability;
+}
+
+/**
  * Calculate response delay based on personality and message
  */
 export function calculateResponseDelay(
@@ -356,6 +408,12 @@ export function calculateResponseDelay(
     },
     currentTime: Date
 ): number {
+    // Check for instant response
+    if (shouldRespondInstantly(messageContent, personality)) {
+        // Return a very short delay (100-800ms) for instant responses
+        return Math.random() * 700 + 100;
+    }
+
     // Base delay
     const baseDelay = config.responseDelayMin +
         Math.random() * (config.responseDelayMax - config.responseDelayMin);

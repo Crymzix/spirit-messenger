@@ -316,6 +316,7 @@ export const botConversationContexts = pgTable('bot_conversation_contexts', {
     conversationSummary: text('conversation_summary'), // Summary of older messages
     lastInteractionAt: timestamp('last_interaction_at'),
     interactionCount: integer('interaction_count').default(0),
+    unansweredCount: integer('unanswered_count').default(0), // Consecutive unanswered autonomous messages
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
 }, (table) => [

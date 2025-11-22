@@ -11,7 +11,6 @@ import {
     generateAutonomousBotMessage,
     getBotsWithAutonomousMessaging,
     getActiveBotConversations,
-    getBotWithConfig,
 } from '../services/bot-service.js';
 import {
     queueBotResponse,
