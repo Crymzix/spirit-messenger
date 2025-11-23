@@ -4,6 +4,7 @@ import authPlugin from './plugins/auth.js';
 import corsPlugin from './plugins/cors.js';
 import rateLimitPlugin from './plugins/rate-limit.js';
 import multipartPlugin from './plugins/multipart.js';
+import { startPresenceListener, stopPresenceListener } from './services/presence-listener.js';
 
 const fastify = Fastify({
     logger: {
@@ -98,6 +99,17 @@ fastify.get('/', async () => {
     };
 });
 
+// Graceful shutdown handler
+const shutdown = async (signal: string) => {
+    console.log(`\n${signal} received, shutting down gracefully...`);
+    await stopPresenceListener();
+    await fastify.close();
+    process.exit(0);
+};
+
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+
 // Start server
 const start = async () => {
     try {
@@ -105,6 +117,9 @@ const start = async () => {
         const host = process.env.HOST || '0.0.0.0';
 
         await fastify.listen({ port, host });
+
+        // Start presence listener after server is ready
+        await startPresenceListener();
 
         console.log(`🚀 Backend service running on http://${host}:${port}`);
         console.log(`📊 Health check available at http://${host}:${port}/health`);

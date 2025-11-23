@@ -16,6 +16,9 @@
  */
 
 import { apiPut } from '../api-client';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { supabase } from '../supabase';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { PresenceStatus } from '@/types';
 
 export interface UpdatePresenceData {
@@ -33,6 +36,10 @@ let isTrackingActivity = false;
 let lastActivityTime = Date.now();
 let currentPresenceStatus: PresenceStatus = 'online';
 let userSetStatus: PresenceStatus = 'online'; // The status the user explicitly set
+
+// Supabase Presence channel
+let presenceChannel: RealtimeChannel | null = null;
+let currentUserId: string | null = null;
 
 /**
  * Update user presence status
@@ -57,6 +64,9 @@ export async function updatePresence(
     if (presenceStatus !== 'away' || !isTrackingActivity) {
         userSetStatus = presenceStatus;
     }
+
+    // Update Supabase presence track
+    await updatePresenceTrack();
 
     return response.data;
 }
@@ -108,6 +118,12 @@ function setAutoAway(): void {
 export function startActivityTracking(
     initialStatus: PresenceStatus = 'online'
 ): void {
+    // Always set initial presence status on the backend, even if already tracking
+    // This handles cases like page reload where state may be stale
+    updatePresence(initialStatus).catch((error) => {
+        console.error('Failed to set initial presence status:', error);
+    });
+
     if (isTrackingActivity) {
         console.warn('Activity tracking is already enabled');
         return;
@@ -227,4 +243,116 @@ export async function setUserPresenceStatus(
     }
 
     return updatePresence(status);
+}
+
+/**
+ * Initialize Supabase Presence channel for automatic disconnect detection
+ * @param userId - The current user's ID
+ */
+export async function initPresenceChannel(userId: string): Promise<void> {
+    // If there's an existing channel (e.g., from hot reload), clean it up first
+    if (presenceChannel) {
+        console.log('Cleaning up stale presence channel before reinitializing');
+        await presenceChannel.untrack();
+        await supabase.removeChannel(presenceChannel);
+        presenceChannel = null;
+    }
+
+    currentUserId = userId;
+
+    presenceChannel = supabase.channel('presence:online', {
+        config: {
+            presence: {
+                key: userId,
+            },
+        },
+    });
+
+    presenceChannel
+        .on('presence', { event: 'sync' }, () => {
+            const state = presenceChannel?.presenceState();
+            console.log('Presence sync:', state);
+        })
+        .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+            console.log('User joined:', key, newPresences);
+        })
+        .on('presence', { event: 'leave' }, async ({ key, leftPresences }) => {
+            console.log('User left:', key, leftPresences);
+            // When a user disconnects, update their status to offline
+            // This is handled by detecting our own disconnect on reconnect
+            // or by other clients observing the leave event
+        })
+        .subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                // Track our presence with current status
+                await presenceChannel?.track({
+                    status: currentPresenceStatus,
+                    userId: userId,
+                    online_at: new Date().toISOString(),
+                });
+                console.log('Presence channel subscribed and tracking');
+            }
+        });
+}
+
+/**
+ * Update presence tracking state in Supabase channel
+ */
+async function updatePresenceTrack(): Promise<void> {
+    if (presenceChannel && currentUserId) {
+        await presenceChannel.track({
+            status: currentPresenceStatus,
+            userId: currentUserId,
+            online_at: new Date().toISOString(),
+        });
+    }
+}
+
+/**
+ * Cleanup Supabase Presence channel
+ */
+export async function cleanupPresenceChannel(): Promise<void> {
+    if (presenceChannel) {
+        await presenceChannel.untrack();
+        await supabase.removeChannel(presenceChannel);
+        presenceChannel = null;
+        currentUserId = null;
+        console.log('Presence channel cleaned up');
+    }
+}
+
+/**
+ * Set user offline and cleanup
+ * Called when app is closing or user is logging out
+ */
+export async function setOfflineOnExit(): Promise<void> {
+    if (isTrackingActivity || currentPresenceStatus !== 'offline') {
+        stopActivityTracking();
+        try {
+            // Set offline first, then cleanup the channel
+            await updatePresence('offline');
+            await cleanupPresenceChannel();
+        } catch (error) {
+            console.error('Failed to set offline status on exit:', error);
+        }
+    }
+}
+
+/**
+ * Initialize Tauri lifecycle listeners for presence management
+ * Call this once when the app starts and user is authenticated
+ *
+ * Note: Offline status on app quit/crash is handled by the backend's presence
+ * listener which detects Supabase Presence disconnects. This onCloseRequested
+ * handler provides a graceful fallback for normal window close operations.
+ */
+export async function initPresenceLifecycle(): Promise<void> {
+    const appWindow = getCurrentWindow();
+
+    // Handle window close request (graceful fallback)
+    await appWindow.onCloseRequested(async () => {
+        await setOfflineOnExit();
+    });
+
+    console.log('Presence lifecycle listeners initialized');
 }

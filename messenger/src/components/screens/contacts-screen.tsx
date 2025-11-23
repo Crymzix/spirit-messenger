@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '../../lib/store/auth-store';
 import { useProfileSubscription } from '../../lib/hooks/profile-hooks';
 import { Layout } from '../layout';
@@ -20,6 +20,13 @@ export function ContactsScreen() {
     const [activeTab, setActiveTab] = useState(0);
 
     useProfileSubscription();
+
+    // Sync local state with user's presence from store (updated via realtime subscription)
+    useEffect(() => {
+        if (user?.presenceStatus && user.presenceStatus !== presenceStatus) {
+            setPresenceStatus(user.presenceStatus);
+        }
+    }, [user?.presenceStatus]);
 
     const onStatusChange = (status: PresenceStatus) => {
         setPresenceStatus(status);

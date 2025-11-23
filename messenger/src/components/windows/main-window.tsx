@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { SignInScreen } from "../screens/sign-in-screen";
 import { RegistrationScreen } from "../screens/registration-screen";
 import {
@@ -7,20 +7,24 @@ import {
     useIsAuthenticated,
     useAuthLoading,
     useAuthInitialized,
+    useUser,
 } from "@/lib/hooks/auth-hooks";
 import { useGlobalMessageUpdates } from "@/lib/hooks/message-hooks";
 import { ContactsScreen } from "../screens/contacts-screen";
 import { Loading } from "../loading";
 import { useFileUploadStore } from "@/lib/store/file-upload-store";
+import { initPresenceLifecycle, startActivityTracking, initPresenceChannel } from "@/lib/services/presence-service";
 
 type AuthView = 'signin' | 'register' | 'main';
 
 export function MainWindow() {
     const [currentView, setCurrentView] = useState<AuthView>('signin');
+    const presenceInitialized = useRef(false);
 
     const isAuthenticated = useIsAuthenticated();
     const isAuthLoading = useAuthLoading();
     const isAuthInitialized = useAuthInitialized();
+    const user = useUser();
     const signInMutation = useSignIn();
     const signUpMutation = useSignUp();
     const initializeMainWindow = useFileUploadStore((state) => state.initializeMainWindow);
@@ -35,6 +39,31 @@ export function MainWindow() {
             setCurrentView('signin');
         }
     }, [isAuthInitialized, isAuthenticated]);
+
+    // Initialize presence lifecycle and activity tracking when authenticated
+    useEffect(() => {
+        if (isAuthInitialized && isAuthenticated && user?.id) {
+            // Skip if already initialized (handles React Strict Mode double-invoke)
+            if (presenceInitialized.current) {
+                return;
+            }
+            presenceInitialized.current = true;
+
+            // Initialize Supabase Presence channel for disconnect detection
+            initPresenceChannel(user.id).catch((error) => {
+                console.error('Failed to initialize presence channel:', error);
+            });
+
+            // Initialize Tauri lifecycle listeners for presence
+            // This handles the actual window close/quit - we don't need React cleanup
+            initPresenceLifecycle().catch((error) => {
+                console.error('Failed to initialize presence lifecycle:', error);
+            });
+
+            // Start activity tracking for auto-away
+            startActivityTracking('online');
+        }
+    }, [isAuthInitialized, isAuthenticated, user?.id]);
 
     // Initialize file upload manager for main window
     useEffect(() => {
