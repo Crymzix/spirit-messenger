@@ -37,11 +37,22 @@ export async function startPresenceListener(): Promise<void> {
         })
         .on('presence', { event: 'leave' }, async ({ key, leftPresences }) => {
             // key is the userId that left
-            console.log(`👋 User left presence: ${key}`);
+            console.log(`👋 User left presence: ${key}`, leftPresences);
+
+            // Wait a bit for potential reconnection (e.g., during status change)
+            // This prevents setting offline during normal track() updates
+            await new Promise(resolve => setTimeout(resolve, 3000));
+
+            // Check if user has rejoined the presence channel
+            const currentState = presenceChannel?.presenceState();
+            if (currentState && currentState[key] && currentState[key].length > 0) {
+                console.log(`⏭️ User ${key} has rejoined, skipping offline update`);
+                return;
+            }
 
             // Dynamically import to avoid loading before env is ready
             const { redisConnection } = await import('../config/queue.js');
-            const { updateUserPresence } = await import('./user-service.js');
+            const { updateUserPresence, getUserById } = await import('./user-service.js');
 
             // Try to acquire distributed lock to handle this disconnect
             // This prevents multiple backend instances from processing the same event
@@ -50,7 +61,26 @@ export async function startPresenceListener(): Promise<void> {
 
             if (lockAcquired) {
                 try {
-                    console.log(`🔒 Acquired lock for ${key}, setting offline`);
+                    // Double-check user is still not in presence after acquiring lock
+                    const recheckState = presenceChannel?.presenceState();
+                    if (recheckState && recheckState[key] && recheckState[key].length > 0) {
+                        console.log(`⏭️ User ${key} rejoined during lock acquisition, skipping`);
+                        return;
+                    }
+
+                    // Check current user status before setting offline
+                    const user = await getUserById(key);
+                    if (!user) {
+                        console.log(`⚠️ User ${key} not found, skipping offline update`);
+                        return;
+                    }
+
+                    if (user.presenceStatus === 'offline') {
+                        console.log(`⏭️ User ${key} already offline, skipping`);
+                        return;
+                    }
+
+                    console.log(`🔒 Acquired lock for ${key}, setting offline (was: ${user.presenceStatus})`);
                     await updateUserPresence(key, { presenceStatus: 'offline' });
                     console.log(`✅ Set user ${key} to offline`);
                 } catch (error) {

@@ -1,0 +1,38 @@
+# Next.js build output
+.next/
+out/
+
+# Node.js modules
+node_modules/
+
+# Environment variables
+.env.local
+.env.*.local
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Editor/OS specific files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# SWC cache (if used)
+.swc/
+
+# Vercel-specific files (if deploying to Vercel)
+.vercel/
+
+# Other temporary files
+coverage/
+*.log
+*.tgz
+*.zip
+.cache/
+
+# Optional: If you have a separate public build output
+# public/build/
