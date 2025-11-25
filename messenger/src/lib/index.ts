@@ -24,6 +24,16 @@ export {
     useSetPresenceStatus,
 } from './hooks/presence-hooks';
 export { useAuthStore } from './store/auth-store';
+export {
+    useSettingsStore,
+    useSettings,
+    useNotificationSettings,
+    useStartupSettings,
+    useFileSettings,
+    useSettingsLoaded,
+    useSettingsActions,
+    type AppSettings,
+} from './store/settings-store';
 export { queryClient } from './query-client';
 export { supabase } from './supabase';
 export {

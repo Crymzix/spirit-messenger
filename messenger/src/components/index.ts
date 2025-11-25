@@ -16,3 +16,6 @@ export { EmoticonPicker } from './emoticon-picker';
 export { MessageContent } from './message-content';
 export { ContactGroupHeader } from './contact-group-header';
 export { FileTransferRequestMessage } from './file-transfer-request-message';
+export { GeneralSettings } from './general-settings';
+export { SoundsSettings } from './sounds-settings';
+export { FilesSettings } from './files-settings';

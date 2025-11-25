@@ -1,207 +1,37 @@
+mod auth;
+mod settings;
+
+use crate::auth::AuthManager;
+use crate::settings::SettingsManager;
 use log::error;
-use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
-use std::sync::Mutex;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, Manager, WebviewWindowBuilder, WindowEvent,
 };
 
-/// Represents a user in the authentication system
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AuthUser {
-    pub id: String,
-    pub email: String,
-    pub username: String,
-    pub display_name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub personal_message: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub display_picture_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub presence_status: Option<String>,
-}
-
-/// Authentication data that includes user, access token, and refresh token
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AuthData {
-    pub user: AuthUser,
-    pub token: String,
-    pub refresh_token: String,
-}
-
 /// Global application state
 pub struct AppState {
-    auth_data: Mutex<Option<AuthData>>,
-    storage_path: PathBuf,
     profile: Option<String>,
 }
 
 impl AppState {
-    /// Create a new AppState with storage at the given path
-    pub fn new(storage_path: PathBuf, profile: Option<String>) -> Self {
-        let mut state = Self {
-            auth_data: Mutex::new(None),
-            storage_path,
-            profile,
-        };
-
-        // Load auth data from disk on initialization
-        if let Err(e) = state.load_from_disk() {
-            eprintln!("Failed to load auth data from disk: {}", e);
-        }
-
-        state
+    /// Create a new AppState
+    pub fn new(profile: Option<String>) -> Self {
+        Self { profile }
     }
 
-    /// Load authentication data from disk
-    fn load_from_disk(&mut self) -> Result<(), String> {
-        if !self.storage_path.exists() {
-            return Ok(());
-        }
-
-        let contents = fs::read_to_string(&self.storage_path)
-            .map_err(|e| format!("Failed to read auth data file: {}", e))?;
-
-        let auth_data: AuthData = serde_json::from_str(&contents)
-            .map_err(|e| format!("Failed to parse auth data: {}", e))?;
-
-        *self.auth_data.lock().unwrap() = Some(auth_data);
-
-        Ok(())
+    /// Get the current profile name (for multi-instance support)
+    pub fn get_profile(&self) -> Option<String> {
+        self.profile.clone()
     }
-
-    /// Save authentication data to disk
-    fn save_to_disk(&self) -> Result<(), String> {
-        let auth_data = self.auth_data.lock().unwrap();
-
-        if let Some(data) = auth_data.as_ref() {
-            let json = serde_json::to_string_pretty(data)
-                .map_err(|e| format!("Failed to serialize auth data: {}", e))?;
-
-            // Ensure parent directory exists
-            if let Some(parent) = self.storage_path.parent() {
-                fs::create_dir_all(parent)
-                    .map_err(|e| format!("Failed to create storage directory: {}", e))?;
-            }
-
-            fs::write(&self.storage_path, json)
-                .map_err(|e| format!("Failed to write auth data file: {}", e))?;
-        } else {
-            // If no auth data, delete the file
-            if self.storage_path.exists() {
-                fs::remove_file(&self.storage_path)
-                    .map_err(|e| format!("Failed to remove auth data file: {}", e))?;
-            }
-        }
-
-        Ok(())
-    }
-}
-
-/// Get the current authenticated user
-#[tauri::command]
-fn get_user(state: tauri::State<AppState>) -> Option<AuthUser> {
-    state
-        .auth_data
-        .lock()
-        .unwrap()
-        .as_ref()
-        .map(|data| data.user.clone())
-}
-
-/// Get the current authentication token
-#[tauri::command]
-fn get_token(state: tauri::State<AppState>) -> Option<String> {
-    state
-        .auth_data
-        .lock()
-        .unwrap()
-        .as_ref()
-        .map(|data| data.token.clone())
-}
-
-/// Get the current refresh token
-#[tauri::command]
-fn get_refresh_token(state: tauri::State<AppState>) -> Option<String> {
-    state
-        .auth_data
-        .lock()
-        .unwrap()
-        .as_ref()
-        .map(|data| data.refresh_token.clone())
-}
-
-/// Set the authentication data (user, access token, and refresh token)
-#[tauri::command]
-fn set_auth(
-    app: tauri::AppHandle,
-    state: tauri::State<AppState>,
-    user: AuthUser,
-    token: String,
-    refresh_token: String,
-) -> Result<(), String> {
-    *state.auth_data.lock().unwrap() = Some(AuthData {
-        user: user.clone(),
-        token,
-        refresh_token,
-    });
-    state.save_to_disk()?;
-
-    // Emit event to all windows
-    let _ = app.emit("auth-changed", user);
-
-    Ok(())
-}
-
-/// Update the current user's data
-#[tauri::command]
-fn update_user(
-    app: tauri::AppHandle,
-    state: tauri::State<AppState>,
-    user_updates: AuthUser,
-) -> Result<(), String> {
-    let mut auth_data = state.auth_data.lock().unwrap();
-
-    if let Some(data) = auth_data.as_mut() {
-        data.user = user_updates.clone();
-        drop(auth_data); // Release the lock before saving
-        state.save_to_disk()?;
-
-        // Emit event to all windows
-        let _ = app.emit("auth-changed", user_updates);
-
-        Ok(())
-    } else {
-        Err("No user is currently authenticated".to_string())
-    }
-}
-
-/// Clear the authentication data (sign out)
-#[tauri::command]
-fn clear_auth(app: tauri::AppHandle, state: tauri::State<AppState>) -> Result<(), String> {
-    *state.auth_data.lock().unwrap() = None;
-    state.save_to_disk()?;
-
-    // Emit event to all windows to clear auth
-    let _ = app.emit("auth-cleared", ());
-
-    Ok(())
-}
-
-/// Check if user is authenticated
-#[tauri::command]
-fn is_authenticated(state: tauri::State<AppState>) -> bool {
-    state.auth_data.lock().unwrap().is_some()
 }
 
 /// Get the current profile name (for multi-instance support)
 #[tauri::command]
 fn get_profile(state: tauri::State<AppState>) -> Option<String> {
-    state.profile.clone()
+    state.get_profile()
 }
 
 /// Request notification permission
@@ -304,6 +134,27 @@ async fn save_file(app: AppHandle, file_data: Vec<u8>, filename: String) -> Resu
     Ok(file_path.to_string_lossy().to_string())
 }
 
+/// Set auto-launch on system startup
+/// Enables or disables the application to start automatically when the computer boots
+#[tauri::command]
+async fn set_auto_launch(app: AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+
+    let autostart_manager = app.autolaunch();
+
+    if enabled {
+        autostart_manager
+            .enable()
+            .map_err(|e| format!("Failed to enable auto-launch: {}", e))?;
+    } else {
+        autostart_manager
+            .disable()
+            .map_err(|e| format!("Failed to disable auto-launch: {}", e))?;
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 fn open_chat_window(
     handle: AppHandle,
@@ -353,6 +204,11 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec!["--minimized"]),
+        ))
         .setup(|app| {
             // Get the app data directory for storage
             let mut app_data_dir = app
@@ -370,10 +226,19 @@ pub fn run() {
                 println!("Data directory: {:?}", app_data_dir);
             }
 
-            let storage_path = app_data_dir.join("auth_data.json");
+            let auth_storage_path = app_data_dir.join("auth_data.json");
+            let settings_storage_path = app_data_dir.join("settings.json");
+
+            // Initialize auth manager
+            let auth_manager = AuthManager::new(auth_storage_path);
+            app.manage(auth_manager);
+
+            // Initialize settings manager
+            let settings_manager = SettingsManager::new(settings_storage_path);
+            app.manage(settings_manager);
 
             // Initialize app state
-            let state = AppState::new(storage_path, profile);
+            let state = AppState::new(profile);
             app.manage(state);
 
             // Create system tray menu
@@ -426,20 +291,26 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            get_user,
-            get_token,
-            get_refresh_token,
-            set_auth,
-            update_user,
-            clear_auth,
-            is_authenticated,
+            auth::get_user,
+            auth::get_token,
+            auth::get_refresh_token,
+            auth::set_auth,
+            auth::update_user,
+            auth::clear_auth,
+            auth::is_authenticated,
+            settings::get_settings,
+            settings::update_notification_settings,
+            settings::update_startup_settings,
+            settings::update_file_settings,
+            settings::reset_settings,
             get_profile,
             open_chat_window,
             request_notification_permission,
             show_notification,
             play_sound,
             open_file_dialog,
-            save_file
+            save_file,
+            set_auto_launch
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

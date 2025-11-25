@@ -579,7 +579,7 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Request notification permissions
     - Display system notifications with title and body
     - _Requirements: 8.5_
-  - [ ] 31.2 Implement notification triggers
+  - [x] 31.2 Implement notification triggers
     - Create notification-service.ts
     - Show notification on new message when window not focused
     - Include message preview in notification
@@ -691,32 +691,31 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Apply filters to Supabase search query
     - _Requirements: 15.5, 17.1, 16.3_
 
-- [ ] 26. Implement application settings
-  - [ ] 32.1 Create settings window component
-    - Build settings-window.tsx with tabbed interface
-    - Create tabs: General, Privacy, Sounds, Files, Profile
+- [x] 26. Implement application settings
+  - [x] 32.1 Create settings window component
+    - Implement all settings in the options-window.tsx component
+    - Create sidebar tabs: General, Privacy, Sounds, Files, Profile
     - Implement tab navigation
-    - Style with classic MSN design
     - _Requirements: 14.1, 17.1, 16.3_
-  - [ ] 32.2 Implement General settings
-    - Create general-settings.tsx component
+  - [x] 32.2 Implement General settings
+    - Create general-settings.tsx component (used within options-window.tsx)
     - Add auto-launch toggle with Tauri command (set_auto_launch in lib.rs)
     - Add start minimized toggle
     - Save settings to localStorage
     - _Requirements: 14.3, 17.1, 16.3_
-  - [ ] 32.3 Implement Sounds settings
-    - Create sounds-settings.tsx component
+  - [x] 32.3 Implement Sounds settings
+    - Create sounds-settings.tsx component (used within options-window.tsx)
     - Add notification sounds toggle
     - Add volume slider
     - Add sound preview buttons
     - _Requirements: 14.2, 17.1, 16.3_
-  - [ ] 29.4 Implement Files settings
-    - Create files-settings.tsx component
+  - [x] 29.4 Implement Files settings
+    - Create files-settings.tsx component (used within options-window.tsx)
     - Add download location selector with Tauri file dialog
     - Display current download location
     - Add "Open Folder" button
     - _Requirements: 14.4, 17.1, 16.3_
-  - [ ] 26.5 Implement settings persistence
+  - [x] 26.5 Implement settings persistence
     - Create settings-store.ts with Zustand
     - Save settings to localStorage
     - Load settings on app startup
@@ -737,46 +736,46 @@ See Requirement 18 in requirements.md and the React Query Architecture section i
     - Create tray-service.ts for frontend integration
     - _Requirements: 12.1, 12.2, 12.3, 17.1, 16.3_
 
-- [ ] 28. Implement real-time synchronization and connection management
-  - [ ] 31.1 Create WebSocket connection manager
+- [x] 28. Implement real-time synchronization and connection management
+  - [x] 31.1 Create WebSocket connection manager
     - Create realtime-manager.ts to manage Supabase Realtime connection
     - Establish persistent WebSocket connection to Supabase
     - Implement connection state tracking
     - Create connection-status-indicator.tsx component
     - _Requirements: 13.2, 17.1, 16.3_
-  - [ ] 31.2 Implement reconnection logic
+  - [x] 31.2 Implement reconnection logic
     - Detect connection interruptions in realtime-manager.ts
     - Implement exponential backoff reconnection
     - Attempt reconnection every 5 seconds for up to 5 minutes
     - Create reconnection-ui.tsx component
     - _Requirements: 13.3, 17.1, 16.3_
-  - [ ] 31.3 Implement message synchronization
+  - [x] 31.3 Implement message synchronization
     - Create message-queue.ts to queue messages when Backend Service is unreachable
     - Send queued messages on reconnection
     - Fetch missed messages from Supabase on reconnection
     - Update message delivery status
     - _Requirements: 13.4, 17.1, 16.3_
 
-- [ ] 29. Implement classic MSN Messenger styling
-  - [ ] 32.1 Create TailwindCSS theme configuration
+- [x] 29. Implement classic MSN Messenger styling
+  - [x] 32.1 Create TailwindCSS theme configuration
     - Define MSN color palette in tailwind.config.js
     - Create custom utility classes for MSN styling
     - Set up font configuration (Tahoma, Arial)
     - Add MSN-specific colors (msn-blue, msn-online, msn-away, msn-busy, msn-bg, msn-light-blue)
     - _Requirements: 11.1, 17.1, 16.3_
-  - [ ] 32.2 Style main window components
+  - [x] 32.2 Style main window components
     - Apply classic MSN window chrome styling to main-window.tsx
     - Style contact-list.tsx with proper spacing and colors
     - Implement hover and active states
     - Add presence status color indicators
     - _Requirements: 11.1, 11.2, 17.1, 16.3_
-  - [ ] 32.3 Style chat window components
+  - [x] 32.3 Style chat window components
     - Apply classic chat window layout to chat-window.tsx
     - Style message-bubble.tsx with proper colors
     - Implement alternating message colors
     - Add timestamp styling
     - _Requirements: 11.4, 17.1, 16.3_
-  - [ ] 29.4 Create animations and transitions
+  - [x] 29.4 Create animations and transitions
     - Create animations.css with MSN-specific animations
     - Implement contact status change fade (200ms)
     - Add window open/close slide animation (150ms)

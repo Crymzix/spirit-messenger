@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "../../lib/query-client";
 import { useAuthStore } from "../../lib/store/auth-store";
 import { Loading } from "../loading";
+import { useSettingsStore } from "@/lib";
 
 interface WindowEntryWrapperProps {
     children: React.ReactNode;
@@ -13,6 +14,13 @@ interface WindowEntryWrapperProps {
 function WindowEntryWrapper({ children, showLoading = false }: WindowEntryWrapperProps) {
     const [isInitialized, setIsInitialized] = useState(false);
     const initialize = useAuthStore((state) => state.initialize);
+    const loadSettings = useSettingsStore((state) => state.loadSettings);
+
+    useEffect(() => {
+        loadSettings().catch((error) => {
+            console.error('Failed to load settings:', error);
+        });
+    }, [loadSettings]);
 
     useEffect(() => {
         initialize().then(() => {

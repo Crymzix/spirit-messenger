@@ -71,8 +71,8 @@ export function UserProfile({ presenceStatus, onStatusChange }: UserProfileProps
 
     const handleOptions = () => {
         setIsStatusDropdownOpen(false);
-
-        createWindow('options', '/options.html', {
+        const path = `/options.html?option=profile`
+        createWindow('options', path, {
             title: 'Options',
             width: 480,
             height: 600,

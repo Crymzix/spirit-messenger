@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { useSettingsStore } from '../store/settings-store';
 
 /**
  * Sound types available in the application
@@ -7,26 +8,14 @@ import { listen } from '@tauri-apps/api/event';
 export type SoundType = 'message' | 'contact_online' | 'contact_offline' | 'nudge' | 'video_call';
 
 /**
- * Sound settings interface
- */
-export interface SoundSettings {
-    enabled: boolean;
-    volume: number; // 0.0 to 1.0
-}
-
-/**
  * Service for playing sounds in the application
+ * Uses the global settings store for sound preferences
  */
 export class SoundService {
-    private settings: SoundSettings = {
-        enabled: true,
-        volume: 0.7,
-    };
     private audioElements: Map<string, HTMLAudioElement> = new Map();
     private initialized = false;
 
     constructor() {
-        this.loadSettings();
         this.setupEventListener();
     }
 
@@ -50,28 +39,11 @@ export class SoundService {
     }
 
     /**
-     * Load sound settings from localStorage
+     * Get current sound settings from the global settings store
      */
-    private loadSettings(): void {
-        try {
-            const stored = localStorage.getItem('sound-settings');
-            if (stored) {
-                this.settings = JSON.parse(stored);
-            }
-        } catch (error) {
-            console.error('Failed to load sound settings:', error);
-        }
-    }
-
-    /**
-     * Save sound settings to localStorage
-     */
-    private saveSettings(): void {
-        try {
-            localStorage.setItem('sound-settings', JSON.stringify(this.settings));
-        } catch (error) {
-            console.error('Failed to save sound settings:', error);
-        }
+    private getSettings() {
+        const state = useSettingsStore.getState();
+        return state.settings.notifications;
     }
 
     /**
@@ -80,7 +52,8 @@ export class SoundService {
      * @param volume - Volume level (0.0 to 1.0)
      */
     private playAudioFile(soundFile: string, volume: number): void {
-        if (!this.settings.enabled) return;
+        const settings = this.getSettings();
+        if (!settings.soundEnabled) return;
 
         try {
             // Get or create audio element for this sound
@@ -93,7 +66,8 @@ export class SoundService {
 
             // Reset to beginning if already playing
             audio.currentTime = 0;
-            audio.volume = volume * this.settings.volume;
+            // Convert volume from 0-100 to 0-1 scale
+            audio.volume = volume * (settings.soundVolume / 100);
 
             // Play the sound
             audio.play().catch((error) => {
@@ -109,12 +83,14 @@ export class SoundService {
      * @param soundType - Type of sound to play
      */
     async play(soundType: SoundType): Promise<void> {
-        if (!this.settings.enabled) return;
+        const settings = this.getSettings();
+        if (!settings.soundEnabled) return;
 
         try {
+            // Convert volume from 0-100 to 0-1 scale for Rust backend
             await invoke('play_sound', {
                 soundType,
-                volume: this.settings.volume,
+                volume: settings.soundVolume / 100,
             });
         } catch (error) {
             console.error(`Failed to play sound ${soundType}:`, error);
@@ -159,68 +135,55 @@ export class SoundService {
 
     /**
      * Enable or disable sounds
+     * Updates the global settings store
      * @param enabled - Whether sounds should be enabled
      */
     setEnabled(enabled: boolean): void {
-        this.settings.enabled = enabled;
-        this.saveSettings();
+        const state = useSettingsStore.getState();
+        state.updateNotificationSettings({ soundEnabled: enabled });
     }
 
     /**
      * Check if sounds are enabled
      */
     isEnabled(): boolean {
-        return this.settings.enabled;
+        return this.getSettings().soundEnabled;
     }
 
     /**
      * Set the volume level
-     * @param volume - Volume level (0.0 to 1.0)
+     * Updates the global settings store
+     * @param volume - Volume level (0-100)
      */
     setVolume(volume: number): void {
-        this.settings.volume = Math.max(0, Math.min(1, volume));
-        this.saveSettings();
+        const clampedVolume = Math.max(0, Math.min(100, volume));
+        const state = useSettingsStore.getState();
+        state.updateNotificationSettings({ soundVolume: clampedVolume });
     }
 
     /**
-     * Get the current volume level
+     * Get the current volume level (0-100)
      */
     getVolume(): number {
-        return this.settings.volume;
-    }
-
-    /**
-     * Get the current sound settings
-     */
-    getSettings(): SoundSettings {
-        return { ...this.settings };
-    }
-
-    /**
-     * Update sound settings
-     * @param settings - New sound settings
-     */
-    updateSettings(settings: Partial<SoundSettings>): void {
-        this.settings = {
-            ...this.settings,
-            ...settings,
-        };
-        this.saveSettings();
+        return this.getSettings().soundVolume;
     }
 
     /**
      * Preview a sound (useful for settings UI)
+     * Always plays regardless of enabled setting
      * @param soundType - Type of sound to preview
      */
     async previewSound(soundType: SoundType): Promise<void> {
-        // Temporarily enable sounds for preview
-        const wasEnabled = this.settings.enabled;
-        this.settings.enabled = true;
+        const settings = this.getSettings();
 
         try {
-            await this.play(soundType);
-        } finally {
-            this.settings.enabled = wasEnabled;
+            // Always play preview with current volume
+            await invoke('play_sound', {
+                soundType,
+                volume: settings.soundVolume / 100,
+            });
+        } catch (error) {
+            console.error(`Failed to preview sound ${soundType}:`, error);
         }
     }
 }
