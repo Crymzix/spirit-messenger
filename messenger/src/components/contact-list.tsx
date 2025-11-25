@@ -28,6 +28,7 @@ import {
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { SortableGroupItem } from './sortable-group-item';
+import { NewsBanner } from './news-banner';
 
 interface GroupedContacts {
     online: Contact[];
@@ -290,7 +291,7 @@ export function ContactList() {
 
     if (contactsLoading || blockedContactsLoading || groupsLoading || botsLoading) {
         return (
-            <div className="flex-1 overflow-y-auto h-[calc(100vh-210px)] flex items-center justify-center">
+            <div className="flex-1 overflow-y-auto h-[calc(100vh-282px)] flex items-center justify-center">
                 <div style={{ fontFamily: 'Pixelated MS Sans Serif' }} className="text-[11px] text-gray-600">
                     Loading contacts...
                 </div>
@@ -304,8 +305,8 @@ export function ContactList() {
         : "All of your contacts are offline";
 
     return (
-        <>
-            <div className="flex-1 overflow-y-auto h-[calc(100vh-210px)] ml-[2px]">
+        <div>
+            <div className="flex-1 overflow-y-auto h-[calc(100vh-282px)] ml-[2px]">
                 {/* Pending Contact Requests */}
                 {renderPendingInvites()}
 
@@ -378,6 +379,7 @@ export function ContactList() {
                 {/* Blocked Contacts */}
                 {renderGroup('Blocked', groupedContacts.blocked, 'blocked')}
             </div>
-        </>
+            <NewsBanner />
+        </div>
     );
 }

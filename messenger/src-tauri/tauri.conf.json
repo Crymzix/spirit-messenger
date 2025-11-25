@@ -48,7 +48,9 @@
             "core:window:allow-set-position",
             "core:tray:default",
             "notification:allow-is-permission-granted",
-            "notification:default"
+            "notification:default",
+            "opener:allow-open-url",
+            "opener:default"
           ]
         },
         {
@@ -149,7 +151,9 @@
             "notification:allow-is-permission-granted",
             "notification:default",
             "core:window:allow-outer-position",
-            "core:window:allow-set-position"
+            "core:window:allow-set-position",
+            "opener:allow-open-url",
+            "opener:default"
           ]
         },
         {

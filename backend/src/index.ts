@@ -81,6 +81,9 @@ await fastify.register(aiRoutes.default, { prefix: '/api/ai' });
 const botRoutes = await import('./routes/bot.js');
 await fastify.register(botRoutes.default, { prefix: '/api' });
 
+const newsRoutes = await import('./routes/news.js');
+await fastify.register(newsRoutes.default, { prefix: '/api/news' });
+
 // Health check endpoint
 fastify.get('/health', async () => {
     return {
