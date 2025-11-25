@@ -41,6 +41,7 @@ export function ContactList() {
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
     const { data: acceptedContacts = [], isLoading: contactsLoading } = useContacts('accepted');
+    const { data: blockedContacts = [], isLoading: blockedContactsLoading } = useContacts('blocked');
     const { data: customGroups = [], isLoading: groupsLoading, refetch: refetchGroups } = useContactGroups();
     const { data: groupMemberships, refetch: refetchMemberships } = useContactGroupMemberships();
     const { data: bots = [], isLoading: botsLoading } = useBots();
@@ -79,14 +80,12 @@ export function ContactList() {
         const grouped: GroupedContacts = {
             online: [],
             offline: [],
-            blocked: [],
+            blocked: blockedContacts,
             custom: new Map()
         };
 
         acceptedContacts.forEach((contact) => {
-            if (contact.status === 'blocked') {
-                grouped.blocked.push(contact);
-            } else if (
+            if (
                 contact.contactUser.presenceStatus === 'online' ||
                 contact.contactUser.presenceStatus === 'away' ||
                 contact.contactUser.presenceStatus === 'busy'
@@ -109,7 +108,7 @@ export function ContactList() {
         }
 
         return grouped;
-    }, [acceptedContacts, customGroups, groupMemberships])
+    }, [acceptedContacts, blockedContacts, customGroups, groupMemberships])
 
     useEffect(() => {
         const appWindow = getCurrentWindow()
@@ -289,7 +288,7 @@ export function ContactList() {
         );
     }
 
-    if (contactsLoading || groupsLoading || botsLoading) {
+    if (contactsLoading || blockedContactsLoading || groupsLoading || botsLoading) {
         return (
             <div className="flex-1 overflow-y-auto h-[calc(100vh-210px)] flex items-center justify-center">
                 <div style={{ fontFamily: 'Pixelated MS Sans Serif' }} className="text-[11px] text-gray-600">

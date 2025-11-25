@@ -13,6 +13,7 @@ import {
     InsertConversationParticipant,
     SelectUser,
 } from '../db/schema.js';
+import { isBlocked } from './contact-service.js';
 
 /**
  * Message Service
@@ -121,6 +122,30 @@ export async function createMessage(
                 'NOT_PARTICIPANT',
                 403
             );
+        }
+
+        // Check if user is blocked by any participant in the conversation
+        const allParticipants = await db
+            .select()
+            .from(conversationParticipants)
+            .where(
+                and(
+                    eq(conversationParticipants.conversationId, data.conversationId),
+                    isNull(conversationParticipants.leftAt)
+                )
+            );
+
+        for (const otherParticipant of allParticipants) {
+            if (otherParticipant.userId !== userId) {
+                const blocked = await isBlocked(userId, otherParticipant.userId);
+                if (blocked) {
+                    throw new MessageServiceError(
+                        'Cannot send message to blocked contact',
+                        'CONTACT_BLOCKED',
+                        403
+                    );
+                }
+            }
         }
 
         // Create message
@@ -285,12 +310,24 @@ export async function createConversation(
                     participantUserIds.includes(otherUserId) &&
                     participantUserIds.length === 2
                 ) {
-                    // Return existing conversation
+                    // Return existing conversation (even if blocked - they can view old messages)
                     return {
                         ...conv.conversation,
                         participants: participantUsers,
                     };
                 }
+            }
+        }
+
+        // Check if any participants are blocked before creating NEW conversation
+        for (const participantId of participantIds) {
+            const blocked = await isBlocked(userId, participantId);
+            if (blocked) {
+                throw new MessageServiceError(
+                    'Cannot create conversation with blocked contact',
+                    'CONTACT_BLOCKED',
+                    403
+                );
             }
         }
 

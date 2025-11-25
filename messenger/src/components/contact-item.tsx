@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Contact, PresenceStatus } from '@/types';
 import { invoke } from '@tauri-apps/api/core';
 import { createWindow } from '@/lib/utils/window-utils';
+import { useBlockContact, useUnblockContact } from '@/lib/hooks/contact-hooks';
 
 interface ContactItemProps {
     contact: Contact;
@@ -13,6 +14,10 @@ export function ContactItem({ contact, hasUnread = false }: ContactItemProps) {
     const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
     const contextMenuRef = useRef<HTMLDivElement>(null);
     const { contactUser } = contact;
+
+    const blockContactMutation = useBlockContact();
+    const unblockContactMutation = useUnblockContact();
+    const isBlocked = contact.status === 'blocked';
 
     // Close context menu when clicking outside
     useEffect(() => {
@@ -89,14 +94,37 @@ export function ContactItem({ contact, hasUnread = false }: ContactItemProps) {
         });
     };
 
+    const handleBlockContact = async () => {
+        setShowContextMenu(false);
+        try {
+            await blockContactMutation.mutateAsync({
+                contactId: contact.id,
+                userId: contact.contactUser.id
+            });
+        } catch (error) {
+            console.error('Failed to block contact:', error);
+        }
+    };
+
+    const handleUnblockContact = async () => {
+        setShowContextMenu(false);
+        try {
+            await unblockContactMutation.mutateAsync({
+                contactId: contact.id,
+                userId: contact.contactUser.id
+            });
+        } catch (error) {
+            console.error('Failed to unblock contact:', error);
+        }
+    };
+
     return (
         <>
             <div
                 onDoubleClick={handleDoubleClick}
                 onContextMenu={handleContextMenu}
-                className={`flex items-center gap-2 px-2 py-1.5 hover:bg-msn-light-blue cursor-pointer transition-colors ${
-                    hasUnread ? 'bg-blue-50' : ''
-                }`}
+                className={`flex items-center gap-2 px-2 py-1.5 hover:bg-msn-light-blue cursor-pointer transition-colors ${hasUnread ? 'bg-blue-50' : ''
+                    }`}
             >
                 {/* Display Picture - 96x96px as per requirements, but scaled down for list view */}
                 <div className="relative flex-shrink-0">
@@ -126,9 +154,8 @@ export function ContactItem({ contact, hasUnread = false }: ContactItemProps) {
                 {/* Contact Info */}
                 <div className="flex-1 min-w-0">
                     {/* Display Name */}
-                    <div className={`text-[11px] text-black truncate font-verdana ${
-                        hasUnread ? 'font-bold' : 'font-medium'
-                    }`}>
+                    <div className={`text-[11px] text-black truncate font-verdana ${hasUnread ? 'font-bold' : 'font-medium'
+                        }`}>
                         {contactUser.displayName || contactUser.username}
                     </div>
                     {/* Personal Message */}
@@ -150,17 +177,47 @@ export function ContactItem({ contact, hasUnread = false }: ContactItemProps) {
                         top: `${contextMenuPosition.y}px`,
                     }}
                 >
-                    <div
-                        onClick={handleAddToGroup}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-msn-light-blue transition-colors text-left whitespace-nowrap cursor-pointer"
-                    >
-                        <div className='w-4' />
-                        <span
-                            style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                    {!isBlocked && (
+                        <>
+                            <div
+                                onClick={handleAddToGroup}
+                                className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-msn-light-blue transition-colors text-left whitespace-nowrap cursor-pointer"
+                            >
+                                <div className='w-4' />
+                                <span
+                                    style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                >
+                                    Add to Group
+                                </span>
+                            </div>
+                            <div className="border-t border-gray-300" />
+                        </>
+                    )}
+                    {isBlocked ? (
+                        <div
+                            onClick={handleUnblockContact}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-msn-light-blue transition-colors text-left whitespace-nowrap cursor-pointer"
                         >
-                            Add to Group
-                        </span>
-                    </div>
+                            <div className='w-4' />
+                            <span
+                                style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                            >
+                                Unblock Contact
+                            </span>
+                        </div>
+                    ) : (
+                        <div
+                            onClick={handleBlockContact}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-md hover:bg-msn-light-blue transition-colors text-left whitespace-nowrap cursor-pointer"
+                        >
+                            <div className='w-4' />
+                            <span
+                                style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                            >
+                                Block Contact
+                            </span>
+                        </div>
+                    )}
                     <div className="border-t border-gray-300" />
                     <div
                         onClick={handleRemoveContact}

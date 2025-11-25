@@ -458,3 +458,190 @@ export async function getContactById(contactId: string): Promise<SelectContact |
         );
     }
 }
+
+/**
+ * Block a contact
+ * Changes the status of an accepted contact to 'blocked'
+ */
+export async function blockContact(
+    userId: string,
+    contactId: string
+): Promise<SelectContact> {
+    try {
+        // Validate input
+        if (!userId) {
+            throw new ContactServiceError('User ID is required', 'INVALID_USER_ID', 400);
+        }
+
+        if (!contactId) {
+            throw new ContactServiceError('Contact ID is required', 'INVALID_CONTACT_ID', 400);
+        }
+
+        // Find the contact
+        const [contact] = await db
+            .select()
+            .from(contacts)
+            .where(eq(contacts.id, contactId))
+            .limit(1);
+
+        if (!contact) {
+            throw new ContactServiceError('Contact not found', 'CONTACT_NOT_FOUND', 404);
+        }
+
+        // Verify that the current user is part of this contact relationship
+        if (contact.userId !== userId && contact.contactUserId !== userId) {
+            throw new ContactServiceError(
+                'You can only block your own contacts',
+                'UNAUTHORIZED_BLOCK',
+                403
+            );
+        }
+
+        // Check if contact is already blocked
+        if (contact.status === 'blocked') {
+            throw new ContactServiceError(
+                'Contact is already blocked',
+                'ALREADY_BLOCKED',
+                400
+            );
+        }
+
+        // Update contact status to blocked
+        const [updatedContact] = await db
+            .update(contacts)
+            .set({
+                status: 'blocked',
+                updatedAt: new Date(),
+            })
+            .where(eq(contacts.id, contactId))
+            .returning();
+
+        if (!updatedContact) {
+            throw new ContactServiceError('Failed to block contact', 'BLOCK_CONTACT_FAILED', 500);
+        }
+
+        return updatedContact;
+    } catch (error) {
+        if (error instanceof ContactServiceError) {
+            throw error;
+        }
+        throw new ContactServiceError(
+            'Failed to block contact',
+            'BLOCK_CONTACT_FAILED',
+            500
+        );
+    }
+}
+
+/**
+ * Unblock a contact
+ * Changes the status of a blocked contact back to 'accepted'
+ */
+export async function unblockContact(
+    userId: string,
+    contactId: string
+): Promise<SelectContact> {
+    try {
+        // Validate input
+        if (!userId) {
+            throw new ContactServiceError('User ID is required', 'INVALID_USER_ID', 400);
+        }
+
+        if (!contactId) {
+            throw new ContactServiceError('Contact ID is required', 'INVALID_CONTACT_ID', 400);
+        }
+
+        // Find the contact
+        const [contact] = await db
+            .select()
+            .from(contacts)
+            .where(eq(contacts.id, contactId))
+            .limit(1);
+
+        if (!contact) {
+            throw new ContactServiceError('Contact not found', 'CONTACT_NOT_FOUND', 404);
+        }
+
+        // Verify that the current user is part of this contact relationship
+        if (contact.userId !== userId && contact.contactUserId !== userId) {
+            throw new ContactServiceError(
+                'You can only unblock your own contacts',
+                'UNAUTHORIZED_UNBLOCK',
+                403
+            );
+        }
+
+        // Check if contact is blocked
+        if (contact.status !== 'blocked') {
+            throw new ContactServiceError(
+                'Contact is not blocked',
+                'NOT_BLOCKED',
+                400
+            );
+        }
+
+        // Update contact status to accepted
+        const [updatedContact] = await db
+            .update(contacts)
+            .set({
+                status: 'accepted',
+                updatedAt: new Date(),
+            })
+            .where(eq(contacts.id, contactId))
+            .returning();
+
+        if (!updatedContact) {
+            throw new ContactServiceError('Failed to unblock contact', 'UNBLOCK_CONTACT_FAILED', 500);
+        }
+
+        return updatedContact;
+    } catch (error) {
+        if (error instanceof ContactServiceError) {
+            throw error;
+        }
+        throw new ContactServiceError(
+            'Failed to unblock contact',
+            'UNBLOCK_CONTACT_FAILED',
+            500
+        );
+    }
+}
+
+/**
+ * Check if a user is blocked by or has blocked another user
+ * Returns true if either user has blocked the other
+ */
+export async function isBlocked(userId: string, otherUserId: string): Promise<boolean> {
+    try {
+        // Validate input
+        if (!userId || !otherUserId) {
+            return false;
+        }
+
+        // Check if a blocked contact relationship exists in either direction
+        const blockedContact = await db
+            .select()
+            .from(contacts)
+            .where(
+                and(
+                    or(
+                        and(
+                            eq(contacts.userId, userId),
+                            eq(contacts.contactUserId, otherUserId)
+                        ),
+                        and(
+                            eq(contacts.userId, otherUserId),
+                            eq(contacts.contactUserId, userId)
+                        )
+                    ),
+                    eq(contacts.status, 'blocked')
+                )
+            )
+            .limit(1);
+
+        return blockedContact.length > 0;
+    } catch (error) {
+        // In case of error, assume not blocked to avoid blocking legitimate communication
+        return false;
+    }
+}

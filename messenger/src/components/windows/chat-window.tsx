@@ -18,6 +18,8 @@ import { createFileInput, validateFile } from "@/lib/utils/file-utils";
 import { useFileUploadStore, fileToArrayBuffer } from "@/lib/store/file-upload-store";
 import Avatar from "boring-avatars";
 import { HandwritingCanvas } from "../handwriting-canvas";
+import { useContacts } from "@/lib/hooks/contact-hooks";
+import { WINDOW_EVENTS } from "@/lib/utils/constants";
 
 export function ChatWindow() {
     // Extract contactId and contactName from URL query parameters
@@ -29,7 +31,7 @@ export function ChatWindow() {
     const {
         data: conversation,
         isLoading: isLoadingConversation,
-        error: conversationError
+        error: conversationError,
     } = useConversation(contactUserId);
 
     const user = useUser()
@@ -133,7 +135,7 @@ export function ChatWindow() {
         if (!conversation?.id) return;
 
         const unlisten = listen<{ conversationId: string; senderId: string }>(
-            'nudge-received',
+            WINDOW_EVENTS.NUDGE_RECEIVED,
             (event) => {
                 if (event.payload.conversationId === conversation.id) {
                     handleNudgeReceived();
@@ -154,6 +156,21 @@ export function ChatWindow() {
     }, [conversation, user?.id])
 
     useParticipantRealtimeUpdates(participants, conversation?.id);
+
+    // Check if any participant is blocked based on contacts list
+    const { data: blockedContacts, refetch: fetchBlockedContacts } = useContacts('blocked');
+
+    const isContactBlocked = useMemo(() => {
+        if (!participants || participants.length === 0) return false;
+
+        // Check if any participant is in the blocked contacts list
+        const participantIds = participants.map(p => p.id);
+        const isBlocked = blockedContacts?.some(contact =>
+            participantIds.includes(contact.contactUser.id)
+        ) ?? false;
+
+        return isBlocked;
+    }, [participants, blockedContacts]);
 
     // Map typing user IDs to usernames based on conversation participants
     const typingUsernames = useMemo(() => {
@@ -176,6 +193,10 @@ export function ChatWindow() {
     }, [contactName, participants])
 
     const canSend = useMemo(() => {
+        if (isContactBlocked) {
+            return false
+        }
+
         if (!messageInput?.trim()) {
             return false
         }
@@ -185,7 +206,7 @@ export function ChatWindow() {
         }
 
         return true
-    }, [isLoadingConversation, isLoadingMessages, sendMessageMutation.isPending, messageInput])
+    }, [isContactBlocked, isLoadingConversation, isLoadingMessages, sendMessageMutation.isPending, messageInput])
 
     // Calculate last message received from other users (not sent by current user)
     const lastMessageReceived = useMemo(() => {
@@ -253,6 +274,23 @@ export function ChatWindow() {
             isLoadingOlderMessagesRef.current = false;
         }
     }, [messagesData]);
+
+    useEffect(() => {
+        if (!conversation?.id) return;
+
+        const unlisten = listen<{ userId: string }>(
+            WINDOW_EVENTS.BLOCK_UPDATED,
+            (event) => {
+                if (participants.find(participant => participant.id === event?.payload.userId)) {
+                    fetchBlockedContacts()
+                }
+            }
+        );
+
+        return () => {
+            unlisten.then((fn) => fn());
+        };
+    }, [conversation?.id, participants]);
 
     const handleSendMessage = async () => {
         if (!messageInput.trim() || !conversation?.id) {
@@ -427,6 +465,37 @@ export function ChatWindow() {
             console.error('Failed to send handwriting:', error);
         }
     };
+
+    const renderInfo = () => {
+        if (!participants?.length) {
+            return null
+        }
+
+        const participant = participants[0]
+        if (participant?.presenceStatus === 'online') {
+            return null
+        }
+
+        if (participant?.presenceStatus === 'offline' || participant?.presenceStatus === 'appear_offline') {
+            return (
+                <div className="sticky top-0 flex border-[1px] border-black gap-1 bg-[#FFFDDA]">
+                    <img src="/info-icon.png" className="size-10" />
+                    <div className="font-verdana">
+                        {displayName} appears to be offline. Messages you send will be delivered when they sign in.
+                    </div>
+                </div>
+            )
+        }
+
+        return (
+            <div className="sticky top-0 flex border-[1px] border-black gap-1 bg-[#FFFDDA]">
+                <img src="/info-icon.png" className="size-10" />
+                <div className="font-verdana">
+                    {displayName} may not reply because his or her status is set to {participant?.presenceStatus}
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div
@@ -616,8 +685,9 @@ export function ChatWindow() {
                                     </div>
                                     <div
                                         ref={messageHistoryRef}
-                                        className="space-y-2 overflow-y-auto h-[calc(100vh-306px)] p-2"
+                                        className="space-y-2 overflow-y-auto h-[calc(100vh-306px)] p-2 relative"
                                     >
+                                        {renderInfo()}
                                         {!isLoadingMessages && hasNextPage && (
                                             <div className="text-center py-2">
                                                 <div
@@ -771,8 +841,8 @@ export function ChatWindow() {
                                                 value={messageInput}
                                                 onChange={handleInputChange}
                                                 onKeyDown={handleKeyPress}
-                                                placeholder="Type a message..."
-                                                disabled={sendMessageMutation.isPending}
+                                                placeholder={isContactBlocked ? "Cannot send messages to blocked contact" : "Type a message..."}
+                                                disabled={sendMessageMutation.isPending || isContactBlocked}
                                                 className={`w-full flex-1 !font-verdana !text-lg border border-[#ACA899] rounded resize-none focus:outline-none focus:border-msn-blue disabled:opacity-50 disabled:cursor-not-allowed ${formatting.bold ? 'font-bold' : ''} ${formatting.italic ? 'italic' : ''}`}
                                                 style={{
                                                     color: formatting.color || 'inherit'

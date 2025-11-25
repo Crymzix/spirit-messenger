@@ -13,9 +13,13 @@ import {
     acceptContactRequest,
     declineContactRequest,
     getContacts,
+    blockContact,
+    unblockContact,
 } from '../services/contact-service';
 import { useAuthStore } from '../store/auth-store';
 import type { Contact } from '@/types';
+import { emit } from '@tauri-apps/api/event';
+import { WINDOW_EVENTS } from '../utils/constants';
 
 /**
  * Hook to fetch and subscribe to pending contact requests
@@ -204,6 +208,59 @@ export function useContacts(status?: 'pending' | 'accepted' | 'blocked') {
             return response.contacts;
         },
         enabled: isAuthenticated,
+    });
+}
+
+/**
+ * Hook for blocking a contact
+ */
+export function useBlockContact() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (blockContactDto: BlockContactDto) => {
+            const { contactId, userId } = blockContactDto
+            const response = await blockContact(contactId);
+
+            await emit(WINDOW_EVENTS.BLOCK_UPDATED, { userId })
+
+            return response;
+        },
+        onSuccess: () => {
+            // Invalidate contacts queries to refetch the updated list
+            queryClient.invalidateQueries({ queryKey: ['contacts'] });
+            // Invalidate conversations to update isBlocked status in chat windows
+            queryClient.invalidateQueries({ queryKey: ['conversation'] });
+        },
+    });
+}
+
+interface BlockContactDto {
+    contactId: string
+    userId: string
+}
+
+/**
+ * Hook for unblocking a contact
+ */
+export function useUnblockContact() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (blockContactDto: BlockContactDto) => {
+            const { contactId, userId } = blockContactDto
+            const response = await unblockContact(contactId);
+
+            await emit(WINDOW_EVENTS.BLOCK_UPDATED, { userId })
+
+            return response;
+        },
+        onSuccess: () => {
+            // Invalidate contacts queries to refetch the updated list
+            queryClient.invalidateQueries({ queryKey: ['contacts'] });
+            // Invalidate conversations to update isBlocked status in chat windows
+            queryClient.invalidateQueries({ queryKey: ['conversation'] });
+        },
     });
 }
 

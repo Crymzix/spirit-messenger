@@ -26,6 +26,7 @@ import { soundService } from '../services/sound-service';
 import { showNotificationWindow } from '../utils/window-utils';
 import { useAuthStore } from '../store/auth-store';
 import type { User, Contact } from '@/types';
+import { WINDOW_EVENTS } from '../utils/constants';
 
 /**
  * Query key factory for message-related queries
@@ -405,7 +406,7 @@ export function useGlobalMessageUpdates(
                         soundService.playNudgeSound();
 
                         // Emit event to notify the specific chat window
-                        await emit('nudge-received', {
+                        await emit(WINDOW_EVENTS.NUDGE_RECEIVED, {
                             conversationId,
                             senderId,
                         });

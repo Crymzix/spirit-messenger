@@ -6,6 +6,8 @@ import {
     removeContact,
     getUserContacts,
     getPendingContactRequests,
+    blockContact,
+    unblockContact,
     ContactServiceError,
 } from '../services/contact-service.js';
 import type { ApiResponse } from '../types/index.js';
@@ -356,6 +358,124 @@ const contactsRoutes: FastifyPluginAsync = async (fastify) => {
                     success: true,
                     data: {
                         requests
+                    }
+                });
+            } catch (error) {
+                if (error instanceof ContactServiceError) {
+                    return reply.status(error.statusCode).send({
+                        success: false,
+                        error: error.message
+                    });
+                }
+
+                fastify.log.error(error);
+                return reply.status(500).send({
+                    success: false,
+                    error: 'Internal server error'
+                });
+            }
+        }
+    );
+
+    // POST /api/contacts/:contactId/block - Block a contact
+    fastify.post<{
+        Params: { contactId: string };
+        Reply: ApiResponse<{ contact: SelectContact }>;
+    }>(
+        '/:contactId/block',
+        {
+            preHandler: fastify.authenticate,
+            schema: {
+                params: {
+                    type: 'object',
+                    required: ['contactId'],
+                    properties: {
+                        contactId: {
+                            type: 'string',
+                            format: 'uuid'
+                        }
+                    }
+                }
+            }
+        },
+        async (request, reply) => {
+            try {
+                if (!request.user) {
+                    return reply.status(401).send({
+                        success: false,
+                        error: 'Unauthorized'
+                    });
+                }
+
+                const userId = request.user.id;
+                const { contactId } = request.params;
+
+                // Block contact using service
+                const contact = await blockContact(userId, contactId);
+
+                return reply.status(200).send({
+                    success: true,
+                    data: {
+                        contact
+                    }
+                });
+            } catch (error) {
+                if (error instanceof ContactServiceError) {
+                    return reply.status(error.statusCode).send({
+                        success: false,
+                        error: error.message
+                    });
+                }
+
+                fastify.log.error(error);
+                return reply.status(500).send({
+                    success: false,
+                    error: 'Internal server error'
+                });
+            }
+        }
+    );
+
+    // POST /api/contacts/:contactId/unblock - Unblock a contact
+    fastify.post<{
+        Params: { contactId: string };
+        Reply: ApiResponse<{ contact: SelectContact }>;
+    }>(
+        '/:contactId/unblock',
+        {
+            preHandler: fastify.authenticate,
+            schema: {
+                params: {
+                    type: 'object',
+                    required: ['contactId'],
+                    properties: {
+                        contactId: {
+                            type: 'string',
+                            format: 'uuid'
+                        }
+                    }
+                }
+            }
+        },
+        async (request, reply) => {
+            try {
+                if (!request.user) {
+                    return reply.status(401).send({
+                        success: false,
+                        error: 'Unauthorized'
+                    });
+                }
+
+                const userId = request.user.id;
+                const { contactId } = request.params;
+
+                // Unblock contact using service
+                const contact = await unblockContact(userId, contactId);
+
+                return reply.status(200).send({
+                    success: true,
+                    data: {
+                        contact
                     }
                 });
             } catch (error) {

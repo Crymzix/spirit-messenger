@@ -143,3 +143,39 @@ export async function getPendingRequests(): Promise<PendingRequestsResponse> {
 
     return response.data;
 }
+
+/**
+ * Block a contact
+ */
+export async function blockContact(
+    contactId: string
+): Promise<AcceptContactResponse> {
+    const response = await apiPost<AcceptContactResponse>(
+        `/api/contacts/${contactId}/block`,
+        {}
+    );
+
+    if (!response.success || !response.data) {
+        throw new Error(response.error || 'Failed to block contact');
+    }
+
+    return response.data;
+}
+
+/**
+ * Unblock a contact
+ */
+export async function unblockContact(
+    contactId: string
+): Promise<AcceptContactResponse> {
+    const response = await apiPost<AcceptContactResponse>(
+        `/api/contacts/${contactId}/unblock`,
+        {}
+    );
+
+    if (!response.success || !response.data) {
+        throw new Error(response.error || 'Failed to unblock contact');
+    }
+
+    return response.data;
+}
