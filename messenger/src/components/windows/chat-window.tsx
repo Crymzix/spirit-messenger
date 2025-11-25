@@ -17,6 +17,7 @@ import { useInitiateFileTransfer } from "@/lib/hooks/file-hooks";
 import { createFileInput, validateFile } from "@/lib/utils/file-utils";
 import { useFileUploadStore, fileToArrayBuffer } from "@/lib/store/file-upload-store";
 import Avatar from "boring-avatars";
+import { HandwritingCanvas } from "../handwriting-canvas";
 
 export function ChatWindow() {
     // Extract contactId and contactName from URL query parameters
@@ -410,6 +411,23 @@ export function ChatWindow() {
         }
     };
 
+    const handleSendHandwriting = async (imageData: string) => {
+        if (!conversation?.id) return;
+
+        try {
+            await sendMessageMutation.mutateAsync({
+                conversationId: conversation.id,
+                content: 'Handwriting',
+                messageType: 'image',
+                metadata: {
+                    imageData,
+                },
+            });
+        } catch (error) {
+            console.error('Failed to send handwriting:', error);
+        }
+    };
+
     return (
         <div
             className={`window w-full h-screen flex flex-col ${shouldBlink ? 'animate-blink-orange' : ''}`}
@@ -618,6 +636,7 @@ export function ChatWindow() {
                                         {messagesData.map((message) => {
                                             const sender = message.sender || conversation?.participants.find((p: User) => p.id === message.senderId);
                                             const isFileTransfer = message.messageType === 'file';
+                                            const isImage = message.messageType === 'image';
 
                                             return (
                                                 <div key={message.id} className="text-lg">
@@ -635,10 +654,16 @@ export function ChatWindow() {
                                                                     <FileTransferRequestMessage
                                                                         message={message}
                                                                     /> :
-                                                                    <MessageContent
-                                                                        content={message.content}
-                                                                        metadata={message.metadata}
-                                                                    />
+                                                                    isImage && message.metadata?.imageData ?
+                                                                        <img
+                                                                            src={message.metadata.imageData}
+                                                                            alt="Handwriting"
+                                                                            className="max-w-full h-auto"
+                                                                        /> :
+                                                                        <MessageContent
+                                                                            content={message.content}
+                                                                            metadata={message.metadata}
+                                                                        />
                                                             }
                                                         </div>
                                                     </div>
@@ -739,27 +764,33 @@ export function ChatWindow() {
                                             <img src="/nudge.png" className="size-8" />
                                         </div>
                                     </div>
-                                    <div className="flex py-4 px-2">
-                                        <textarea
-                                            ref={textareaRef}
-                                            value={messageInput}
-                                            onChange={handleInputChange}
-                                            onKeyDown={handleKeyPress}
-                                            placeholder="Type a message..."
-                                            disabled={sendMessageMutation.isPending}
-                                            className={`w-full flex-1 !font-verdana !text-lg border border-[#ACA899] rounded resize-none focus:outline-none focus:border-msn-blue disabled:opacity-50 disabled:cursor-not-allowed ${formatting.bold ? 'font-bold' : ''} ${formatting.italic ? 'italic' : ''}`}
-                                            style={{
-                                                color: formatting.color || 'inherit'
-                                            }}
-                                        />
-                                        <div
-                                            aria-disabled={!canSend}
-                                            onClick={handleSendMessage}
-                                            className={`!text-lg border border-[#93989C] bg-[#FBFBFB] w-[58px] h-full rounded-[5px] font-bold text-[0.6875em] flex items-center justify-center ${canSend ? "text-[#31497C] cursor-pointer" : "text-[#969C9A]"}`}
-                                            style={{ boxShadow: '-4px -4px 4px #C0C9E0 inset', fontFamily: 'Pixelated MS Sans Serif' }}>
-                                            Send
+                                    {activeTab === 'type' ? (
+                                        <div className="flex py-4 px-2">
+                                            <textarea
+                                                ref={textareaRef}
+                                                value={messageInput}
+                                                onChange={handleInputChange}
+                                                onKeyDown={handleKeyPress}
+                                                placeholder="Type a message..."
+                                                disabled={sendMessageMutation.isPending}
+                                                className={`w-full flex-1 !font-verdana !text-lg border border-[#ACA899] rounded resize-none focus:outline-none focus:border-msn-blue disabled:opacity-50 disabled:cursor-not-allowed ${formatting.bold ? 'font-bold' : ''} ${formatting.italic ? 'italic' : ''}`}
+                                                style={{
+                                                    color: formatting.color || 'inherit'
+                                                }}
+                                            />
+                                            <div
+                                                aria-disabled={!canSend}
+                                                onClick={handleSendMessage}
+                                                className={`!text-lg border border-[#93989C] bg-[#FBFBFB] w-[58px] h-full rounded-[5px] font-bold text-[0.6875em] flex items-center justify-center ${canSend ? "text-[#31497C] cursor-pointer" : "text-[#969C9A]"}`}
+                                                style={{ boxShadow: '-4px -4px 4px #C0C9E0 inset', fontFamily: 'Pixelated MS Sans Serif' }}>
+                                                Send
+                                            </div>
                                         </div>
-                                    </div>
+                                    ) : (
+                                        <div className="flex py-4 px-2">
+                                            <HandwritingCanvas onSend={handleSendHandwriting} />
+                                        </div>
+                                    )}
 
                                     {/* Bottom Bar */}
                                     <div

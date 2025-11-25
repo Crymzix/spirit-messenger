@@ -2,7 +2,7 @@
 
 export type PresenceStatus = 'online' | 'away' | 'busy' | 'appear_offline' | 'offline';
 
-export type MessageType = 'text' | 'file' | 'system';
+export type MessageType = 'text' | 'file' | 'system' | 'image';
 
 export type ConversationType = 'one_on_one' | 'group';
 
@@ -58,6 +58,7 @@ export interface Message {
     formatting?: { bold?: boolean; italic?: boolean; color?: string };
     fileInfo?: { filename: string; size: number; mimeType: string };
     fileTransferRequest?: { filename: string; size: number; mimeType: string };
+    imageData?: string; // base64 encoded image data
   };
   createdAt: Date;
   deliveredAt?: Date;

@@ -9,11 +9,12 @@ import type { Message, Conversation, User } from '@/types';
 export interface SendMessageData {
     conversationId: string;
     content: string;
-    messageType?: 'text' | 'file' | 'system';
+    messageType?: 'text' | 'file' | 'system' | 'image';
     metadata?: {
         emoticons?: Array<{ position: number; code: string }>;
         formatting?: { bold?: boolean; italic?: boolean; color?: string };
         fileInfo?: { filename: string; size: number; mimeType: string };
+        imageData?: string;
     };
 }
 

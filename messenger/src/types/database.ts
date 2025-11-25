@@ -3,7 +3,7 @@
 export type PresenceStatus = 'online' | 'away' | 'busy' | 'appear_offline' | 'offline';
 export type ContactStatus = 'pending' | 'accepted' | 'blocked';
 export type ConversationType = 'one_on_one' | 'group';
-export type MessageType = 'text' | 'file' | 'system';
+export type MessageType = 'text' | 'file' | 'system' | 'image';
 export type UploadStatus = 'pending' | 'completed' | 'failed';
 
 export interface Database {

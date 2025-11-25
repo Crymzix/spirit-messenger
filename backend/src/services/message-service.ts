@@ -26,7 +26,7 @@ import {
 export interface CreateMessageData {
     conversationId: string;
     content: string;
-    messageType?: 'text' | 'file' | 'system';
+    messageType?: 'text' | 'file' | 'system' | 'image';
     metadata?: Record<string, any>;
 }
 
@@ -81,7 +81,7 @@ export async function createMessage(
         }
 
         // Validate message type
-        const validMessageTypes = ['text', 'file', 'system'];
+        const validMessageTypes = ['text', 'file', 'system', 'image'];
         const messageType = data.messageType || 'text';
         if (!validMessageTypes.includes(messageType)) {
             throw new MessageServiceError(

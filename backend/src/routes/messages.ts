@@ -28,7 +28,7 @@ import type { SelectMessage } from '../db/schema.js';
 interface CreateMessageBody {
     conversationId: string;
     content: string;
-    messageType?: 'text' | 'file' | 'system';
+    messageType?: 'text' | 'file' | 'system' | 'image';
     metadata?: Record<string, any>;
 }
 
@@ -72,7 +72,7 @@ const messagesRoutes: FastifyPluginAsync = async (fastify) => {
                         },
                         messageType: {
                             type: 'string',
-                            enum: ['text', 'file', 'system'],
+                            enum: ['text', 'file', 'system', 'image'],
                         },
                         metadata: {
                             type: 'object',
