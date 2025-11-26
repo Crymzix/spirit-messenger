@@ -9,7 +9,7 @@ import type { Message, Conversation, User } from '@/types';
 export interface SendMessageData {
     conversationId: string;
     content: string;
-    messageType?: 'text' | 'file' | 'system' | 'image';
+    messageType?: 'text' | 'file' | 'system' | 'image' | 'voice';
     metadata?: {
         emoticons?: Array<{ position: number; code: string }>;
         formatting?: { bold?: boolean; italic?: boolean; color?: string };

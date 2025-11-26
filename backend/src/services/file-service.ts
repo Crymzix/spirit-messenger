@@ -81,6 +81,8 @@ export const ALLOWED_MIME_TYPES = [
     'audio/mp3',
     'audio/wav',
     'audio/ogg',
+    'audio/webm',
+    'audio/webm;codecs=opus',
     // Video
     'video/mp4',
     'video/mpeg',

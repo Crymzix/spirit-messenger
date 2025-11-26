@@ -24,11 +24,14 @@ import {
 } from '../services/message-service.js';
 import type { ApiResponse } from '../types/index.js';
 import type { SelectMessage } from '../db/schema.js';
+import { createClient } from '@supabase/supabase-js';
+import { createFile } from '../services/file-service.js';
+import { supabase } from '../lib/supabase.js';
 
 interface CreateMessageBody {
     conversationId: string;
     content: string;
-    messageType?: 'text' | 'file' | 'system' | 'image';
+    messageType?: 'text' | 'file' | 'system' | 'image' | 'voice';
     metadata?: Record<string, any>;
 }
 
@@ -72,7 +75,7 @@ const messagesRoutes: FastifyPluginAsync = async (fastify) => {
                         },
                         messageType: {
                             type: 'string',
-                            enum: ['text', 'file', 'system', 'image'],
+                            enum: ['text', 'file', 'system', 'image', 'voice'],
                         },
                         metadata: {
                             type: 'object',
@@ -598,6 +601,154 @@ const messagesRoutes: FastifyPluginAsync = async (fastify) => {
                     success: true,
                     data: {
                         markedCount,
+                    },
+                });
+            } catch (error) {
+                if (error instanceof MessageServiceError) {
+                    return reply.status(error.statusCode).send({
+                        success: false,
+                        error: error.message,
+                    });
+                }
+
+                fastify.log.error(error);
+                return reply.status(500).send({
+                    success: false,
+                    error: 'Internal server error',
+                });
+            }
+        }
+    );
+
+    // POST /api/messages/voice-clip - Upload a voice clip
+    fastify.post<{
+        Reply: ApiResponse<{ message: SelectMessage; file: any }>;
+    }>(
+        '/messages/voice-clip',
+        {
+            preHandler: fastify.authenticate,
+        },
+        async (request, reply) => {
+            try {
+                if (!request.user) {
+                    return reply.status(401).send({
+                        success: false,
+                        error: 'Unauthorized',
+                    });
+                }
+
+                const userId = request.user.id;
+                const data = await request.file();
+
+                if (!data) {
+                    return reply.status(400).send({
+                        success: false,
+                        error: 'No audio file uploaded',
+                    });
+                }
+
+                // Extract form fields
+                const conversationIdField = data.fields.conversationId as any;
+                const durationField = data.fields.duration as any;
+
+                const conversationId = Array.isArray(conversationIdField)
+                    ? conversationIdField[0].value
+                    : conversationIdField.value;
+                const durationStr = Array.isArray(durationField)
+                    ? durationField[0].value
+                    : durationField.value;
+
+                console.log('conversationIdField', conversationId)
+                console.log('durationField', durationStr)
+                const duration = parseFloat(durationStr || '0');
+
+                if (!conversationId) {
+                    return reply.status(400).send({
+                        success: false,
+                        error: 'conversationId is required',
+                    });
+                }
+
+                // Validate audio file MIME type
+                const allowedMimeTypes = [
+                    'audio/wav',
+                    'audio/webm'
+                ];
+
+                if (!allowedMimeTypes.includes(data.mimetype)) {
+                    return reply.status(400).send({
+                        success: false,
+                        error: 'Invalid audio format. Only WAV is supported.',
+                    });
+                }
+
+                // Read file buffer
+                const buffer = await data.toBuffer();
+                const fileSize = buffer.length;
+
+                // Validate file size (max 5MB for voice clips)
+                const maxSize = 5 * 1024 * 1024;
+                if (fileSize > maxSize) {
+                    return reply.status(400).send({
+                        success: false,
+                        error: 'Voice clip size exceeds 5MB limit',
+                    });
+                }
+
+                // Generate storage path
+                const timestamp = Date.now();
+                const filename = `voice-${timestamp}.wav`;
+                const storagePath = `${userId}/${conversationId}/${filename}`;
+
+                // Upload to Supabase Storage voice-clips bucket
+                const { error: uploadError, data: uploadData } = await supabase.storage
+                    .from('voice-clips')
+                    .upload(storagePath, buffer, {
+                        contentType: data.mimetype,
+                        upsert: false
+                    });
+
+                if (uploadError) {
+                    fastify.log.error({ error: uploadError }, 'Voice clip upload error');
+                    return reply.status(500).send({
+                        success: false,
+                        error: 'Failed to upload voice clip',
+                    });
+                }
+
+                // Get public URL
+                const { data: urlData } = supabase.storage
+                    .from('voice-clips')
+                    .getPublicUrl(storagePath);
+
+                const voiceClipUrl = urlData.publicUrl;
+
+                // Create message with voice clip metadata
+                const message = await createMessage(userId, {
+                    conversationId,
+                    content: 'Voice message',
+                    messageType: 'voice',
+                    metadata: {
+                        voiceClipUrl,
+                        duration,
+                    }
+                });
+
+                // Create file record
+                const file = await createFile(userId, {
+                    messageId: message.id,
+                    filename,
+                    fileSize,
+                    mimeType: data.mimetype,
+                    storagePath,
+                    uploadStatus: 'completed',
+                });
+
+                return reply.status(201).send({
+                    success: true,
+                    data: {
+                        message,
+                        file,
                     },
                 });
             } catch (error) {

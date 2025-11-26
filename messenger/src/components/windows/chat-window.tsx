@@ -20,6 +20,9 @@ import Avatar from "boring-avatars";
 import { HandwritingCanvas } from "../handwriting-canvas";
 import { useContacts } from "@/lib/hooks/contact-hooks";
 import { WINDOW_EVENTS } from "@/lib/utils/constants";
+import { VoiceRecordingInterface } from "../voice-recording-interface";
+import { VoiceMessagePlayer } from "../voice-message-player";
+import { useSendVoiceClip } from "@/lib/hooks/voice-hooks";
 
 export function ChatWindow() {
     // Extract contactId and contactName from URL query parameters
@@ -41,6 +44,7 @@ export function ChatWindow() {
     const [showEmoticonPicker, setShowEmoticonPicker] = useState(false);
     const [showFontPicker, setShowFontPicker] = useState(false)
     const [formatting, setFormatting] = useState<{ bold?: boolean; italic?: boolean; color?: string }>({});
+    const [isRecordingVoice, setIsRecordingVoice] = useState(false);
     const messageHistoryRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const prevMessageCountRef = useRef<number>(0);
@@ -50,6 +54,9 @@ export function ChatWindow() {
     // File transfer mutations
     const initiateTransferMutation = useInitiateFileTransfer();
     const emitFileTransferInitiated = useFileUploadStore((state) => state.emitFileTransferInitiated);
+
+    // Voice clip mutations
+    const sendVoiceClipMutation = useSendVoiceClip(conversation?.id || '');
 
     const sendMessageMutation = useSendMessage(conversation?.id || '');
     const sendNudgeMutation = useSendNudge(conversation?.id || '');
@@ -412,6 +419,41 @@ export function ChatWindow() {
         });
     };
 
+    const handleAudioClick = async () => {
+        try {
+            // Check if mediaDevices is available (for Tauri/webview compatibility)
+            if (!navigator?.mediaDevices?.getUserMedia) {
+                console.error('Microphone access not available in this environment');
+                return;
+            }
+
+            // Request microphone permission
+            await navigator.mediaDevices.getUserMedia({ audio: true });
+            setIsRecordingVoice(true);
+        } catch (error) {
+            console.error('Microphone access denied:', error);
+            // Could show error toast here
+        }
+    };
+
+    const handleSendVoiceClip = async (audioBlob: Blob, duration: number) => {
+        if (!conversation?.id || !user) return;
+
+        try {
+            const fileName = `voice-${Date.now()}.webm`;
+            const audioFile = new File([audioBlob], fileName, { type: 'audio/webm' });
+
+            await sendVoiceClipMutation.mutateAsync({
+                audioFile,
+                duration,
+            });
+
+            setIsRecordingVoice(false);
+        } catch (error) {
+            console.error('Failed to send voice clip:', error);
+        }
+    };
+
     const handleInitiateFileTransfer = async (file: File) => {
         if (!conversation?.id || !user) return;
 
@@ -478,7 +520,7 @@ export function ChatWindow() {
 
         if (participant?.presenceStatus === 'offline' || participant?.presenceStatus === 'appear_offline') {
             return (
-                <div className="sticky top-0 flex border-[1px] border-black gap-1 bg-[#FFFDDA]">
+                <div className="sticky top-[2px] flex items-center border-[1px] border-black gap-1 bg-[#FFFDDA] m-[2px]">
                     <img src="/info-icon.png" className="size-10" />
                     <div className="font-verdana">
                         {displayName} appears to be offline. Messages you send will be delivered when they sign in.
@@ -488,7 +530,7 @@ export function ChatWindow() {
         }
 
         return (
-            <div className="sticky top-0 flex border-[1px] border-black gap-1 bg-[#FFFDDA]">
+            <div className="sticky top-[2px] flex items-center border-[1px] border-black gap-1 bg-[#FFFDDA] m-[2px]">
                 <img src="/info-icon.png" className="size-10" />
                 <div className="font-verdana">
                     {displayName} may not reply because his or her status is set to {participant?.presenceStatus}
@@ -596,7 +638,10 @@ export function ChatWindow() {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="whitespace-nowrap box-border hidden min-[388px]:block cursor-pointer hover:opacity-80">
+                                    <div
+                                        className="whitespace-nowrap box-border hidden min-[388px]:block cursor-pointer hover:opacity-80"
+                                        onClick={handleAudioClick}
+                                    >
                                         <div className="flex flex-col items-center">
                                             <img src="/toolbar/voice.png" alt="" />
                                             <div className="text">
@@ -685,7 +730,7 @@ export function ChatWindow() {
                                     </div>
                                     <div
                                         ref={messageHistoryRef}
-                                        className="space-y-2 overflow-y-auto h-[calc(100vh-306px)] p-2 relative"
+                                        className="space-y-2 overflow-y-auto h-[calc(100vh-306px)] relative"
                                     >
                                         {renderInfo()}
                                         {!isLoadingMessages && hasNextPage && (
@@ -707,9 +752,10 @@ export function ChatWindow() {
                                             const sender = message.sender || conversation?.participants.find((p: User) => p.id === message.senderId);
                                             const isFileTransfer = message.messageType === 'file';
                                             const isImage = message.messageType === 'image';
+                                            const isVoice = message.messageType === 'voice';
 
                                             return (
-                                                <div key={message.id} className="text-lg">
+                                                <div key={message.id} className="text-lg px-2 last:pb-2">
                                                     <div className="flex flex-col">
                                                         <div
                                                             style={{
@@ -720,20 +766,26 @@ export function ChatWindow() {
                                                         </div>
                                                         <div className="font-verdana text-black ml-4">
                                                             {
-                                                                isFileTransfer ?
-                                                                    <FileTransferRequestMessage
-                                                                        message={message}
+                                                                isVoice && message.metadata?.voiceClipUrl ?
+                                                                    <VoiceMessagePlayer
+                                                                        voiceClipUrl={message.metadata.voiceClipUrl}
+                                                                        duration={message.metadata.duration}
+                                                                        senderName={sender?.displayName}
                                                                     /> :
-                                                                    isImage && message.metadata?.imageData ?
-                                                                        <img
-                                                                            src={message.metadata.imageData}
-                                                                            alt="Handwriting"
-                                                                            className="max-w-full h-auto"
+                                                                    isFileTransfer ?
+                                                                        <FileTransferRequestMessage
+                                                                            message={message}
                                                                         /> :
-                                                                        <MessageContent
-                                                                            content={message.content}
-                                                                            metadata={message.metadata}
-                                                                        />
+                                                                        isImage && message.metadata?.imageData ?
+                                                                            <img
+                                                                                src={message.metadata.imageData}
+                                                                                alt="Handwriting"
+                                                                                className="max-w-full h-auto"
+                                                                            /> :
+                                                                            <MessageContent
+                                                                                content={message.content}
+                                                                                metadata={message.metadata}
+                                                                            />
                                                             }
                                                         </div>
                                                     </div>
@@ -836,25 +888,34 @@ export function ChatWindow() {
                                     </div>
                                     {activeTab === 'type' ? (
                                         <div className="flex py-4 px-2">
-                                            <textarea
-                                                ref={textareaRef}
-                                                value={messageInput}
-                                                onChange={handleInputChange}
-                                                onKeyDown={handleKeyPress}
-                                                placeholder={isContactBlocked ? "Cannot send messages to blocked contact" : "Type a message..."}
-                                                disabled={sendMessageMutation.isPending || isContactBlocked}
-                                                className={`w-full flex-1 !font-verdana !text-lg border border-[#ACA899] rounded resize-none focus:outline-none focus:border-msn-blue disabled:opacity-50 disabled:cursor-not-allowed ${formatting.bold ? 'font-bold' : ''} ${formatting.italic ? 'italic' : ''}`}
-                                                style={{
-                                                    color: formatting.color || 'inherit'
-                                                }}
-                                            />
-                                            <div
-                                                aria-disabled={!canSend}
-                                                onClick={handleSendMessage}
-                                                className={`!text-lg border border-[#93989C] bg-[#FBFBFB] w-[58px] h-full rounded-[5px] font-bold text-[0.6875em] flex items-center justify-center ${canSend ? "text-[#31497C] cursor-pointer" : "text-[#969C9A]"}`}
-                                                style={{ boxShadow: '-4px -4px 4px #C0C9E0 inset', fontFamily: 'Pixelated MS Sans Serif' }}>
-                                                Send
-                                            </div>
+                                            {isRecordingVoice ? (
+                                                <VoiceRecordingInterface
+                                                    onSend={handleSendVoiceClip}
+                                                    onCancel={() => setIsRecordingVoice(false)}
+                                                />
+                                            ) : (
+                                                <>
+                                                    <textarea
+                                                        ref={textareaRef}
+                                                        value={messageInput}
+                                                        onChange={handleInputChange}
+                                                        onKeyDown={handleKeyPress}
+                                                        placeholder={isContactBlocked ? "Cannot send messages to blocked contact" : "Type a message..."}
+                                                        disabled={sendMessageMutation.isPending || isContactBlocked}
+                                                        className={`w-full flex-1 !font-verdana !text-lg border border-[#ACA899] rounded resize-none focus:outline-none focus:border-msn-blue disabled:opacity-50 disabled:cursor-not-allowed ${formatting.bold ? 'font-bold' : ''} ${formatting.italic ? 'italic' : ''}`}
+                                                        style={{
+                                                            color: formatting.color || 'inherit'
+                                                        }}
+                                                    />
+                                                    <div
+                                                        aria-disabled={!canSend}
+                                                        onClick={handleSendMessage}
+                                                        className={`!text-lg border border-[#93989C] bg-[#FBFBFB] w-[58px] h-full rounded-[5px] font-bold text-[0.6875em] flex items-center justify-center ${canSend ? "text-[#31497C] cursor-pointer" : "text-[#969C9A]"}`}
+                                                        style={{ boxShadow: '-4px -4px 4px #C0C9E0 inset', fontFamily: 'Pixelated MS Sans Serif' }}>
+                                                        Send
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     ) : (
                                         <div className="flex py-4 px-2">

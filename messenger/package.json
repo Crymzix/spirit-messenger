@@ -24,6 +24,7 @@
     "boring-avatars": "^2.0.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "tauri-plugin-mic-recorder-api": "^2.0.0",
     "xp.css": "^0.2.6",
     "zustand": "^5.0.8"
   },

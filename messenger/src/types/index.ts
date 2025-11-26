@@ -2,7 +2,7 @@
 
 export type PresenceStatus = 'online' | 'away' | 'busy' | 'appear_offline' | 'offline';
 
-export type MessageType = 'text' | 'file' | 'system' | 'image';
+export type MessageType = 'text' | 'file' | 'system' | 'image' | 'voice';
 
 export type ConversationType = 'one_on_one' | 'group';
 
@@ -59,6 +59,8 @@ export interface Message {
     fileInfo?: { filename: string; size: number; mimeType: string };
     fileTransferRequest?: { filename: string; size: number; mimeType: string };
     imageData?: string; // base64 encoded image data
+    voiceClipUrl?: string; // Public URL to voice clip
+    duration?: number; // Duration in seconds
   };
   createdAt: Date;
   deliveredAt?: Date;

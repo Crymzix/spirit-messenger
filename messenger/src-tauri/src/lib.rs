@@ -116,6 +116,13 @@ async fn open_file_dialog(_app: AppHandle) -> Result<Option<String>, String> {
     Err("File dialog should be handled from frontend".to_string())
 }
 
+/// Read a file from disk and return its bytes
+/// Used for uploading recorded audio files
+#[tauri::command]
+async fn read_file_bytes(path: String) -> Result<Vec<u8>, String> {
+    fs::read(&path).map_err(|e| format!("Failed to read file '{}': {}", path, e))
+}
+
 /// Save a file to the designated downloads folder
 #[tauri::command]
 async fn save_file(app: AppHandle, file_data: Vec<u8>, filename: String) -> Result<String, String> {
@@ -199,6 +206,7 @@ fn open_chat_window(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_mic_recorder::init())
         .plugin(tauri_plugin_positioner::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
@@ -310,6 +318,7 @@ pub fn run() {
             play_sound,
             open_file_dialog,
             save_file,
+            read_file_bytes,
             set_auto_launch
         ])
         .run(tauri::generate_context!())

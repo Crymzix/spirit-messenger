@@ -74,6 +74,21 @@ async function createStorageBuckets() {
         } else {
             console.log('   ✅ file-transfers bucket created');
         }
+
+        // Create voice-clips bucket
+        const { error: vcError } = await supabase
+            .storage
+            .createBucket('voice-clips', {
+                public: true,
+                fileSizeLimit: 5 * 1024 * 1024, // 5MB
+                allowedMimeTypes: ['audio/wav', 'audio/webm']
+            });
+
+        if (vcError && !vcError.message.includes('already exists')) {
+            console.error('   ❌ Failed to create voice-clips bucket:', vcError.message);
+        } else {
+            console.log('   ✅ voice-clips bucket created');
+        }
     } catch (error) {
         console.error('   ❌ Error creating storage buckets:', error);
         throw error;
@@ -139,7 +154,7 @@ async function verifySetup() {
             console.error('   ❌ Failed to list storage buckets:', bucketsError.message);
         } else {
             const ourBuckets = buckets.filter(b =>
-                b.name === 'display-pictures' || b.name === 'file-transfers'
+                b.name === 'display-pictures' || b.name === 'file-transfers' || b.name === 'voice-clips'
             );
             console.log(`\n   ✅ Found ${ourBuckets.length} storage buckets:`);
             ourBuckets.forEach(bucket => {
