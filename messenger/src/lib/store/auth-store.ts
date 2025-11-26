@@ -9,6 +9,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { supabase } from '../supabase';
 import type { AuthUser } from '../services/auth-service';
+import type { AuthPreferences, RememberedCredentials } from '../types/auth-preferences';
 
 interface AuthState {
     user: AuthUser | null;
@@ -18,16 +19,19 @@ interface AuthState {
     isLoading: boolean;
     isInitialized: boolean;
     refreshInterval: number | null;
+    authPreferences: AuthPreferences | null;
 
     // Actions
     setAuth: (user: AuthUser, token: string, refreshToken: string) => Promise<void>;
-    clearAuth: () => Promise<void>;
+    clearAuth: (preservePreferences?: boolean) => Promise<void>;
     updateUser: (user: Partial<AuthUser>) => Promise<void>;
     restoreSession: () => Promise<void>;
     refreshAccessToken: () => Promise<boolean>;
     initialize: () => Promise<void>;
     startTokenRefreshInterval: () => void;
     stopTokenRefreshInterval: () => void;
+    saveAuthPreferences: (prefs: AuthPreferences, email: string, password: string) => Promise<void>;
+    loadAuthPreferences: () => Promise<AuthPreferences | null>;
 }
 
 /**
@@ -42,6 +46,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     isLoading: false,
     isInitialized: false,
     refreshInterval: null,
+    authPreferences: null,
 
     /**
      * Set authentication data
@@ -78,14 +83,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
      * Clear authentication data
      * Removes from Tauri backend and local state
      * Stops token refresh interval
+     * @param preservePreferences - If true, keeps saved credentials; if false, clears them
      */
-    clearAuth: async () => {
+    clearAuth: async (preservePreferences?: boolean) => {
         try {
             // Stop token refresh interval
             get().stopTokenRefreshInterval();
 
             // Clear from Tauri backend
             await invoke('clear_auth');
+
+            // Clear preferences if not preserving them
+            if (!preservePreferences) {
+                await invoke('clear_auth_preferences');
+            }
 
             // Sign out from Supabase
             await supabase.auth.signOut();
@@ -135,11 +146,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     /**
      * Restore session from Tauri backend
      * Sets Supabase session to enable automatic token refresh
+     * Respects "Sign in automatically" preference
      */
     restoreSession: async () => {
         set({ isLoading: true });
 
         try {
+            // Check if user wants to auto-login
+            const prefs = await invoke<AuthPreferences | null>('get_auth_preferences');
+            if (prefs && !prefs.signInAutomatically) {
+                console.log('Auto sign-in disabled, skipping session restoration');
+                set({ isLoading: false });
+                return;
+            }
+
             // Get user, access token, and refresh token from Tauri backend
             const user = await invoke<AuthUser | null>('get_user');
             const token = await invoke<string | null>('get_token');
@@ -349,6 +369,36 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             window.clearInterval(interval);
             set({ refreshInterval: null });
             console.log('Token refresh interval stopped');
+        }
+    },
+
+    /**
+     * Save authentication preferences with optional encrypted password
+     */
+    saveAuthPreferences: async (prefs: AuthPreferences, email: string, password: string) => {
+        try {
+            await invoke('save_auth_preferences', {
+                preferences: prefs,
+                password: prefs.rememberPassword ? password : null,
+            });
+            set({ authPreferences: prefs });
+        } catch (error) {
+            console.error('Failed to save auth preferences:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Load authentication preferences from backend
+     */
+    loadAuthPreferences: async () => {
+        try {
+            const prefs = await invoke<AuthPreferences | null>('get_auth_preferences');
+            set({ authPreferences: prefs });
+            return prefs;
+        } catch (error) {
+            console.error('Failed to load auth preferences:', error);
+            return null;
         }
     },
 }));

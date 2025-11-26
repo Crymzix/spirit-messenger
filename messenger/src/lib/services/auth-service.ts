@@ -94,6 +94,8 @@ export async function signIn(data: LoginData): Promise<{
 
 /**
  * Sign out the current user
+ * Preserves authentication preferences (Remember Me, Remember Password, Sign In Automatically)
+ * but clears active session tokens
  */
 export async function signOut(): Promise<{
   success: boolean;
@@ -113,8 +115,8 @@ export async function signOut(): Promise<{
     }
   }
 
-  // Clear Zustand store (which also handles Tauri backend storage)
-  await useAuthStore.getState().clearAuth();
+  // Clear auth data but preserve preferences (true = preserve preferences)
+  await useAuthStore.getState().clearAuth(true);
 
   return {
     success: true,

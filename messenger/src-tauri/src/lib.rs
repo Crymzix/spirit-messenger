@@ -1,7 +1,9 @@
 mod auth;
+mod auth_preferences;
 mod settings;
 
 use crate::auth::AuthManager;
+use crate::auth_preferences::AuthPreferencesManager;
 use crate::settings::SettingsManager;
 use log::error;
 use std::fs;
@@ -236,10 +238,15 @@ pub fn run() {
 
             let auth_storage_path = app_data_dir.join("auth_data.json");
             let settings_storage_path = app_data_dir.join("settings.json");
+            let auth_prefs_storage_path = app_data_dir.join("auth_preferences.json");
 
             // Initialize auth manager
             let auth_manager = AuthManager::new(auth_storage_path);
             app.manage(auth_manager);
+
+            // Initialize auth preferences manager
+            let auth_prefs_manager = AuthPreferencesManager::new(auth_prefs_storage_path);
+            app.manage(auth_prefs_manager);
 
             // Initialize settings manager
             let settings_manager = SettingsManager::new(settings_storage_path);
@@ -306,6 +313,10 @@ pub fn run() {
             auth::update_user,
             auth::clear_auth,
             auth::is_authenticated,
+            auth_preferences::get_auth_preferences,
+            auth_preferences::save_auth_preferences,
+            auth_preferences::clear_auth_preferences,
+            auth_preferences::get_remembered_credentials,
             settings::get_settings,
             settings::update_notification_settings,
             settings::update_startup_settings,

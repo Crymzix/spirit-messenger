@@ -1,5 +1,7 @@
 import { useState, FormEvent, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { Layout } from '../layout';
+import type { AuthPreferences } from '../../lib/types/auth-preferences';
 
 interface SignInWindowProps {
     onSignIn: (email: string, password: string) => Promise<void>;
@@ -31,13 +33,66 @@ export function SignInScreen({ onSignIn, onSwitchToRegister }: SignInWindowProps
     const [generalError, setGeneralError] = useState('');
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
+    // Load remembered credentials on mount
     useEffect(() => {
+        const loadCredentials = async () => {
+            try {
+                const prefs = await invoke<AuthPreferences>('get_auth_preferences');
+                const credentials = await invoke<[string | null, string | null]>('get_remembered_credentials');
+
+                if (prefs?.rememberMe && credentials?.[0]) {
+                    setEmail(credentials[0]);
+                }
+                if (prefs?.rememberPassword && credentials?.[1]) {
+                    setPassword(credentials[1]);
+                }
+
+                setRememberMe(prefs?.rememberMe ?? false);
+                setRememberPassword(prefs?.rememberPassword ?? false);
+                setSignInAutomatically(prefs?.signInAutomatically ?? true);
+            } catch (error) {
+                console.error('Failed to load auth preferences:', error);
+            }
+        };
+
+        loadCredentials();
+
         const interval = setInterval(() => {
             setCurrentImageIndex((prev) => (prev + 1) % defaultProfilePictures.length);
         }, 5000);
 
         return () => clearInterval(interval);
     }, []);
+
+    // Auto-enable "Remember Me" when "Remember Password" is checked
+    const handleRememberPasswordChange = (checked: boolean) => {
+        setRememberPassword(checked);
+        if (checked && !rememberMe) {
+            setRememberMe(true);
+        }
+    };
+
+    // Auto-disable "Remember Password" when "Remember Me" is unchecked
+    const handleRememberMeChange = (checked: boolean) => {
+        setRememberMe(checked);
+        if (!checked && rememberPassword) {
+            setRememberPassword(false);
+        }
+    };
+
+    // Clear all saved credentials and preferences
+    const handleForgetMe = async () => {
+        try {
+            await invoke('clear_auth_preferences');
+            setEmail('');
+            setPassword('');
+            setRememberMe(false);
+            setRememberPassword(false);
+            setSignInAutomatically(true);
+        } catch (error) {
+            console.error('Failed to clear preferences:', error);
+        }
+    };
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
@@ -51,6 +106,17 @@ export function SignInScreen({ onSignIn, onSwitchToRegister }: SignInWindowProps
         setIsLoading(true);
         try {
             await onSignIn(email, password);
+
+            // Save preferences after successful sign-in
+            await invoke('save_auth_preferences', {
+                preferences: {
+                    rememberMe,
+                    rememberPassword,
+                    signInAutomatically,
+                    rememberedEmail: rememberMe ? email : null,
+                },
+                password: rememberPassword ? password : null,
+            });
         } catch (error) {
             setGeneralError(error instanceof Error ? error.message : 'Sign in failed. Please try again.');
         } finally {
@@ -158,7 +224,7 @@ export function SignInScreen({ onSignIn, onSwitchToRegister }: SignInWindowProps
                                     id="rememberMe"
                                     type="checkbox"
                                     checked={rememberMe}
-                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    onChange={(e) => handleRememberMeChange(e.target.checked)}
                                     className="w-4 h-4 accent-[#0055E5]"
                                     disabled={isLoading}
                                 />
@@ -166,6 +232,7 @@ export function SignInScreen({ onSignIn, onSwitchToRegister }: SignInWindowProps
                                     Remember Me
                                 </label>
                                 <label
+                                    onClick={handleForgetMe}
                                     className="text-[#2F22DA] underline hover:text-[#0033AA] cursor-pointer ml-2"
                                 >
                                     (Forget Me)
@@ -176,7 +243,7 @@ export function SignInScreen({ onSignIn, onSwitchToRegister }: SignInWindowProps
                                     id="rememberPassword"
                                     type="checkbox"
                                     checked={rememberPassword}
-                                    onChange={(e) => setRememberPassword(e.target.checked)}
+                                    onChange={(e) => handleRememberPasswordChange(e.target.checked)}
                                     className="w-4 h-4 accent-[#0055E5]"
                                     disabled={isLoading}
                                 />
