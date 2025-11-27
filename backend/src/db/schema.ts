@@ -184,6 +184,60 @@ export const messages = pgTable('messages', {
     }),
 ]);
 
+// Calls table schema
+export const calls = pgTable('calls', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    conversationId: uuid('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+    initiatorId: uuid('initiator_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    callType: varchar('call_type', { length: 20 }).notNull(), // 'voice' | 'video'
+    status: varchar('status', { length: 20 }).notNull().default('ringing'), // 'ringing' | 'active' | 'ended' | 'declined' | 'missed' | 'failed'
+    startedAt: timestamp('started_at'),
+    endedAt: timestamp('ended_at'),
+    errorReason: text('error_reason'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
+}, (table) => [
+    index('idx_calls_conversation_id_created_at').on(table.conversationId, table.createdAt.desc()),
+    index('idx_calls_status').on(table.status),
+    pgPolicy('users_can_view_calls_in_their_conversations', {
+        for: 'select',
+        to: 'public',
+        using: sql`
+            EXISTS (
+                SELECT 1 FROM conversation_participants
+                WHERE conversation_id = calls.conversation_id
+                AND user_id = (select auth.uid())
+            )
+        `,
+    }),
+]);
+
+// Call participants table schema
+export const callParticipants = pgTable('call_participants', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    callId: uuid('call_id').notNull().references(() => calls.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    joinedAt: timestamp('joined_at').defaultNow(),
+    leftAt: timestamp('left_at'),
+    createdAt: timestamp('created_at').defaultNow(),
+}, (table) => [
+    index('idx_call_participants_call_id').on(table.callId),
+    index('idx_call_participants_user_id').on(table.userId),
+    pgPolicy('users_can_view_call_participants', {
+        for: 'select',
+        to: 'public',
+        using: sql`
+            user_id = (select auth.uid()) OR
+            EXISTS (
+                SELECT 1 FROM calls
+                JOIN conversation_participants cp ON cp.conversation_id = calls.conversation_id
+                WHERE calls.id = call_participants.call_id
+                AND cp.user_id = (select auth.uid())
+            )
+        `,
+    }),
+]);
+
 // File transfer requests table schema
 export const fileTransferRequests = pgTable('file_transfer_requests', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -397,3 +451,9 @@ export type InsertBotAutonomousSchedule = InferInsertModel<typeof botAutonomousS
 
 export type SelectBotActionLog = InferSelectModel<typeof botActionLogs>;
 export type InsertBotActionLog = InferInsertModel<typeof botActionLogs>;
+
+export type SelectCall = InferSelectModel<typeof calls>;
+export type InsertCall = InferInsertModel<typeof calls>;
+
+export type SelectCallParticipant = InferSelectModel<typeof callParticipants>;
+export type InsertCallParticipant = InferInsertModel<typeof callParticipants>;

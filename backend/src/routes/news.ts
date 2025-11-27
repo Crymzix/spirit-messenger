@@ -70,7 +70,7 @@ const newsRoutes: FastifyPluginAsync = async (fastify) => {
         Reply: ApiResponse<TopHeadlinesResponse>;
     }>(
         '/top-headlines',
-        async (request, reply) => {
+        async (_request, reply) => {
             try {
                 if (!NEWS_API_KEY) {
                     return reply.status(400).send({
@@ -114,7 +114,7 @@ const newsRoutes: FastifyPluginAsync = async (fastify) => {
         Reply: ApiResponse<TopHeadlinesResponse>;
     }>(
         '/top-headlines/refresh',
-        async (request, reply) => {
+        async (_request, reply) => {
             try {
                 if (!NEWS_API_KEY) {
                     return reply.status(400).send({

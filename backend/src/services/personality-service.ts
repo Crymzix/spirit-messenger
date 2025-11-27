@@ -344,7 +344,7 @@ function getTimeOfDay(date: Date): string {
 export function calculateResponseProbability(
     personality: PersonalityTemplate,
     currentTime: Date,
-    timeSinceLastMessage: number, // ms
+    _timeSinceLastMessage: number, // ms
     isFirstMessage: boolean
 ): number {
     const hour = currentTime.getHours();

@@ -14,7 +14,6 @@ interface VoiceMessagePlayerProps {
 export function VoiceMessagePlayer({
   voiceClipUrl,
   duration = 0,
-  senderName,
 }: VoiceMessagePlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);

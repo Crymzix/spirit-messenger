@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { sendVoiceClip, type SendVoiceClipRequest } from '../services/voice-service';
+import { sendVoiceClip } from '../services/voice-service';
 
 export function useSendVoiceClip(conversationId: string) {
   const queryClient = useQueryClient();

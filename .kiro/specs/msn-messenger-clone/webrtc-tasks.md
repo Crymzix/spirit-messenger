@@ -4,14 +4,13 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
 
 ## Task List
 
-- [ ] 1. Database schema and migrations for calls
-  - Create migration file for calls table with columns: id, conversation_id, initiator_id, call_type, status, started_at, ended_at, error_reason, created_at, updated_at
-  - Create migration file for call_participants table with columns: id, call_id, user_id, joined_at, left_at, created_at
-  - Add indexes on calls(conversation_id, created_at), calls(status), call_participants(call_id), call_participants(user_id)
-  - Run migrations against development database
+- [x] 1. Database schema and migrations for calls
+  - Modify Drizzle schema to add table with columns: id, conversation_id, initiator_id, call_type, status, started_at, ended_at, error_reason, created_at, updated_at
+  - Modify Drizzle schema to add call_participants table with columns: id, call_id, user_id, joined_at, left_at, created_at
+  - Add indexes on calls(conversation_id, created_at), calls(status), call_participants(call_id), call_participants(user_id) in the Drizzle schema
   - _Requirements: 15.1, 15.2, 15.3, 15.4, 15.5_
 
-- [ ] 2. Backend: Call service layer
+- [x] 2. Backend: Call service layer
   - Create backend/src/services/call-service.ts with CallService class
   - Implement initiateCall method that verifies users are online, checks for existing calls, creates call record, and returns Call object
   - Implement answerCall method that updates call status to active, records started_at timestamp, creates call_participants records
@@ -21,7 +20,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Implement handleSignal method that validates participants and forwards signaling data
   - _Requirements: 1.4, 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 3. Backend: Realtime event publishing
+- [x] 3. Backend: Realtime event publishing
   - Create backend/src/lib/realtime-publisher.ts with RealtimePublisher class
   - Implement publishCallRinging method that sends call_ringing event to recipient via Supabase Realtime
   - Implement publishCallAnswered method that sends call_answered event to both participants
@@ -30,7 +29,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Implement publishSignal method that forwards SDP offers/answers and ICE candidates to recipient
   - _Requirements: 2.1, 3.2, 3.4, 3.5_
 
-- [ ] 4. Backend: Call API routes
+- [x] 4. Backend: Call API routes
   - Create backend/src/routes/calls.ts with Fastify route handlers
   - Implement POST /api/calls/initiate endpoint that accepts conversation_id and call_type, calls CallService.initiateCall
   - Implement POST /api/calls/:callId/answer endpoint that calls CallService.answerCall
@@ -42,7 +41,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Register call routes in backend/src/index.ts
   - _Requirements: 1.2, 1.3, 2.4, 6.2, 12.1, 12.2_
 
-- [ ] 5. Frontend: Call service API client
+- [x] 5. Frontend: Call service API client
   - Create messenger/src/lib/services/call-service.ts with call API client functions
   - Implement initiateCall function that sends POST request to /api/calls/initiate
   - Implement answerCall function that sends POST request to /api/calls/:callId/answer
@@ -52,7 +51,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Implement getActiveCall function that sends GET request to /api/calls/active/:conversationId
   - _Requirements: 14.5_
 
-- [ ] 6. Frontend: React Query hooks for calls
+- [x] 6. Frontend: React Query hooks for calls
   - Create messenger/src/lib/hooks/call-hooks.ts with React Query hooks
   - Implement useCallInitiate hook using useMutation that wraps callService.initiateCall
   - Implement useCallAnswer hook using useMutation that wraps callService.answerCall
@@ -63,7 +62,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Add query invalidation logic to keep call state synchronized
   - _Requirements: 14.5_
 
-- [ ] 7. Frontend: Zustand store for call state
+- [x] 7. Frontend: Zustand store for call state
   - Create messenger/src/lib/store/call-store.ts with Zustand store
   - Define CallState interface with fields: activeCall, callState, localStream, remoteStream, isMuted, isCameraOff, connectionState, iceConnectionState
   - Implement setActiveCall, setCallState, setLocalStream, setRemoteStream actions
@@ -73,7 +72,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Implement reset action that clears all call state
   - _Requirements: 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 8. Frontend: WebRTC service core
+- [x] 8. Frontend: WebRTC service core
   - Create messenger/src/lib/services/webrtc-service.ts with WebRTCService class
   - Implement createPeerConnection method that creates RTCPeerConnection with STUN server configuration
   - Implement getLocalStream method that calls getUserMedia with audio/video constraints
@@ -83,7 +82,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Add event listeners for icecandidate, connectionstatechange, iceconnectionstatechange, track events
   - _Requirements: 1.5, 4.1, 6.1, 6.5, 14.1, 14.2_
 
-- [ ] 9. Frontend: WebRTC signaling methods
+- [x] 9. Frontend: WebRTC signaling methods
   - Add createOffer method to WebRTCService that generates SDP offer
   - Add createAnswer method to WebRTCService that generates SDP answer from received offer
   - Add setRemoteDescription method to WebRTCService that sets remote SDP
@@ -92,7 +91,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Add error handling for signaling failures
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 4.2, 14.3_
 
-- [ ] 10. Frontend: WebRTC media controls
+- [x] 10. Frontend: WebRTC media controls
   - Add toggleMute method to WebRTCService that enables/disables audio track
   - Add toggleCamera method to WebRTCService that enables/disables video track
   - Add getConnectionState method that returns current RTCPeerConnectionState
@@ -100,7 +99,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Integrate with call-store to update UI state when media controls change
   - _Requirements: 5.2, 5.3, 5.4, 5.5, 14.4_
 
-- [ ] 11. Frontend: Supabase Realtime call event subscriptions
+- [x] 11. Frontend: Supabase Realtime call event subscriptions
   - Create messenger/src/lib/services/call-realtime-service.ts for Realtime subscriptions
   - Implement subscribeToCallEvents method that subscribes to call_ringing, call_answered, call_declined, call_ended events
   - Implement subscribeToSignaling method that subscribes to sdp_offer, sdp_answer, ice_candidate events for active call
@@ -108,17 +107,13 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Implement unsubscribe cleanup methods
   - _Requirements: 2.1, 2.3, 6.3_
 
-- [ ] 12. Frontend: Call initiation buttons in chat window
-  - Create messenger/src/components/call-initiation-buttons.tsx component
-  - Add voice call button and video call button to chat window toolbar
-  - Disable buttons when contact is offline or user has active call
+- [x] 12. Frontend: Call initiation buttons in chat window
   - Implement onClick handlers that call useCallInitiate hook with appropriate call_type
-  - Add tooltips explaining why buttons are disabled
-  - Style buttons to match MSN Messenger aesthetic
-  - Integrate component into chat-window.tsx
+  - Integrate handlers on to aleady implemented Voice and Webcam buttons in the chat-window.tsx
+  - Disable buttons when contact is offline or user has active call
   - _Requirements: 1.1, 1.2, 1.3, 9.1, 9.2, 13.4_
 
-- [ ] 13. Frontend: Ringing notification window
+- [x] 13. Frontend: Ringing notification window
   - Create messenger/src/components/windows/ringing-window.tsx component
   - Display caller's display picture, name, and call type (voice/video)
   - Add Answer and Decline buttons
@@ -126,10 +121,9 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Stop ringing sound when component unmounts
   - Implement onClick handler for Answer button that calls useCallAnswer hook
   - Implement onClick handler for Decline button that calls useCallDecline hook
-  - Style window to match MSN Messenger notification style
   - _Requirements: 2.2, 2.3, 2.4, 12.3, 12.4_
 
-- [ ] 14. Frontend: Call initiation flow
+- [x] 14. Frontend: Call initiation flow
   - Implement call initiation logic in chat window when call buttons are clicked
   - Call useCallInitiate mutation with conversationId and callType
   - Update call-store with activeCall and set callState to 'initiating'
@@ -141,7 +135,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Handle media permission errors and display error messages
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 11.1_
 
-- [ ] 15. Frontend: Call answering flow
+- [x] 15. Frontend: Call answering flow
   - Implement call answering logic when Answer button clicked in ringing window
   - Call useCallAnswer mutation with callId
   - Update call-store with activeCall and set callState to 'connecting'
@@ -153,7 +147,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Handle media permission errors and display error messages
   - _Requirements: 2.4, 3.1, 3.2, 3.3, 3.4, 11.1_
 
-- [ ] 16. Frontend: ICE candidate exchange
+- [x] 16. Frontend: ICE candidate exchange
   - Implement ICE candidate event handler in webrtc-service
   - When onicecandidate fires, send candidate via useCallSignal hook
   - Subscribe to ice_candidate events via Realtime
@@ -162,7 +156,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Handle ICE gathering completion
   - _Requirements: 3.5, 4.2_
 
-- [ ] 17. Frontend: P2P connection establishment
+- [x] 17. Frontend: P2P connection establishment
   - Monitor connectionState changes in webrtc-service
   - When connectionState becomes 'connected', update call-store callState to 'active'
   - When connectionState becomes 'failed', display error and end call
@@ -172,7 +166,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Update call-store with remoteStream
   - _Requirements: 4.3, 4.4, 4.5, 11.2, 11.3, 11.4_
 
-- [ ] 18. Frontend: In-call UI overlay for audio calls
+- [x] 18. Frontend: In-call UI overlay for audio calls
   - Create messenger/src/components/audio-call-overlay.tsx component
   - Display call duration timer that updates every second
   - Display contact name and display picture
@@ -182,7 +176,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Style to match MSN Messenger in-call UI
   - _Requirements: 5.1, 5.6, 10.5_
 
-- [ ] 19. Frontend: In-call UI overlay for video calls
+- [x] 19. Frontend: In-call UI overlay for video calls
   - Create messenger/src/components/video-call-overlay.tsx component
   - Add video element for remote stream with autoplay and playsInline
   - Add video element for local stream in picture-in-picture position with muted attribute
@@ -192,7 +186,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Style video elements and overlay to match MSN Messenger aesthetic
   - _Requirements: 5.1, 5.7, 5.8, 10.1, 10.2_
 
-- [ ] 20. Frontend: Call controls component
+- [x] 20. Frontend: Call controls component
   - Create messenger/src/components/call-controls.tsx component
   - Add mute button that calls call-store toggleMute action
   - Add camera toggle button (for video calls) that calls call-store toggleCamera action
@@ -202,7 +196,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Add hover effects and tooltips
   - _Requirements: 5.2, 5.3, 5.4, 5.5, 5.6_
 
-- [ ] 21. Frontend: Call termination flow
+- [x] 21. Frontend: Call termination flow
   - Implement hang-up button onClick handler that calls useCallEnd mutation
   - Call webrtc-service.closePeerConnection to close RTCPeerConnection
   - Call webrtc-service.stopLocalStream to stop media tracks
@@ -213,7 +207,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Handle remote hang-up by closing connection and updating UI
   - _Requirements: 6.1, 6.2, 6.4, 6.5_
 
-- [ ] 22. Frontend: Call decline flow
+- [x] 22. Frontend: Call decline flow
   - Implement Decline button onClick handler in ringing window
   - Call useCallDecline mutation with callId
   - Close ringing window
@@ -222,7 +216,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - When call_declined received, display "Call declined" message and close call UI
   - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5_
 
-- [ ] 23. Backend: Call history system messages
+- [x] 23. Backend: Call history system messages
   - Update CallService.endCall to create system message in messages table
   - Calculate call duration from started_at and ended_at timestamps
   - Format system message content as "[Call Type] call - [Duration]"
@@ -231,7 +225,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Update CallService for missed calls (timeout) to create system message
   - _Requirements: 8.1, 8.2, 8.5, 12.5_
 
-- [ ] 24. Frontend: Call history display in chat
+- [x] 24. Frontend: Call history display in chat
   - Update messenger/src/components/message-content.tsx to handle system message type 'call'
   - Display call icon (phone or video) based on call_type in metadata
   - Display call duration for completed calls
@@ -240,7 +234,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Style call history messages to match MSN Messenger system messages
   - _Requirements: 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 25. Frontend: Presence-based call availability
+- [x] 25. Frontend: Presence-based call availability
   - Check contact presence status before enabling call buttons
   - Disable call buttons when contact presence is not 'online'
   - Display tooltip "Contact is offline" when buttons are disabled
@@ -270,7 +264,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Display connection quality indicator in UI
   - _Requirements: 10.2, 10.5_
 
-- [ ] 29. Frontend: Error handling for media permissions
+- [x] 29. Frontend: Error handling for media permissions
   - Wrap getUserMedia calls in try-catch blocks
   - Handle NotAllowedError with message "Microphone/camera permission denied"
   - Handle NotFoundError with message "No microphone or camera found"
@@ -279,7 +273,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - End call when media permission errors occur
   - _Requirements: 11.1_
 
-- [ ] 30. Frontend: Error handling for connection failures
+- [x] 30. Frontend: Error handling for connection failures
   - Monitor RTCPeerConnectionState for 'failed' state
   - Display error message "Connection failed. Please check your network."
   - Implement 5-second reconnection attempt for 'disconnected' state
@@ -287,7 +281,7 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Display disconnection message to user
   - _Requirements: 11.2, 11.3, 11.4_
 
-- [ ] 31. Backend: Error handling and call failure tracking
+- [x] 31. Backend: Error handling and call failure tracking
   - Update CallService to catch and log errors during call operations
   - Set call status to 'failed' when errors occur
   - Record error_reason in calls table
@@ -295,20 +289,20 @@ This implementation plan breaks down the WebRTC calling feature into discrete, a
   - Publish call_failed event via Realtime
   - _Requirements: 11.5_
 
-- [ ] 32. Backend: Simultaneous call prevention
+- [x] 32. Backend: Simultaneous call prevention
   - Update CallService.initiateCall to check for existing active or ringing calls for both users
   - Return 409 Conflict status if either user has active call
   - Include error message "User is currently on another call"
   - _Requirements: 13.1, 13.2, 13.3_
 
-- [ ] 33. Frontend: Simultaneous call prevention UI
+- [x] 33. Frontend: Simultaneous call prevention UI
   - Disable call buttons when user has active or ringing call
   - Display error message when call initiation fails due to busy status
   - Show "Contact is on another call" message when appropriate
   - Re-enable buttons when active call ends
   - _Requirements: 13.3, 13.4, 13.5_
 
-- [ ] 34. Frontend: Auto-decline missed calls
+- [x] 34. Frontend: Auto-decline missed calls
   - Implement 30-second timeout when ringing window is displayed
   - Call useCallDecline mutation automatically after timeout
   - Update call status to 'missed' instead of 'declined'

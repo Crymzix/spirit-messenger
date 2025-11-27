@@ -9,7 +9,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { supabase } from '../supabase';
 import type { AuthUser } from '../services/auth-service';
-import type { AuthPreferences, RememberedCredentials } from '../types/auth-preferences';
+import type { AuthPreferences } from '../types/auth-preferences';
 
 interface AuthState {
     user: AuthUser | null;
@@ -375,7 +375,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     /**
      * Save authentication preferences with optional encrypted password
      */
-    saveAuthPreferences: async (prefs: AuthPreferences, email: string, password: string) => {
+    saveAuthPreferences: async (prefs: AuthPreferences, _email: string, password: string) => {
         try {
             await invoke('save_auth_preferences', {
                 preferences: prefs,

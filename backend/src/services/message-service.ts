@@ -1,4 +1,4 @@
-import { eq, and, desc, isNull, inArray, lt, ne, sql, count } from 'drizzle-orm';
+import { eq, and, desc, isNull, inArray, lt, ne, count } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import {
     messages,

@@ -61,6 +61,11 @@ export interface Message {
     imageData?: string; // base64 encoded image data
     voiceClipUrl?: string; // Public URL to voice clip
     duration?: number; // Duration in seconds
+    // Call metadata for system messages
+    callId?: string;
+    callType?: CallType;
+    durationSeconds?: number;
+    status?: 'completed' | 'declined' | 'missed';
   };
   createdAt: Date;
   deliveredAt?: Date;
@@ -125,4 +130,34 @@ export interface BotConfig {
 export interface Bot extends User {
   isAiBot: true;
   config: BotConfig;
+}
+
+// Call types for WebRTC voice/video calls
+export type CallType = 'voice' | 'video';
+export type CallStatus = 'ringing' | 'active' | 'ended' | 'declined' | 'missed' | 'failed';
+
+export interface Call {
+  id: string;
+  conversationId: string;
+  initiatorId: string;
+  callType: CallType;
+  status: CallStatus;
+  startedAt?: Date | null;
+  endedAt?: Date | null;
+  errorReason?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CallParticipant {
+  id: string;
+  callId: string;
+  userId: string;
+  joinedAt: Date;
+  leftAt?: Date | null;
+  createdAt: Date;
+}
+
+export interface CallWithParticipants extends Call {
+  participants: CallParticipant[];
 }

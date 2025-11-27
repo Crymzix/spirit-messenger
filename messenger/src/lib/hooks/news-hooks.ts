@@ -3,7 +3,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getTopHeadlines, refreshTopHeadlines, type TopHeadlinesResponse } from '../services/news-service';
+import { getTopHeadlines, refreshTopHeadlines } from '../services/news-service';
 
 /**
  * Hook to fetch top headlines

@@ -20,7 +20,6 @@ import {
 } from '../db/schema.js';
 import { eq, and, desc, isNull, sql } from 'drizzle-orm';
 import {
-    getPersonalityTemplate,
     mergePersonality,
     calculateResponseDelay,
     calculateResponseProbability,
@@ -288,7 +287,7 @@ export async function sendBotMessage(
 ): Promise<SelectMessage> {
     // Build emoticon metadata
     const emoticonMetadata = emoticons.length > 0
-        ? emoticons.map((code, index) => ({
+        ? emoticons.map((code) => ({
             position: content.length - 1, // Add at end for simplicity
             code,
         }))

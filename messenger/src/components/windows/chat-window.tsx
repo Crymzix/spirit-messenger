@@ -23,6 +23,19 @@ import { WINDOW_EVENTS } from "@/lib/utils/constants";
 import { VoiceRecordingInterface } from "../voice-recording-interface";
 import { VoiceMessagePlayer } from "../voice-message-player";
 import { useSendVoiceClip } from "@/lib/hooks/voice-hooks";
+import { useCallInitiate } from "@/lib/hooks/call-hooks";
+import { useCallStore, useHasActiveCall } from "@/lib/store/call-store";
+import { callRealtimeService } from "@/lib/services/call-realtime-service";
+import { webrtcService } from "@/lib/services/webrtc-service";
+import { endCall } from "@/lib/services/call-service";
+import {
+    createConnectionStateHandler,
+    handleRemoteStream,
+    handleIceConnectionStateChange
+} from "@/lib/utils/webrtc-connection-handler";
+import { AudioCallOverlay } from "../audio-call-overlay";
+import { VideoCallOverlay } from "../video-call-overlay";
+import { CallErrorDialog } from "../call-error-dialog";
 
 export function ChatWindow() {
     // Extract contactId and contactName from URL query parameters
@@ -57,6 +70,15 @@ export function ChatWindow() {
 
     // Voice clip mutations
     const sendVoiceClipMutation = useSendVoiceClip(conversation?.id || '');
+
+    // Call mutations
+    const callInitiateMutation = useCallInitiate();
+    const hasActiveCall = useHasActiveCall();
+    const activeCall = useCallStore((state) => state.activeCall);
+    const callState = useCallStore((state) => state.callState);
+    const [callDeclinedMessage, setCallDeclinedMessage] = useState<string | null>(null);
+    const [callError, setCallError] = useState<string | null>(null);
+    const [callBusyError, setCallBusyError] = useState<string | null>(null);
 
     const sendMessageMutation = useSendMessage(conversation?.id || '');
     const sendNudgeMutation = useSendNudge(conversation?.id || '');
@@ -215,6 +237,34 @@ export function ChatWindow() {
         return true
     }, [isContactBlocked, isLoadingConversation, isLoadingMessages, sendMessageMutation.isPending, messageInput])
 
+    // Determine if calls can be initiated
+    const canInitiateCall = useMemo(() => {
+        // Cannot initiate call if there's already an active call
+        if (hasActiveCall) {
+            return false;
+        }
+
+        // Cannot initiate call if contact is blocked
+        if (isContactBlocked) {
+            return false;
+        }
+
+        // Cannot initiate call if contact is offline or appear offline
+        if (participants.length > 0) {
+            const participant = participants[0];
+            if (participant?.presenceStatus === 'offline' || participant?.presenceStatus === 'appear_offline') {
+                return false;
+            }
+        }
+
+        // Cannot initiate call if conversation is not loaded
+        if (!conversation?.id) {
+            return false;
+        }
+
+        return true;
+    }, [hasActiveCall, isContactBlocked, participants, conversation?.id])
+
     // Calculate last message received from other users (not sent by current user)
     const lastMessageReceived = useMemo(() => {
         if (!messagesData || messagesData.length === 0 || !user) {
@@ -298,6 +348,28 @@ export function ChatWindow() {
             unlisten.then((fn) => fn());
         };
     }, [conversation?.id, participants]);
+
+    // Cleanup WebRTC connection handler and realtime subscriptions on unmount
+    useEffect(() => {
+        return () => {
+            // Call cleanup function if it exists
+            if ((window as any).__webrtcCleanup) {
+                (window as any).__webrtcCleanup();
+                (window as any).__webrtcCleanup = undefined;
+            }
+
+            // Unsubscribe from all realtime channels
+            callRealtimeService.unsubscribeAll();
+        };
+    }, []);
+
+    // Clear busy error when call state changes (call ends)
+    useEffect(() => {
+        if (callState === 'idle' || callState === 'ended') {
+            // Clear any busy error messages when call ends
+            setCallBusyError(null);
+        }
+    }, [callState]);
 
     const handleSendMessage = async () => {
         if (!messageInput.trim() || !conversation?.id) {
@@ -508,6 +580,395 @@ export function ChatWindow() {
         }
     };
 
+    const handleVoiceCallClick = async () => {
+        if (!conversation?.id || !canInitiateCall || !user) return;
+
+        try {
+            // Initiate the call via Backend Service API
+            const call = await callInitiateMutation.mutateAsync({
+                conversationId: conversation.id,
+                callType: 'voice',
+            });
+
+            // Update call store with active call and set state to 'initiating'
+            const callStore = useCallStore.getState();
+            callStore.setActiveCall(call);
+            callStore.setCallState('initiating');
+
+            // Set current user ID for realtime service
+            callRealtimeService.setCurrentUserId(user.id);
+
+            // Get the other participant's user ID
+            const otherParticipant = participants[0];
+            if (!otherParticipant) {
+                throw new Error('No participant found for call');
+            }
+
+            // Subscribe to call_answered event via Realtime
+            await callRealtimeService.subscribeToCallEvents({
+                onCallAnswered: async () => {
+                    console.log('Call answered, transitioning to connecting state');
+
+                    // Update call state to 'connecting'
+                    callStore.setCallState('connecting');
+
+                    try {
+                        // Request media permissions (audio only for voice call)
+                        const localStream = await webrtcService.getLocalStream({
+                            audio: {
+                                echoCancellation: true,
+                                noiseSuppression: true,
+                                autoGainControl: true,
+                            },
+                            video: false,
+                        });
+
+                        // Update call store with local stream
+                        callStore.setLocalStream(localStream);
+
+                        // Create peer connection
+                        webrtcService.createPeerConnection();
+
+                        // Set up WebRTC event handlers with connection state management
+                        const { handler: connectionStateHandler, cleanup: cleanupConnectionHandler } =
+                            createConnectionStateHandler(
+                                async () => {
+                                    // Callback when call should end due to connection failure
+                                    try {
+                                        await endCall(call.id);
+                                    } catch (error) {
+                                        console.error('Error ending call:', error);
+                                    }
+                                },
+                                (errorMessage: string) => {
+                                    // Callback for displaying connection errors
+                                    setCallError(errorMessage);
+                                }
+                            );
+
+                        webrtcService.setEventHandlers({
+                            onIceCandidate: async (candidate) => {
+                                // Send ICE candidate via signaling
+                                const { sendSignal } = await import('@/lib/services/call-service');
+                                await sendSignal(
+                                    call.id,
+                                    'ice-candidate',
+                                    candidate.toJSON(),
+                                    otherParticipant.id
+                                );
+                            },
+                            onConnectionStateChange: connectionStateHandler,
+                            onIceConnectionStateChange: handleIceConnectionStateChange,
+                            onRemoteStream: handleRemoteStream,
+                        });
+
+                        // Store cleanup function for later use
+                        (window as any).__webrtcCleanup = cleanupConnectionHandler;
+
+                        // Subscribe to signaling events for this call
+                        await callRealtimeService.subscribeToSignaling(call.id, {
+                            onSdpAnswer: async () => {
+                                console.log('Received SDP answer');
+                                // Remote description is set automatically by callRealtimeService
+                            },
+                            onIceCandidate: async (_candidate) => {
+                                console.log('Received ICE candidate');
+                                // ICE candidate is added automatically by callRealtimeService
+                            },
+                        });
+
+                        // Generate SDP offer
+                        const offer = await webrtcService.createOffer();
+
+                        // Send SDP offer via signaling
+                        const { sendSignal } = await import('@/lib/services/call-service');
+                        await sendSignal(
+                            call.id,
+                            'offer',
+                            offer,
+                            otherParticipant.id
+                        );
+
+                        console.log('Call initiation complete, waiting for answer');
+                    } catch (mediaPermissionError: any) {
+                        console.error('Media permission error:', mediaPermissionError);
+
+                        // Display error in modal dialog
+                        setCallError(mediaPermissionError.message || 'Failed to access microphone');
+
+                        // End the call
+                        try {
+                            await endCall(call.id);
+                        } catch (endCallError) {
+                            console.error('Failed to end call after media error:', endCallError);
+                        }
+
+                        // Clean up
+                        webrtcService.closePeerConnection();
+                        callStore.reset();
+                    }
+                },
+                onCallDeclined: () => {
+                    console.log('Call declined by remote user');
+
+                    // Display "Call declined" message
+                    setCallDeclinedMessage('Call declined');
+
+                    // Close WebRTC connection and stop media tracks
+                    webrtcService.closePeerConnection();
+
+                    // Update call state to ended
+                    callStore.setCallState('ended');
+
+                    // Reset call store and clear message after a short delay to show declined state
+                    setTimeout(() => {
+                        callStore.reset();
+                        setCallDeclinedMessage(null);
+                    }, 2000);
+                },
+                onCallEnded: () => {
+                    console.log('Call ended by remote user');
+
+                    // Close WebRTC connection and stop media tracks
+                    webrtcService.closePeerConnection();
+
+                    // Update call state to ended
+                    callStore.setCallState('ended');
+
+                    // Reset call store after a short delay
+                    setTimeout(() => {
+                        callStore.reset();
+                    }, 1000);
+                },
+            });
+
+            console.log('Voice call initiated, waiting for answer');
+        } catch (error: any) {
+            console.error('Failed to initiate voice call:', error);
+
+            // Show error to user
+            let errorMessage = 'Failed to initiate call';
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            }
+
+            // Check if error is due to user being busy (simultaneous call prevention)
+            if (errorMessage.includes('User is currently on another call') ||
+                errorMessage.includes('USER_BUSY')) {
+                setCallBusyError('You or your contact is currently on another call. Please try again later.');
+
+                // Clear the error after 5 seconds
+                setTimeout(() => {
+                    setCallBusyError(null);
+                }, 5000);
+            } else {
+                // For other errors, show in the call error dialog
+                setCallError(errorMessage);
+            }
+
+            // Clean up on error
+            const callStore = useCallStore.getState();
+            callStore.reset();
+        }
+    };
+
+    const handleVideoCallClick = async () => {
+        if (!conversation?.id || !canInitiateCall || !user) return;
+
+        try {
+            // Initiate the call via Backend Service API
+            const call = await callInitiateMutation.mutateAsync({
+                conversationId: conversation.id,
+                callType: 'video',
+            });
+
+            // Update call store with active call and set state to 'initiating'
+            const callStore = useCallStore.getState();
+            callStore.setActiveCall(call);
+            callStore.setCallState('initiating');
+
+            // Set current user ID for realtime service
+            callRealtimeService.setCurrentUserId(user.id);
+
+            // Get the other participant's user ID
+            const otherParticipant = participants[0];
+            if (!otherParticipant) {
+                throw new Error('No participant found for call');
+            }
+
+            // Subscribe to call_answered event via Realtime
+            await callRealtimeService.subscribeToCallEvents({
+                onCallAnswered: async () => {
+                    console.log('Call answered, transitioning to connecting state');
+
+                    // Update call state to 'connecting'
+                    callStore.setCallState('connecting');
+
+                    try {
+                        // Request media permissions (audio and video for video call)
+                        const localStream = await webrtcService.getLocalStream({
+                            audio: {
+                                echoCancellation: true,
+                                noiseSuppression: true,
+                                autoGainControl: true,
+                            },
+                            video: {
+                                width: 640,
+                                height: 480,
+                                frameRate: 15,
+                            },
+                        });
+
+                        // Update call store with local stream
+                        callStore.setLocalStream(localStream);
+
+                        // Create peer connection
+                        webrtcService.createPeerConnection();
+
+                        // Set up WebRTC event handlers with connection state management
+                        const { handler: connectionStateHandler, cleanup: cleanupConnectionHandler } =
+                            createConnectionStateHandler(
+                                async () => {
+                                    // Callback when call should end due to connection failure
+                                    try {
+                                        await endCall(call.id);
+                                    } catch (error) {
+                                        console.error('Error ending call:', error);
+                                    }
+                                },
+                                (errorMessage: string) => {
+                                    // Callback for displaying connection errors
+                                    setCallError(errorMessage);
+                                }
+                            );
+
+                        webrtcService.setEventHandlers({
+                            onIceCandidate: async (candidate) => {
+                                // Send ICE candidate via signaling
+                                const { sendSignal } = await import('@/lib/services/call-service');
+                                await sendSignal(
+                                    call.id,
+                                    'ice-candidate',
+                                    candidate.toJSON(),
+                                    otherParticipant.id
+                                );
+                            },
+                            onConnectionStateChange: connectionStateHandler,
+                            onIceConnectionStateChange: handleIceConnectionStateChange,
+                            onRemoteStream: handleRemoteStream,
+                        });
+
+                        // Store cleanup function for later use
+                        (window as any).__webrtcCleanup = cleanupConnectionHandler;
+
+                        // Subscribe to signaling events for this call
+                        await callRealtimeService.subscribeToSignaling(call.id, {
+                            onSdpAnswer: async () => {
+                                console.log('Received SDP answer');
+                                // Remote description is set automatically by callRealtimeService
+                            },
+                            onIceCandidate: async (_candidate) => {
+                                console.log('Received ICE candidate');
+                                // ICE candidate is added automatically by callRealtimeService
+                            },
+                        });
+
+                        // Generate SDP offer
+                        const offer = await webrtcService.createOffer();
+
+                        // Send SDP offer via signaling
+                        const { sendSignal } = await import('@/lib/services/call-service');
+                        await sendSignal(
+                            call.id,
+                            'offer',
+                            offer,
+                            otherParticipant.id
+                        );
+
+                        console.log('Call initiation complete, waiting for answer');
+                    } catch (mediaPermissionError: any) {
+                        console.error('Media permission error:', mediaPermissionError);
+
+                        // Display error in modal dialog
+                        setCallError(mediaPermissionError.message || 'Failed to access camera/microphone');
+
+                        // End the call
+                        try {
+                            const { endCall } = await import('@/lib/services/call-service');
+                            await endCall(call.id);
+                        } catch (endCallError) {
+                            console.error('Failed to end call after media error:', endCallError);
+                        }
+
+                        // Clean up
+                        webrtcService.closePeerConnection();
+                        callStore.reset();
+                    }
+                },
+                onCallDeclined: () => {
+                    console.log('Call declined by remote user');
+
+                    // Display "Call declined" message
+                    setCallDeclinedMessage('Call declined');
+
+                    // Close WebRTC connection and stop media tracks
+                    webrtcService.closePeerConnection();
+
+                    // Update call state to ended
+                    callStore.setCallState('ended');
+
+                    // Reset call store and clear message after a short delay to show declined state
+                    setTimeout(() => {
+                        callStore.reset();
+                        setCallDeclinedMessage(null);
+                    }, 2000);
+                },
+                onCallEnded: () => {
+                    console.log('Call ended by remote user');
+
+                    // Close WebRTC connection and stop media tracks
+                    webrtcService.closePeerConnection();
+
+                    // Update call state to ended
+                    callStore.setCallState('ended');
+
+                    // Reset call store after a short delay
+                    setTimeout(() => {
+                        callStore.reset();
+                    }, 1000);
+                },
+            });
+
+            console.log('Video call initiated, waiting for answer');
+        } catch (error: any) {
+            console.error('Failed to initiate video call:', error);
+
+            // Show error to user
+            let errorMessage = 'Failed to initiate call';
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            }
+
+            // Check if error is due to user being busy (simultaneous call prevention)
+            if (errorMessage.includes('User is currently on another call') ||
+                errorMessage.includes('USER_BUSY')) {
+                setCallBusyError('You or your contact is currently on another call. Please try again later.');
+
+                // Clear the error after 5 seconds
+                setTimeout(() => {
+                    setCallBusyError(null);
+                }, 5000);
+            } else {
+                // For other errors, show in the call error dialog
+                setCallError(errorMessage);
+            }
+
+            // Clean up on error
+            const callStore = useCallStore.getState();
+            callStore.reset();
+        }
+    };
+
     const renderInfo = () => {
         if (!participants?.length) {
             return null
@@ -540,478 +1001,554 @@ export function ChatWindow() {
     }
 
     return (
-        <div
-            className={`window w-full h-screen flex flex-col ${shouldBlink ? 'animate-blink-orange' : ''}`}
-        >
-            <TitleBar
-                title={`${displayName} - Conversation`}
-                className={shouldBlink ? 'animate-blink-orange-title' : ''}
+        <>
+            <CallErrorDialog
+                error={callError}
+                onClose={() => setCallError(null)}
             />
-            <div className="window-body flex-1 !my-[0px] !mx-[3px] relative flex flex-col min-h-0">
-                <div className="flex flex-col overflow-hidden">
-                    {/* Menu Bar */}
-                    <div className="">
-                        <div className="flex gap-0.5 text-md">
-                            <label className="px-3 py-1 cursor-pointer hover:bg-[#245DDA] hover:text-white">
-                                File
-                            </label>
-                            <label className="px-3 py-1 cursor-pointer hover:bg-[#245DDA] hover:text-white">
-                                Edit
-                            </label>
-                            <label className="px-3 py-1 cursor-pointer hover:bg-[#245DDA] hover:text-white">
-                                Actions
-                            </label>
-                            <label className="px-3 py-1 cursor-pointer hover:bg-[#245DDA] hover:text-white">
-                                Tools
-                            </label>
-                            <label className="px-3 py-1 cursor-pointer hover:bg-[#245DDA] hover:text-white">
-                                Help
-                            </label>
-                        </div>
+            {/* Busy error notification */}
+            {callBusyError && (
+                <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-100 border-2 border-red-500 rounded-lg px-6 py-3 shadow-lg">
+                    <div className="flex items-center gap-3">
+                        <div className="text-red-700 font-bold text-lg">⚠</div>
+                        <div className="text-red-800 font-verdana text-sm">{callBusyError}</div>
+                        <button
+                            onClick={() => setCallBusyError(null)}
+                            className="ml-2 text-red-700 hover:text-red-900 font-bold"
+                        >
+                            ✕
+                        </button>
                     </div>
                 </div>
-                <div className="flex flex-col h-full overflow-y-hidden relative">
-                    {/* Background */}
-                    <div
-                        className="h-full w-full absolute"
-                        style={{
-                            background: "linear-gradient(#c9d9f1, #f6f6f6 50%, #c9d9f1)"
-                        }}
-                    >
-                        <img
-                            className="bottom-0 right-0 w-[600px] absolute"
-                            src="/msn-background.png"
-                        />
-                    </div>
-                    {/* MSN Messenger Toolbar */}
-                    <div className="overflow-hidden shrink-0">
-                        <div className="w-full h-full grid grid-cols-[minmax(10px,300px)_3fr] relative z-[1]">
-                            {/* Toolbar Left */}
-                            <div
-                                className="h-[58px] place-items-center justify-start items-center grid gap-x-5 pl-[30px] grid-cols-[auto_auto] bg-no-repeat bg-[top_left,top] box-border"
-                                style={{
-                                    backgroundImage: "url('/toolbar/background/1_806.png'), url('/toolbar/background/2_805.png')",
-                                    backgroundRepeat: 'no-repeat, repeat-x',
-                                    backgroundPosition: 'top left, top'
-                                }}
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className="whitespace-nowrap box-border hidden min-[346px]:block cursor-pointer hover:opacity-80">
-                                        <div className="flex flex-col items-center justify-center ">
-                                            <img src="/toolbar/invite.png" alt="" />
-                                            <div className="text">
-                                                <div
-                                                    className="text-[#31497C]"
-                                                    style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                                                >
-                                                    Invite
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div
-                                        onClick={handleSendFileClick}
-                                        className="whitespace-nowrap box-border hidden min-[346px]:block cursor-pointer hover:opacity-80"
-                                    >
-                                        <div className="flex flex-col items-center">
-                                            <img src="/toolbar/send-files.png" alt="" />
-                                            <div className="text">
-                                                <div
-                                                    className="text-[#31497C]"
-                                                    style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                                                >
-                                                    Send Files
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="whitespace-nowrap box-border hidden min-[346px]:block cursor-pointer hover:opacity-80">
-                                        <div className="flex flex-col items-center">
-                                            <img src="/toolbar/webcam.png" alt="" />
-                                            <div className="text">
-                                                <div
-                                                    className="text-[#31497C]"
-                                                    style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                                                >
-                                                    Webcam
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div
-                                        className="whitespace-nowrap box-border hidden min-[388px]:block cursor-pointer hover:opacity-80"
-                                        onClick={handleAudioClick}
-                                    >
-                                        <div className="flex flex-col items-center">
-                                            <img src="/toolbar/voice.png" alt="" />
-                                            <div className="text">
-                                                <div
-                                                    className="text-[#31497C]"
-                                                    style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                                                >
-                                                    Audio
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="whitespace-nowrap box-border hidden min-[470px]:block cursor-pointer hover:opacity-80">
-                                        <div className="flex flex-col items-center">
-                                            <img src="/toolbar/games.png" alt="" />
-                                            <div className="text">
-                                                <div
-                                                    className="text-[#31497C]"
-                                                    style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                                                >
-                                                    Games
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Toolbar Right */}
-                            <div
-                                className="bg-no-repeat bg-[top_left,top_right,top]"
-                                style={{
-                                    backgroundImage: "url('/toolbar/background/3_803.png'), url('/toolbar/background/5_804.png'), url('/toolbar/background/4_802.png')",
-                                    backgroundRepeat: 'no-repeat, no-repeat, repeat-x',
-                                    backgroundPosition: 'top left, top right, top'
-                                }}
-                            >
-                                <div className="flex box-border h-[21px] pt-[3px] pr-3">
-                                    <img src="/spirit-logo.png" alt="" className="ml-auto h-6" />
-                                </div>
-                                <div
-                                    className="relative -z-[1] h-[26px] max-w-[114px] box-border pl-[52px] mr-[35px] bg-repeat-x bg-[top] bg-content-box after:content-[''] after:absolute after:top-0 after:left-full after:w-[35px] after:h-[26px] after:bg-no-repeat after:bg-[top_right]"
-                                    style={{
-                                        backgroundImage: "url('/toolbar/background/mini-1_807.png')"
-                                    }}
-                                >
-                                    <div className="pt-[2px] flex items-center gap-4">
-                                        <div
-                                            className="w-[19px] h-[19px] flex justify-center items-center bg-no-repeat cursor-pointer"
-                                            style={{ backgroundImage: "url('/toolbar/background/small-circle-button_850.png')" }}
-                                        >
-                                            <img src="/toolbar/small-block.png" alt="" className="w-[13px] h-[13px]" />
-                                        </div>
-                                        <div
-                                            className="w-[19px] h-[19px] flex justify-center items-center bg-no-repeat cursor-pointer"
-                                            style={{ backgroundImage: "url('/toolbar/background/small-circle-button_850.png')" }}
-                                        >
-                                            <img src="/toolbar/small-paint.png" alt="" className="w-[13px] h-[13px]" />
-                                        </div>
-                                    </div>
-                                    {/* After pseudo-element for the right edge */}
-                                    <div
-                                        className="absolute top-0 left-full w-[35px] h-[26px] bg-no-repeat bg-[top_right]"
-                                        style={{
-                                            backgroundImage: "url('/toolbar/background/mini-2_801.png')"
-                                        }}
-                                    />
-                                </div>
+            )}
+            <div
+                className={`window w-full h-screen flex flex-col ${shouldBlink ? 'animate-blink-orange' : ''}`}
+            >
+                <TitleBar
+                    title={`${displayName} - Conversation`}
+                    className={shouldBlink ? 'animate-blink-orange-title' : ''}
+                />
+                <div className="window-body flex-1 !my-[0px] !mx-[3px] relative flex flex-col min-h-0">
+                    <div className="flex flex-col overflow-hidden">
+                        {/* Menu Bar */}
+                        <div className="">
+                            <div className="flex gap-0.5 text-md">
+                                <label className="px-3 py-1 cursor-pointer hover:bg-[#245DDA] hover:text-white">
+                                    File
+                                </label>
+                                <label className="px-3 py-1 cursor-pointer hover:bg-[#245DDA] hover:text-white">
+                                    Edit
+                                </label>
+                                <label className="px-3 py-1 cursor-pointer hover:bg-[#245DDA] hover:text-white">
+                                    Actions
+                                </label>
+                                <label className="px-3 py-1 cursor-pointer hover:bg-[#245DDA] hover:text-white">
+                                    Tools
+                                </label>
+                                <label className="px-3 py-1 cursor-pointer hover:bg-[#245DDA] hover:text-white">
+                                    Help
+                                </label>
                             </div>
                         </div>
                     </div>
-
-                    <div className="flex p-6 z-10 flex-1">
-                        <div className="flex flex-col flex-1 min-h-0 z-10 gap-4">
-                            <div className="flex flex-1 gap-4">
-                                {/* Message History Panel */}
-                                <div className="flex-1 bg-white border-[1px] border-[#31497C] rounded-t-xl flex flex-col">
-                                    <div
-                                        style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                                        className="flex items-center gap-1 text-[#31497C] bg-[#E6ECF9] border-b-[1px] border-[#31497C] rounded-t-xl px-2 py-1.5 text-lg"
-                                    >
-                                        <div>To: </div>
-                                        <div className="font-bold">
-                                            {displayName}
-                                        </div>
-                                    </div>
-                                    <div
-                                        ref={messageHistoryRef}
-                                        className="space-y-2 overflow-y-auto h-[calc(100vh-306px)] relative"
-                                    >
-                                        {renderInfo()}
-                                        {!isLoadingMessages && hasNextPage && (
-                                            <div className="text-center py-2">
-                                                <div
-                                                    onClick={() => {
-                                                        if (isFetchingNextPage) return;
-                                                        isLoadingOlderMessagesRef.current = true;
-                                                        fetchNextPage();
-                                                    }}
-                                                    className="px-3 py-1 text-[11px] text-[#31497C] font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                                                >
-                                                    {isFetchingNextPage ? 'Loading...' : 'Load More Messages'}
-                                                </div>
-                                            </div>
-                                        )}
-                                        {messagesData.map((message) => {
-                                            const sender = message.sender || conversation?.participants.find((p: User) => p.id === message.senderId);
-                                            const isFileTransfer = message.messageType === 'file';
-                                            const isImage = message.messageType === 'image';
-                                            const isVoice = message.messageType === 'voice';
-
-                                            return (
-                                                <div key={message.id} className="text-lg px-2 last:pb-2">
-                                                    <div className="flex flex-col">
-                                                        <div
-                                                            style={{
-                                                                fontFamily: 'Pixelated MS Sans Serif'
-                                                            }}
-                                                        >
-                                                            {`${sender?.displayName || 'Unknown'} ${isFileTransfer ? 'sends' : 'says'}`}:
-                                                        </div>
-                                                        <div className="font-verdana text-black ml-4">
-                                                            {
-                                                                isVoice && message.metadata?.voiceClipUrl ?
-                                                                    <VoiceMessagePlayer
-                                                                        voiceClipUrl={message.metadata.voiceClipUrl}
-                                                                        duration={message.metadata.duration}
-                                                                        senderName={sender?.displayName}
-                                                                    /> :
-                                                                    isFileTransfer ?
-                                                                        <FileTransferRequestMessage
-                                                                            message={message}
-                                                                        /> :
-                                                                        isImage && message.metadata?.imageData ?
-                                                                            <img
-                                                                                src={message.metadata.imageData}
-                                                                                alt="Handwriting"
-                                                                                className="max-w-full h-auto"
-                                                                            /> :
-                                                                            <MessageContent
-                                                                                content={message.content}
-                                                                                metadata={message.metadata}
-                                                                            />
-                                                            }
-                                                        </div>
+                    <div className="flex flex-col h-full overflow-y-hidden relative">
+                        {/* Background */}
+                        <div
+                            className="h-full w-full absolute"
+                            style={{
+                                background: "linear-gradient(#c9d9f1, #f6f6f6 50%, #c9d9f1)"
+                            }}
+                        >
+                            <img
+                                className="bottom-0 right-0 w-[600px] absolute"
+                                src="/msn-background.png"
+                            />
+                        </div>
+                        {/* MSN Messenger Toolbar */}
+                        <div className="overflow-hidden shrink-0">
+                            <div className="w-full h-full grid grid-cols-[minmax(10px,300px)_3fr] relative z-[1]">
+                                {/* Toolbar Left */}
+                                <div
+                                    className="h-[58px] place-items-center justify-start items-center grid gap-x-5 pl-[30px] grid-cols-[auto_auto] bg-no-repeat bg-[top_left,top] box-border"
+                                    style={{
+                                        backgroundImage: "url('/toolbar/background/1_806.png'), url('/toolbar/background/2_805.png')",
+                                        backgroundRepeat: 'no-repeat, repeat-x',
+                                        backgroundPosition: 'top left, top'
+                                    }}
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className="whitespace-nowrap box-border hidden min-[346px]:block cursor-pointer hover:opacity-80">
+                                            <div className="flex flex-col items-center justify-center ">
+                                                <img src="/toolbar/invite.png" alt="" />
+                                                <div className="text">
+                                                    <div
+                                                        className="text-[#31497C]"
+                                                        style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                                    >
+                                                        Invite
                                                     </div>
                                                 </div>
-                                            );
-                                        })}
-                                        {
-                                            sendMessageMutation.isPending && (
-                                                <div className="!text-lg text-gray-500 italic">
-                                                    Sending...
+                                            </div>
+                                        </div>
+                                        <div
+                                            onClick={handleSendFileClick}
+                                            className="whitespace-nowrap box-border hidden min-[346px]:block cursor-pointer hover:opacity-80"
+                                        >
+                                            <div className="flex flex-col items-center">
+                                                <img src="/toolbar/send-files.png" alt="" />
+                                                <div className="text">
+                                                    <div
+                                                        className="text-[#31497C]"
+                                                        style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                                    >
+                                                        Send Files
+                                                    </div>
                                                 </div>
-                                            )
-                                        }
-                                        {
-                                            (isLoadingConversation || isLoadingMessages) && (
-                                                <div className="!text-lg text-gray-500 italic">
-                                                    Loading...
+                                            </div>
+                                        </div>
+                                        <div
+                                            onClick={canInitiateCall ? handleVideoCallClick : undefined}
+                                            className={`whitespace-nowrap box-border hidden min-[346px]:block ${canInitiateCall ? 'cursor-pointer hover:opacity-80' : 'opacity-50 cursor-not-allowed'}`}
+                                            title={
+                                                !canInitiateCall
+                                                    ? (hasActiveCall
+                                                        ? 'You are already in a call'
+                                                        : (isContactBlocked
+                                                            ? 'Cannot call blocked contact'
+                                                            : 'Contact is offline'))
+                                                    : 'Start video call'
+                                            }
+                                        >
+                                            <div className="flex flex-col items-center">
+                                                <img src="/toolbar/webcam.png" alt="" />
+                                                <div className="text">
+                                                    <div
+                                                        className="text-[#31497C]"
+                                                        style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                                    >
+                                                        Webcam
+                                                    </div>
                                                 </div>
-                                            )
-                                        }
-                                        {
-                                            conversationError && (
-                                                <div className="!text-lg text-red-600 italic">
-                                                    {(conversationError as Error)?.message || 'An error occurred'}
+                                            </div>
+                                        </div>
+                                        <div
+                                            onClick={canInitiateCall ? handleVoiceCallClick : undefined}
+                                            className={`whitespace-nowrap box-border hidden min-[388px]:block ${canInitiateCall ? 'cursor-pointer hover:opacity-80' : 'opacity-50 cursor-not-allowed'}`}
+                                            title={
+                                                !canInitiateCall
+                                                    ? (hasActiveCall
+                                                        ? 'You are already in a call'
+                                                        : (isContactBlocked
+                                                            ? 'Cannot call blocked contact'
+                                                            : 'Contact is offline'))
+                                                    : 'Start voice call'
+                                            }
+                                        >
+                                            <div className="flex flex-col items-center">
+                                                <img src="/toolbar/voice.png" alt="" />
+                                                <div className="text">
+                                                    <div
+                                                        className="text-[#31497C]"
+                                                        style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                                    >
+                                                        Audio
+                                                    </div>
                                                 </div>
-                                            )
-                                        }
+                                            </div>
+                                        </div>
+                                        <div className="whitespace-nowrap box-border hidden min-[470px]:block cursor-pointer hover:opacity-80">
+                                            <div className="flex flex-col items-center">
+                                                <img src="/toolbar/games.png" alt="" />
+                                                <div className="text">
+                                                    <div
+                                                        className="text-[#31497C]"
+                                                        style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                                    >
+                                                        Games
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                                {/* MSN Messenger Avatar */}
-                                <div className="hidden min-[470px]:block">
-                                    <div className="w-[104px] flex items-center flex-col border border-[#586170] pt-[3px] rounded-lg relative bg-[#dee7f7]">
-                                        {
-                                            participants[0] ?
-                                                participants[0]?.isAiBot ?
-                                                    <Avatar name={participants[0]?.displayName || participants[0]?.username} colors={["#0481f6", "#4edfb3", "#ff005b", "#ff7d10", "#ffb238"]} variant="marble" square className='size-[96px] rounded-[7px]' /> :
-                                                    <img className="size-[96px] border border-[#586170] rounded-[7px]" src={participants[0]?.displayPictureUrl || '/default-profile-pictures/friendly_dog.png'} alt="" /> :
-                                                <div className="size-[96px] bg-gray-300 rounded-[7px]" />
-                                        }
-                                        <img className="self-end m-[3px_5px]" src="/down.png" alt="" />
-                                        <img className="absolute top-1 right-0 translate-x-[9px]" src="/expand-left.png" alt="" />
+
+                                {/* Toolbar Right */}
+                                <div
+                                    className="bg-no-repeat bg-[top_left,top_right,top]"
+                                    style={{
+                                        backgroundImage: "url('/toolbar/background/3_803.png'), url('/toolbar/background/5_804.png'), url('/toolbar/background/4_802.png')",
+                                        backgroundRepeat: 'no-repeat, no-repeat, repeat-x',
+                                        backgroundPosition: 'top left, top right, top'
+                                    }}
+                                >
+                                    <div className="flex box-border h-[21px] pt-[3px] pr-3">
+                                        <img src="/spirit-logo.png" alt="" className="ml-auto h-6" />
+                                    </div>
+                                    <div
+                                        className="relative -z-[1] h-[26px] max-w-[114px] box-border pl-[52px] mr-[35px] bg-repeat-x bg-[top] bg-content-box after:content-[''] after:absolute after:top-0 after:left-full after:w-[35px] after:h-[26px] after:bg-no-repeat after:bg-[top_right]"
+                                        style={{
+                                            backgroundImage: "url('/toolbar/background/mini-1_807.png')"
+                                        }}
+                                    >
+                                        <div className="pt-[2px] flex items-center gap-4">
+                                            <div
+                                                className="w-[19px] h-[19px] flex justify-center items-center bg-no-repeat cursor-pointer"
+                                                style={{ backgroundImage: "url('/toolbar/background/small-circle-button_850.png')" }}
+                                            >
+                                                <img src="/toolbar/small-block.png" alt="" className="w-[13px] h-[13px]" />
+                                            </div>
+                                            <div
+                                                className="w-[19px] h-[19px] flex justify-center items-center bg-no-repeat cursor-pointer"
+                                                style={{ backgroundImage: "url('/toolbar/background/small-circle-button_850.png')" }}
+                                            >
+                                                <img src="/toolbar/small-paint.png" alt="" className="w-[13px] h-[13px]" />
+                                            </div>
+                                        </div>
+                                        {/* After pseudo-element for the right edge */}
+                                        <div
+                                            className="absolute top-0 left-full w-[35px] h-[26px] bg-no-repeat bg-[top_right]"
+                                            style={{
+                                                backgroundImage: "url('/toolbar/background/mini-2_801.png')"
+                                            }}
+                                        />
                                     </div>
                                 </div>
                             </div>
-                            {/* Chat Area */}
-                            <div className="flex gap-4">
-                                <div className="flex flex-col flex-1 bg-white border-[1px] border-[#31497C] rounded-xl">
-                                    {/* Toolbar */}
-                                    <div
-                                        style={{
-                                            background: "linear-gradient(#D8E8F7, #F5F2F9, #D8E8F7)"
-                                        }}
-                                        className="flex items-center gap-2 px-2 py-1 border-b-[1px] border-[#31497C] rounded-t-xl">
+                        </div>
+
+                        <div className="flex p-6 z-10 flex-1">
+                            <div className="flex flex-col flex-1 min-h-0 z-10 gap-4">
+                                <div className="flex flex-1 gap-4">
+                                    {/* Message History Panel */}
+                                    <div className="flex-1 bg-white border-[1px] border-[#31497C] rounded-t-xl flex flex-col">
                                         <div
-                                            onClick={() => setShowFontPicker(true)}
                                             style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                                            className="flex items-center gap-0.5 cursor-pointer relative"
+                                            className="flex items-center gap-1 text-[#31497C] bg-[#E6ECF9] border-b-[1px] border-[#31497C] rounded-t-xl px-2 py-1.5 text-lg"
                                         >
-                                            <img src="/text.png" className="size-8" />
-                                            Font
-                                            {showFontPicker && (
-                                                <TextFormatter
-                                                    onFormatChange={setFormatting}
-                                                    currentFormatting={formatting}
-                                                    onClose={() => setShowFontPicker(false)}
-                                                />
+                                            <div>To: </div>
+                                            <div className="font-bold">
+                                                {displayName}
+                                            </div>
+                                        </div>
+                                        <div
+                                            ref={messageHistoryRef}
+                                            className="space-y-2 overflow-y-auto h-[calc(100vh-306px)] relative"
+                                        >
+                                            {renderInfo()}
+                                            {!isLoadingMessages && hasNextPage && (
+                                                <div className="text-center py-2">
+                                                    <div
+                                                        onClick={() => {
+                                                            if (isFetchingNextPage) return;
+                                                            isLoadingOlderMessagesRef.current = true;
+                                                            fetchNextPage();
+                                                        }}
+                                                        className="px-3 py-1 text-[11px] text-[#31497C] font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                                    >
+                                                        {isFetchingNextPage ? 'Loading...' : 'Load More Messages'}
+                                                    </div>
+                                                </div>
                                             )}
-                                        </div>
-                                        <div
-                                            onClick={() => setShowEmoticonPicker(true)}
-                                            style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                                            className="flex items-center gap-0.5 cursor-pointer relative"
-                                        >
-                                            <img src="/emoticon.png" className="size-8" />
-                                            {showEmoticonPicker && (
-                                                <EmoticonPicker
-                                                    onSelect={handleEmoticonSelect}
-                                                    onClose={() => setShowEmoticonPicker(false)}
-                                                />
-                                            )}
-                                        </div>
-                                        <div
-                                            style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                                            className="flex items-center gap-0.5 cursor-pointer"
-                                        >
-                                            <img src="/wink.png" className="size-8" />
-                                            Winks
-                                        </div>
-                                        <div
-                                            style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                                            className={`flex items-center gap-0.5 ${sendNudgeMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                                            onClick={() => {
-                                                if (!sendNudgeMutation.isPending && conversation?.id) {
-                                                    sendNudgeMutation.mutate();
-                                                }
-                                            }}
-                                        >
-                                            <img src="/nudge.png" className="size-8" />
+                                            {messagesData.map((message) => {
+                                                const sender = message.sender || conversation?.participants.find((p: User) => p.id === message.senderId);
+                                                const isFileTransfer = message.messageType === 'file';
+                                                const isImage = message.messageType === 'image';
+                                                const isVoice = message.messageType === 'voice';
+
+                                                return (
+                                                    <div key={message.id} className="text-lg px-2 last:pb-2">
+                                                        <div className="flex flex-col">
+                                                            <div
+                                                                style={{
+                                                                    fontFamily: 'Pixelated MS Sans Serif'
+                                                                }}
+                                                            >
+                                                                {`${sender?.displayName || 'Unknown'} ${isFileTransfer ? 'sends' : 'says'}`}:
+                                                            </div>
+                                                            <div className="font-verdana text-black ml-4">
+                                                                {
+                                                                    isVoice && message.metadata?.voiceClipUrl ?
+                                                                        <VoiceMessagePlayer
+                                                                            voiceClipUrl={message.metadata.voiceClipUrl}
+                                                                            duration={message.metadata.duration}
+                                                                            senderName={sender?.displayName}
+                                                                        /> :
+                                                                        isFileTransfer ?
+                                                                            <FileTransferRequestMessage
+                                                                                message={message}
+                                                                            /> :
+                                                                            isImage && message.metadata?.imageData ?
+                                                                                <img
+                                                                                    src={message.metadata.imageData}
+                                                                                    alt="Handwriting"
+                                                                                    className="max-w-full h-auto"
+                                                                                /> :
+                                                                                <MessageContent
+                                                                                    content={message.content}
+                                                                                    messageType={message.messageType}
+                                                                                    metadata={message.metadata}
+                                                                                />
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                            {
+                                                sendMessageMutation.isPending && (
+                                                    <div className="!text-lg text-gray-500 italic p-2">
+                                                        Sending...
+                                                    </div>
+                                                )
+                                            }
+                                            {
+                                                (isLoadingConversation || isLoadingMessages) && (
+                                                    <div className="!text-lg text-gray-500 italic p-2">
+                                                        Loading...
+                                                    </div>
+                                                )
+                                            }
+                                            {
+                                                conversationError && (
+                                                    <div className="!text-lg text-red-600 italic p-2">
+                                                        {(conversationError as Error)?.message || 'An error occurred'}
+                                                    </div>
+                                                )
+                                            }
                                         </div>
                                     </div>
-                                    {activeTab === 'type' ? (
-                                        <div className="flex py-4 px-2">
-                                            {isRecordingVoice ? (
-                                                <VoiceRecordingInterface
-                                                    onSend={handleSendVoiceClip}
-                                                    onCancel={() => setIsRecordingVoice(false)}
-                                                />
-                                            ) : (
-                                                <>
-                                                    <textarea
-                                                        ref={textareaRef}
-                                                        value={messageInput}
-                                                        onChange={handleInputChange}
-                                                        onKeyDown={handleKeyPress}
-                                                        placeholder={isContactBlocked ? "Cannot send messages to blocked contact" : "Type a message..."}
-                                                        disabled={sendMessageMutation.isPending || isContactBlocked}
-                                                        className={`w-full flex-1 !font-verdana !text-lg border border-[#ACA899] rounded resize-none focus:outline-none focus:border-msn-blue disabled:opacity-50 disabled:cursor-not-allowed ${formatting.bold ? 'font-bold' : ''} ${formatting.italic ? 'italic' : ''}`}
-                                                        style={{
-                                                            color: formatting.color || 'inherit'
-                                                        }}
-                                                    />
-                                                    <div
-                                                        aria-disabled={!canSend}
-                                                        onClick={handleSendMessage}
-                                                        className={`!text-lg border border-[#93989C] bg-[#FBFBFB] w-[58px] h-full rounded-[5px] font-bold text-[0.6875em] flex items-center justify-center ${canSend ? "text-[#31497C] cursor-pointer" : "text-[#969C9A]"}`}
-                                                        style={{ boxShadow: '-4px -4px 4px #C0C9E0 inset', fontFamily: 'Pixelated MS Sans Serif' }}>
-                                                        Send
-                                                    </div>
-                                                </>
-                                            )}
+                                    {/* MSN Messenger Avatar */}
+                                    <div className="hidden min-[470px]:block">
+                                        <div className="w-[104px] flex items-center flex-col border border-[#586170] pt-[3px] rounded-lg relative bg-[#dee7f7]">
+                                            {
+                                                participants[0] ?
+                                                    participants[0]?.isAiBot ?
+                                                        <Avatar name={participants[0]?.displayName || participants[0]?.username} colors={["#0481f6", "#4edfb3", "#ff005b", "#ff7d10", "#ffb238"]} variant="marble" square className='size-[96px] rounded-[7px]' /> :
+                                                        <img className="size-[96px] border border-[#586170] rounded-[7px]" src={participants[0]?.displayPictureUrl || '/default-profile-pictures/friendly_dog.png'} alt="" /> :
+                                                    <div className="size-[96px] bg-gray-300 rounded-[7px]" />
+                                            }
+                                            <img className="self-end m-[3px_5px]" src="/down.png" alt="" />
+                                            <img className="absolute top-1 right-0 translate-x-[9px]" src="/expand-left.png" alt="" />
                                         </div>
-                                    ) : (
-                                        <div className="flex py-4 px-2">
-                                            <HandwritingCanvas onSend={handleSendHandwriting} />
-                                        </div>
-                                    )}
-
-                                    {/* Bottom Bar */}
-                                    <div
-                                        style={{
-                                            background: "linear-gradient(#D8E8F7, #F5F2F9, #D8E8F7)"
-                                        }}
-                                        className="flex border-t-[1px] border-[#31497C] rounded-b-xl">
-                                        {/* Typing indicator */}
-                                        {
-                                            typingUsernames.length > 0 ? (
-                                                <TypingIndicator
-                                                    usernames={typingUsernames}
-                                                />
-                                            ) :
-                                                <div
-                                                    style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                                                    className="flex items-center px-3"
-                                                >
-                                                    {lastMessageTimestamp}
-                                                </div>
-                                        }
-                                        <div className="flex ml-auto mr-6 mb-1">
-                                            {/* Handwrite Tab */}
+                                    </div>
+                                </div>
+                                {/* Chat Area */}
+                                <div className="flex gap-4">
+                                    <div className="flex flex-col flex-1 bg-white border-[1px] border-[#31497C] rounded-xl">
+                                        {/* Toolbar */}
+                                        <div
+                                            style={{
+                                                background: "linear-gradient(#D8E8F7, #F5F2F9, #D8E8F7)"
+                                            }}
+                                            className="flex items-center gap-2 px-2 py-1 border-b-[1px] border-[#31497C] rounded-t-xl">
                                             <div
-                                                onClick={() => setActiveTab('handwrite')}
-                                                className={`
+                                                onClick={() => setShowFontPicker(true)}
+                                                style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                                className="flex items-center gap-0.5 cursor-pointer relative"
+                                            >
+                                                <img src="/text.png" className="size-8" />
+                                                Font
+                                                {showFontPicker && (
+                                                    <TextFormatter
+                                                        onFormatChange={setFormatting}
+                                                        currentFormatting={formatting}
+                                                        onClose={() => setShowFontPicker(false)}
+                                                    />
+                                                )}
+                                            </div>
+                                            <div
+                                                onClick={() => setShowEmoticonPicker(true)}
+                                                style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                                className="flex items-center gap-0.5 cursor-pointer relative"
+                                            >
+                                                <img src="/emoticon.png" className="size-8" />
+                                                {showEmoticonPicker && (
+                                                    <EmoticonPicker
+                                                        onSelect={handleEmoticonSelect}
+                                                        onClose={() => setShowEmoticonPicker(false)}
+                                                    />
+                                                )}
+                                            </div>
+                                            <div
+                                                style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                                className="flex items-center gap-0.5 cursor-pointer"
+                                                onClick={handleAudioClick}
+                                            >
+                                                {
+                                                    isRecordingVoice ?
+                                                        <img src="/audio-recording.png" className="size-8" /> :
+                                                        <img src="/audio-clip.png" className="size-8" />
+                                                }
+                                                Voice Clip
+                                            </div>
+                                            <div
+                                                style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                                className="flex items-center gap-0.5 cursor-pointer"
+                                            >
+                                                <img src="/wink.png" className="size-8" />
+                                                Winks
+                                            </div>
+                                            <div
+                                                style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                                className={`flex items-center gap-0.5 ${sendNudgeMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                                onClick={() => {
+                                                    if (!sendNudgeMutation.isPending && conversation?.id) {
+                                                        sendNudgeMutation.mutate();
+                                                    }
+                                                }}
+                                            >
+                                                <img src="/nudge.png" className="size-8" />
+                                            </div>
+                                        </div>
+                                        {activeTab === 'type' ? (
+                                            <div className="flex py-4 px-2">
+                                                {isRecordingVoice ? (
+                                                    <VoiceRecordingInterface
+                                                        onSend={handleSendVoiceClip}
+                                                        onCancel={() => setIsRecordingVoice(false)}
+                                                    />
+                                                ) : (
+                                                    <>
+                                                        <textarea
+                                                            ref={textareaRef}
+                                                            value={messageInput}
+                                                            onChange={handleInputChange}
+                                                            onKeyDown={handleKeyPress}
+                                                            placeholder={isContactBlocked ? "Cannot send messages to blocked contact" : "Type a message..."}
+                                                            disabled={sendMessageMutation.isPending || isContactBlocked}
+                                                            className={`w-full flex-1 !font-verdana !text-lg border border-[#ACA899] rounded resize-none focus:outline-none focus:border-msn-blue disabled:opacity-50 disabled:cursor-not-allowed ${formatting.bold ? 'font-bold' : ''} ${formatting.italic ? 'italic' : ''}`}
+                                                            style={{
+                                                                color: formatting.color || 'inherit'
+                                                            }}
+                                                        />
+                                                        <div
+                                                            aria-disabled={!canSend}
+                                                            onClick={handleSendMessage}
+                                                            className={`!text-lg border border-[#93989C] bg-[#FBFBFB] w-[58px] h-full rounded-[5px] font-bold text-[0.6875em] flex items-center justify-center ${canSend ? "text-[#31497C] cursor-pointer" : "text-[#969C9A]"}`}
+                                                            style={{ boxShadow: '-4px -4px 4px #C0C9E0 inset', fontFamily: 'Pixelated MS Sans Serif' }}>
+                                                            Send
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="flex py-4 px-2">
+                                                <HandwritingCanvas onSend={handleSendHandwriting} />
+                                            </div>
+                                        )}
+
+                                        {/* Bottom Bar */}
+                                        <div
+                                            style={{
+                                                background: "linear-gradient(#D8E8F7, #F5F2F9, #D8E8F7)"
+                                            }}
+                                            className="flex border-t-[1px] border-[#31497C] rounded-b-xl">
+                                            {/* Typing indicator */}
+                                            {
+                                                typingUsernames.length > 0 ? (
+                                                    <TypingIndicator
+                                                        usernames={typingUsernames}
+                                                    />
+                                                ) :
+                                                    <div
+                                                        style={{ fontFamily: 'Pixelated MS Sans Serif' }}
+                                                        className="flex items-center px-3"
+                                                    >
+                                                        {lastMessageTimestamp}
+                                                    </div>
+                                            }
+                                            <div className="flex ml-auto mr-6 mb-1">
+                                                {/* Handwrite Tab */}
+                                                <div
+                                                    onClick={() => setActiveTab('handwrite')}
+                                                    className={`
                                                 relative px-3 py-1 font-normal -mt-[1px]
                                                 transition-all duration-150 rounded-b-lg border-[1px] border-[#31497C]
                                                 cursor-pointer text-md
                                                 ${activeTab === 'handwrite'
-                                                        ? 'bg-white z-10'
-                                                        : 'bg-[#e6eef3]'
-                                                    }`}
-                                                style={{
-                                                    borderTop: activeTab === 'handwrite' ? '1px solid white' : '1px solid #31497C',
-                                                    fontFamily: 'Pixelated MS Sans Serif'
-                                                }}
-                                            >
-                                                Handwrite
-                                                {activeTab === 'handwrite' && (
-                                                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-yellow-400 rounded-b-lg" />
-                                                )}
-                                            </div>
+                                                            ? 'bg-white z-10'
+                                                            : 'bg-[#e6eef3]'
+                                                        }`}
+                                                    style={{
+                                                        borderTop: activeTab === 'handwrite' ? '1px solid white' : '1px solid #31497C',
+                                                        fontFamily: 'Pixelated MS Sans Serif'
+                                                    }}
+                                                >
+                                                    Handwrite
+                                                    {activeTab === 'handwrite' && (
+                                                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-yellow-400 rounded-b-lg" />
+                                                    )}
+                                                </div>
 
-                                            {/* Type Tab */}
-                                            <div
-                                                onClick={() => setActiveTab('type')}
-                                                className={`
+                                                {/* Type Tab */}
+                                                <div
+                                                    onClick={() => setActiveTab('type')}
+                                                    className={`
                                                 relative px-3 py-1 font-normal -mt-[1px] ml-[0.5px]
                                                 transition-all duration-150 rounded-b-lg border-[1px] border-[#31497C]
                                                 cursor-pointer text-md
                                                 ${activeTab === 'type'
-                                                        ? 'bg-white z-10'
-                                                        : 'bg-[#e6eef3]'
-                                                    }`}
-                                                style={{
-                                                    borderTop: activeTab === 'type' ? '1px solid white' : '1px solid #31497C',
-                                                    fontFamily: 'Pixelated MS Sans Serif'
-                                                }}
-                                            >
-                                                Type
-                                                {activeTab === 'type' && (
-                                                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-yellow-400 rounded-b-lg" />
-                                                )}
+                                                            ? 'bg-white z-10'
+                                                            : 'bg-[#e6eef3]'
+                                                        }`}
+                                                    style={{
+                                                        borderTop: activeTab === 'type' ? '1px solid white' : '1px solid #31497C',
+                                                        fontFamily: 'Pixelated MS Sans Serif'
+                                                    }}
+                                                >
+                                                    Type
+                                                    {activeTab === 'type' && (
+                                                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-yellow-400 rounded-b-lg" />
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                                {/* MSN Messenger Avatar */}
-                                <div className="hidden min-[470px]:block">
-                                    <div className="w-[104px] flex items-center flex-col border border-[#586170] pt-[3px] rounded-lg relative bg-[#dee7f7]">
-                                        <img className="size-[96px] border border-[#586170] rounded-[7px]" src={user?.displayPictureUrl || "/default-profile-pictures/friendly_dog.png"} alt="" />
-                                        <img className="self-end m-[3px_5px]" src="/down.png" alt="" />
-                                        <img className="absolute top-1 right-0 translate-x-[9px]" src="/expand-left.png" alt="" />
+                                    {/* MSN Messenger Avatar */}
+                                    <div className="hidden min-[470px]:block">
+                                        <div className="w-[104px] flex items-center flex-col border border-[#586170] pt-[3px] rounded-lg relative bg-[#dee7f7]">
+                                            <img className="size-[96px] border border-[#586170] rounded-[7px]" src={user?.displayPictureUrl || "/default-profile-pictures/friendly_dog.png"} alt="" />
+                                            <img className="self-end m-[3px_5px]" src="/down.png" alt="" />
+                                            <img className="absolute top-1 right-0 translate-x-[9px]" src="/expand-left.png" alt="" />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        <div
+                            className="absolute bottom-0 left-0 w-full h-full pointer-events-none"
+                            style={{
+                                backgroundImage: `url('/main-corner-left.png'), url('/main-corner-right.png'), url('/main-left.png'), url('/main-right.png'), url('/main-bottom.png')`,
+                                backgroundRepeat: 'no-repeat, no-repeat, repeat-y, repeat-y, repeat-x',
+                                backgroundPosition: 'bottom left, bottom right, bottom left, bottom right, bottom',
+                                clipPath: 'polygon(0 var(--toolbar-height), 100% 21px, 100% 100%, 0 100%)'
+                            }}
+                        />
+
+                        {/* Call Declined Message - shown when call is declined */}
+                        {callDeclinedMessage && (
+                            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50">
+                                <div className="bg-white border-2 border-[#31497C] rounded-lg shadow-lg px-8 py-6">
+                                    <div className="text-lg font-bold text-[#31497C] text-center">
+                                        {callDeclinedMessage}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Audio Call Overlay - shown when in an active audio call */}
+                        {hasActiveCall && activeCall?.callType === 'voice' && participants[0] && (
+                            <AudioCallOverlay contact={participants[0]} />
+                        )}
+
+                        {/* Video Call Overlay - shown when in an active video call */}
+                        {hasActiveCall && activeCall?.callType === 'video' && participants[0] && (
+                            <VideoCallOverlay contact={participants[0]} />
+                        )}
                     </div>
-                    <div
-                        className="absolute bottom-0 left-0 w-full h-full pointer-events-none"
-                        style={{
-                            backgroundImage: `url('/main-corner-left.png'), url('/main-corner-right.png'), url('/main-left.png'), url('/main-right.png'), url('/main-bottom.png')`,
-                            backgroundRepeat: 'no-repeat, no-repeat, repeat-y, repeat-y, repeat-x',
-                            backgroundPosition: 'bottom left, bottom right, bottom left, bottom right, bottom',
-                            clipPath: 'polygon(0 var(--toolbar-height), 100% 21px, 100% 100%, 0 100%)'
-                        }}
-                    />
                 </div>
             </div>
-        </div>
+        </>
     );
 }

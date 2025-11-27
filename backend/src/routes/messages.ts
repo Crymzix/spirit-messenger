@@ -24,7 +24,6 @@ import {
 } from '../services/message-service.js';
 import type { ApiResponse } from '../types/index.js';
 import type { SelectMessage } from '../db/schema.js';
-import { createClient } from '@supabase/supabase-js';
 import { createFile } from '../services/file-service.js';
 import { supabase } from '../lib/supabase.js';
 
@@ -701,7 +700,7 @@ const messagesRoutes: FastifyPluginAsync = async (fastify) => {
                 const storagePath = `${userId}/${conversationId}/${filename}`;
 
                 // Upload to Supabase Storage voice-clips bucket
-                const { error: uploadError, data: uploadData } = await supabase.storage
+                const { error: uploadError } = await supabase.storage
                     .from('voice-clips')
                     .upload(storagePath, buffer, {
                         contentType: data.mimetype,

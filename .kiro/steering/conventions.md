@@ -32,6 +32,7 @@
 - Use markdown format with clear sections
 - Include requirements, design decisions, and implementation tasks
 - Reference files using `#[[file:relative/path]]` syntax
+- Place generated markdown files in the /documentation directory
 
 ### Data Access Patterns
 
@@ -88,3 +89,7 @@ Since Tauri windows are isolated:
 - Prefer `interface` for object shapes, `type` for unions/intersections
 - Export types alongside implementation
 - Use Drizzle's `InferSelectModel` and `InferInsertModel` for database types
+
+
+### Markdown Patterns
+- Place all generated markdown files in the /documentation directory
