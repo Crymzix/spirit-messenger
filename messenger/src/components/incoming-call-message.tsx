@@ -1,7 +1,6 @@
-import { useEffect } from 'react';
 import { User, CallType } from '@/types';
 import { useIncomingCallHandler } from '@/lib/hooks/use-incoming-call-handler';
-import { useCallMissed, useCallEnd } from '@/lib/hooks/call-hooks';
+import { useCallEnd } from '@/lib/hooks/call-hooks';
 import { useUser } from '@/lib';
 
 interface IncomingCallMessageProps {
@@ -22,7 +21,6 @@ export function IncomingCallMessage({
     callStatus = 'ringing',
 }: IncomingCallMessageProps) {
     const currentUser = useUser();
-    const missedMutation = useCallMissed();
     const endCallMutation = useCallEnd();
     const { handleAnswer, handleDecline, isAnswering, isDeclining } =
         useIncomingCallHandler({
@@ -34,18 +32,6 @@ export function IncomingCallMessage({
 
     const isReceiver = currentUser?.id !== initiatorId;
     const isStillRinging = callStatus === 'ringing';
-
-    // Auto-timeout after 30 seconds (only for receiver)
-    useEffect(() => {
-        if (!isReceiver || !isStillRinging) return;
-
-        const timeout = setTimeout(async () => {
-            console.log('Call timeout reached (30 seconds), marking as missed');
-            await missedMutation.mutateAsync(callId);
-        }, 30000);
-
-        return () => clearTimeout(timeout);
-    }, [callId, missedMutation, isReceiver, isStillRinging]);
 
     const handleInitiatorCancel = async () => {
         // Initiator can cancel the outgoing call only if it's still ringing
