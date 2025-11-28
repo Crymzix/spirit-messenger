@@ -27,7 +27,7 @@ import { useCallInitiate } from "@/lib/hooks/call-hooks";
 import { useCallStore, useHasActiveCall } from "@/lib/store/call-store";
 import { callRealtimeService } from "@/lib/services/call-realtime-service";
 import { webrtcService } from "@/lib/services/webrtc-service";
-import { endCall } from "@/lib/services/call-service";
+import { endCall, sendSignal } from "@/lib/services/call-service";
 import {
     createConnectionStateHandler,
     handleRemoteStream,
@@ -649,7 +649,6 @@ export function ChatWindow() {
                         webrtcService.setEventHandlers({
                             onIceCandidate: async (candidate) => {
                                 // Send ICE candidate via signaling
-                                const { sendSignal } = await import('@/lib/services/call-service');
                                 await sendSignal(
                                     call.id,
                                     'ice-candidate',
@@ -681,7 +680,6 @@ export function ChatWindow() {
                         const offer = await webrtcService.createOffer();
 
                         // Send SDP offer via signaling
-                        const { sendSignal } = await import('@/lib/services/call-service');
                         await sendSignal(
                             call.id,
                             'offer',
@@ -845,7 +843,6 @@ export function ChatWindow() {
                         webrtcService.setEventHandlers({
                             onIceCandidate: async (candidate) => {
                                 // Send ICE candidate via signaling
-                                const { sendSignal } = await import('@/lib/services/call-service');
                                 await sendSignal(
                                     call.id,
                                     'ice-candidate',
@@ -877,7 +874,6 @@ export function ChatWindow() {
                         const offer = await webrtcService.createOffer();
 
                         // Send SDP offer via signaling
-                        const { sendSignal } = await import('@/lib/services/call-service');
                         await sendSignal(
                             call.id,
                             'offer',
@@ -894,7 +890,6 @@ export function ChatWindow() {
 
                         // End the call
                         try {
-                            const { endCall } = await import('@/lib/services/call-service');
                             await endCall(call.id);
                         } catch (endCallError) {
                             console.error('Failed to end call after media error:', endCallError);
@@ -1002,25 +997,6 @@ export function ChatWindow() {
 
     return (
         <>
-            <CallErrorDialog
-                error={callError}
-                onClose={() => setCallError(null)}
-            />
-            {/* Busy error notification */}
-            {callBusyError && (
-                <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-100 border-2 border-red-500 rounded-lg px-6 py-3 shadow-lg">
-                    <div className="flex items-center gap-3">
-                        <div className="text-red-700 font-bold text-lg">⚠</div>
-                        <div className="text-red-800 font-verdana text-sm">{callBusyError}</div>
-                        <button
-                            onClick={() => setCallBusyError(null)}
-                            className="ml-2 text-red-700 hover:text-red-900 font-bold"
-                        >
-                            ✕
-                        </button>
-                    </div>
-                </div>
-            )}
             <div
                 className={`window w-full h-screen flex flex-col ${shouldBlink ? 'animate-blink-orange' : ''}`}
             >
@@ -1255,17 +1231,21 @@ export function ChatWindow() {
                                                 const isFileTransfer = message.messageType === 'file';
                                                 const isImage = message.messageType === 'image';
                                                 const isVoice = message.messageType === 'voice';
+                                                const isSystem = message.messageType === 'system'
 
                                                 return (
                                                     <div key={message.id} className="text-lg px-2 last:pb-2">
                                                         <div className="flex flex-col">
-                                                            <div
-                                                                style={{
-                                                                    fontFamily: 'Pixelated MS Sans Serif'
-                                                                }}
-                                                            >
-                                                                {`${sender?.displayName || 'Unknown'} ${isFileTransfer ? 'sends' : 'says'}`}:
-                                                            </div>
+                                                            {
+                                                                !isSystem &&
+                                                                <div
+                                                                    style={{
+                                                                        fontFamily: 'Pixelated MS Sans Serif'
+                                                                    }}
+                                                                >
+                                                                    {`${sender?.displayName || 'Unknown'} ${isFileTransfer || isVoice || isImage ? 'sends' : 'says'}`}:
+                                                                </div>
+                                                            }
                                                             <div className="font-verdana text-black ml-4">
                                                                 {
                                                                     isVoice && message.metadata?.voiceClipUrl ?
@@ -1288,6 +1268,9 @@ export function ChatWindow() {
                                                                                     content={message.content}
                                                                                     messageType={message.messageType}
                                                                                     metadata={message.metadata}
+                                                                                    caller={sender}
+                                                                                    conversationId={conversation?.id}
+                                                                                    initiatorId={message.senderId}
                                                                                 />
                                                                 }
                                                             </div>
@@ -1549,6 +1532,25 @@ export function ChatWindow() {
                     </div>
                 </div>
             </div>
+            <CallErrorDialog
+                error={callError}
+                onClose={() => setCallError(null)}
+            />
+            {/* Busy error notification */}
+            {callBusyError && (
+                <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-red-100 border-2 border-red-500 rounded-lg px-6 py-3 shadow-lg">
+                    <div className="flex items-center gap-3">
+                        <div className="text-red-700 font-bold text-lg">⚠</div>
+                        <div className="text-red-800 font-verdana text-sm">{callBusyError}</div>
+                        <button
+                            onClick={() => setCallBusyError(null)}
+                            className="ml-2 text-red-700 hover:text-red-900 font-bold"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

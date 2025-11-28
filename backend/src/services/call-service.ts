@@ -14,6 +14,7 @@ import {
     InsertMessage,
 } from '../db/schema.js';
 import { realtimePublisher } from '../lib/realtime-publisher.js';
+import { queueCallTimeout } from '../config/queue.js';
 
 /**
  * Call Service
@@ -234,6 +235,56 @@ export async function initiateCall(
             throw new CallServiceError('Failed to create call', 'CREATE_CALL_FAILED', 500);
         }
 
+        // Get the initiator's display name
+        const initiator = participantUsers.find(u => u.id === userId);
+        const initiatorName = initiator?.displayName || initiator?.username || 'Unknown';
+
+        // Create system message for incoming call with ringing status
+        const messageData: InsertMessage = {
+            conversationId: data.conversationId,
+            senderId: userId,
+            content: `${initiatorName} started a ${data.callType} call`,
+            messageType: 'system',
+            metadata: {
+                callId: newCall.id,
+                callType: data.callType,
+                status: 'ringing',
+            },
+        };
+
+        let messageId: string | undefined;
+        try {
+            const [newMessage] = await db
+                .insert(messages)
+                .values(messageData)
+                .returning();
+            messageId = newMessage?.id;
+
+            // Update call record with message ID for later updates
+            if (messageId) {
+                await db
+                    .update(calls)
+                    .set({ messageId: messageId })
+                    .where(eq(calls.id, newCall.id));
+            }
+        } catch (messageError) {
+            console.error('Error creating call initiation system message:', messageError);
+            // Don't fail the call if the message creation fails
+        }
+
+        // Queue call timeout (30 seconds) - will automatically mark as missed if not answered
+        try {
+            await queueCallTimeout({
+                callId: newCall.id,
+                conversationId: data.conversationId,
+                initiatorId: userId,
+                callType: data.callType,
+            });
+        } catch (queueError) {
+            console.error('Error queueing call timeout:', queueError);
+            // Don't fail the call if queueing fails - timeout just won't auto-expire
+        }
+
         // Publish call_ringing event via Supabase Realtime
         try {
             await realtimePublisher.publishCallRinging(otherParticipant.userId, {
@@ -380,6 +431,25 @@ export async function answerCall(
             );
         }
 
+        // Update message status from ringing to active (if message exists)
+        if (call.messageId) {
+            try {
+                await db
+                    .update(messages)
+                    .set({
+                        metadata: {
+                            callId: callId,
+                            callType: call.callType,
+                            status: 'active',
+                        },
+                    })
+                    .where(eq(messages.id, call.messageId));
+            } catch (messageError) {
+                console.error('Error updating message status:', messageError);
+                // Continue - this is not critical
+            }
+        }
+
         // Publish call_answered event via Supabase Realtime to both participants
         const participantUserIds = participants.map(p => p.userId);
         try {
@@ -511,26 +581,23 @@ export async function declineCall(
             throw new CallServiceError('Failed to update call status', 'UPDATE_CALL_FAILED', 500);
         }
 
-        // Create system message
-        const systemMessage: InsertMessage = {
-            conversationId: call.conversationId,
-            senderId: userId,
-            content: `${call.callType === 'voice' ? 'Voice' : 'Video'} call declined`,
-            messageType: 'system',
-            metadata: {
-                callId: callId,
-                callType: call.callType,
-                status: 'declined',
-            },
-        };
-
-        try {
-            await db
-                .insert(messages)
-                .values(systemMessage);
-        } catch (dbError) {
-            console.error('Error creating system message:', dbError);
-            // Continue - this is not critical
+        // Update message status from ringing to declined (if message exists)
+        if (call.messageId) {
+            try {
+                await db
+                    .update(messages)
+                    .set({
+                        metadata: {
+                            callId: callId,
+                            callType: call.callType,
+                            status: 'declined',
+                        },
+                    })
+                    .where(eq(messages.id, call.messageId));
+            } catch (messageError) {
+                console.error('Error updating message status:', messageError);
+                // Continue - this is not critical
+            }
         }
 
         // Publish call_declined event via Supabase Realtime
@@ -629,26 +696,23 @@ export async function missedCall(
             throw new CallServiceError('Failed to update call status', 'UPDATE_CALL_FAILED', 500);
         }
 
-        // Create system message
-        const systemMessage: InsertMessage = {
-            conversationId: call.conversationId,
-            senderId: call.initiatorId,
-            content: `Missed ${call.callType === 'voice' ? 'voice' : 'video'} call`,
-            messageType: 'system',
-            metadata: {
-                callId: callId,
-                callType: call.callType,
-                status: 'missed',
-            },
-        };
-
-        try {
-            await db
-                .insert(messages)
-                .values(systemMessage);
-        } catch (dbError) {
-            console.error('Error creating system message:', dbError);
-            // Continue - this is not critical
+        // Update message status from ringing to missed (if message exists)
+        if (call.messageId) {
+            try {
+                await db
+                    .update(messages)
+                    .set({
+                        metadata: {
+                            callId: callId,
+                            callType: call.callType,
+                            status: 'missed',
+                        },
+                    })
+                    .where(eq(messages.id, call.messageId));
+            } catch (messageError) {
+                console.error('Error updating message status:', messageError);
+                // Continue - this is not critical
+            }
         }
 
         // Get participants for notification
@@ -806,32 +870,24 @@ export async function endCall(
             );
         }
 
-        // Format duration as MM:SS
-        const minutes = Math.floor(durationSeconds / 60);
-        const seconds = durationSeconds % 60;
-        const durationFormatted = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-
-        // Create system message
-        const systemMessage: InsertMessage = {
-            conversationId: call.conversationId,
-            senderId: userId,
-            content: `${call.callType === 'voice' ? 'Voice' : 'Video'} call - ${durationFormatted}`,
-            messageType: 'system',
-            metadata: {
-                callId: callId,
-                callType: call.callType,
-                durationSeconds: durationSeconds,
-                status: 'completed',
-            },
-        };
-
-        try {
-            await db
-                .insert(messages)
-                .values(systemMessage);
-        } catch (dbError) {
-            console.error('Error creating system message:', dbError);
-            // Continue - this is not critical
+        // Update message status from active to completed with duration (if message exists)
+        if (call.messageId) {
+            try {
+                await db
+                    .update(messages)
+                    .set({
+                        metadata: {
+                            callId: callId,
+                            callType: call.callType,
+                            durationSeconds: durationSeconds,
+                            status: 'completed',
+                        },
+                    })
+                    .where(eq(messages.id, call.messageId));
+            } catch (messageError) {
+                console.error('Error updating message status:', messageError);
+                // Continue - this is not critical
+            }
         }
 
         // Publish call_ended event via Supabase Realtime

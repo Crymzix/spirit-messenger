@@ -8,6 +8,7 @@
  * - Real-time sync: Supabase Realtime WebSocket subscriptions notify UI of call state changes
  */
 
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     initiateCall,
@@ -20,6 +21,10 @@ import {
     type SignalType,
 } from '../services/call-service';
 import type { CallType } from '@/types';
+import { supabase } from '../supabase';
+import { useAuthStore } from '../store/auth-store';
+import { useCallStore } from '../store/call-store';
+import { soundService } from '../services/sound-service';
 
 /**
  * Hook for initiating a new voice or video call
@@ -91,7 +96,7 @@ export function useCallAnswer() {
 
 /**
  * Hook for declining an incoming call
- * 
+ *
  * @example
  * const decline = useCallDecline();
  * await decline.mutateAsync(callId);
@@ -113,6 +118,10 @@ export function useCallDecline() {
             queryClient.invalidateQueries({
                 queryKey: ['activeCall'],
             });
+
+            // Reset call store when declining
+            const callStore = useCallStore.getState();
+            callStore.reset();
         },
         onError: (error) => {
             console.error('Failed to decline call:', error);
@@ -122,7 +131,7 @@ export function useCallDecline() {
 
 /**
  * Hook for marking a call as missed (timeout)
- * 
+ *
  * @example
  * const missed = useCallMissed();
  * await missed.mutateAsync(callId);
@@ -144,6 +153,10 @@ export function useCallMissed() {
             queryClient.invalidateQueries({
                 queryKey: ['activeCall'],
             });
+
+            // Reset call store when call is missed
+            const callStore = useCallStore.getState();
+            callStore.reset();
         },
         onError: (error) => {
             console.error('Failed to mark call as missed:', error);
@@ -153,7 +166,7 @@ export function useCallMissed() {
 
 /**
  * Hook for ending an active call
- * 
+ *
  * @example
  * const end = useCallEnd();
  * await end.mutateAsync(callId);
@@ -175,6 +188,10 @@ export function useCallEnd() {
             queryClient.invalidateQueries({
                 queryKey: ['activeCall'],
             });
+
+            // Reset call store when call is ended
+            const callStore = useCallStore.getState();
+            callStore.reset();
         },
         onError: (error) => {
             console.error('Failed to end call:', error);
@@ -218,7 +235,7 @@ export function useCallSignal() {
 /**
  * Hook for fetching the active call for a conversation
  * Returns null if no active call exists
- * 
+ *
  * @example
  * const { data: activeCall, isLoading } = useActiveCall(conversationId);
  */
@@ -237,4 +254,135 @@ export function useActiveCall(conversationId: string) {
         // Keep data fresh for 3 seconds
         staleTime: 3000,
     });
+}
+
+/**
+ * Global hook for listening to call-related broadcasts from Supabase Realtime
+ * Sets up listeners for incoming calls, call state changes, and signaling events
+ * Should be called once in the main window component
+ *
+ * @example
+ * useCallUpdates(); // Call in MainWindow
+ */
+export function useCallUpdates() {
+    const user = useAuthStore((state) => state.user);
+    const queryClient = useQueryClient();
+
+    useEffect(() => {
+        if (!user) {
+            console.log('User not authenticated, skipping broadcast listener setup');
+            return;
+        }
+
+        // Subscribe to user's personal channel for call broadcasts
+        const channel = supabase.channel(`user:${user.id}`);
+        channel
+            .on(
+                'broadcast',
+                { event: '*' },
+                async (payload) => {
+                    console.log('📡 Broadcast event received:', payload);
+
+                    switch (payload.event) {
+                        case 'call_ringing': {
+                            const { conversationId } = payload.payload;
+
+                            console.log('Received call ringing event');
+
+                            // Start looping ringing sound via SoundService
+                            try {
+                                await soundService.startLooping('video_call', 7000);
+                            } catch (error) {
+                                console.error('Failed to start ringing loop:', error);
+                            }
+
+                            // Invalidate messages to show new ringing message
+                            queryClient.invalidateQueries({
+                                queryKey: ['messages', 'conversation', conversationId],
+                            });
+                            break;
+                        }
+
+                        case 'call_answered': {
+                            const { conversationId } = payload.payload;
+                            console.log('Received call answered event');
+
+                            // Stop any playing ringing sound
+                            soundService.stopLooping();
+
+                            // Invalidate messages to show updated status
+                            queryClient.invalidateQueries({
+                                queryKey: ['messages', 'conversation', conversationId],
+                            });
+                            break;
+                        }
+
+                        case 'call_declined': {
+                            const { conversationId } = payload.payload;
+                            console.log('Received call declined event');
+
+                            // Stop any playing ringing sound
+                            soundService.stopLooping();
+
+                            // Invalidate messages to show updated status
+                            queryClient.invalidateQueries({
+                                queryKey: ['messages', 'conversation', conversationId],
+                            });
+                            break;
+                        }
+
+                        case 'call_missed': {
+                            const { conversationId } = payload.payload;
+                            console.log('Received call missed event');
+
+                            // Stop any playing ringing sound
+                            await soundService.stopLooping();
+
+                            // Invalidate messages to show updated status
+                            queryClient.invalidateQueries({
+                                queryKey: ['messages', 'conversation', conversationId],
+                            });
+                            break;
+                        }
+
+                        case 'call_ended': {
+                            const { conversationId } = payload.payload;
+                            console.log('Received call ended event');
+
+                            // Stop any playing ringing sound
+                            soundService.stopLooping();
+
+                            // Invalidate messages to show updated status
+                            queryClient.invalidateQueries({
+                                queryKey: ['messages', 'conversation', conversationId],
+                            });
+                            break;
+                        }
+
+                        case 'call_failed':
+                            console.log('Received call failed event');
+                            break;
+
+                        case 'sdp_offer':
+                            console.log('Received SDP offer event');
+                            break;
+
+                        case 'sdp_answer':
+                            console.log('Received SDP answer event');
+                            break;
+
+                        case 'ice_candidate':
+                            console.log('Received ICE candidate event');
+                            break;
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            channel.unsubscribe().catch((error) => {
+                console.error('Error unsubscribing from call broadcast channel:', error);
+            });
+        };
+    }, [user, queryClient]);
 }

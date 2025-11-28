@@ -6,8 +6,8 @@
  * instance processes each disconnect event (for horizontal scaling).
  */
 
-import { createClient } from '@supabase/supabase-js';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase.js';
 
 let presenceChannel: RealtimeChannel | null = null;
 
@@ -16,16 +16,6 @@ let presenceChannel: RealtimeChannel | null = null;
  * Subscribes to the presence:online channel and handles user disconnects
  */
 export async function startPresenceListener(): Promise<void> {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-        console.error('❌ Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY for presence listener');
-        return;
-    }
-
-    // Create a Supabase client with service role key for server-side operations
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Subscribe to the same presence channel that clients use
     presenceChannel = supabase.channel('presence:online');

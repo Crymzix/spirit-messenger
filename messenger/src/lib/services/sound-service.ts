@@ -14,6 +14,8 @@ export type SoundType = 'message' | 'contact_online' | 'contact_offline' | 'nudg
 export class SoundService {
     private audioElements: Map<string, HTMLAudioElement> = new Map();
     private initialized = false;
+    private loopingIntervalId: number | null = null;
+    private loopingSoundType: SoundType | null = null;
 
     constructor() {
         this.setupEventListener();
@@ -185,6 +187,64 @@ export class SoundService {
         } catch (error) {
             console.error(`Failed to preview sound ${soundType}:`, error);
         }
+    }
+
+    /**
+     * Start looping a sound continuously via the Rust backend
+     * Useful for ringing notifications
+     * @param soundType - Type of sound to loop
+     * @param delayMs - Delay between loops in milliseconds (default: 2000)
+     */
+    async startLooping(soundType: SoundType, delayMs: number = 2000): Promise<void> {
+        // Clear any existing loop interval
+        if (this.loopingIntervalId !== null) {
+            clearInterval(this.loopingIntervalId);
+            this.loopingIntervalId = null;
+        }
+
+        this.loopingSoundType = soundType;
+
+        // Play immediately
+        try {
+            await this.play(soundType);
+        } catch (error) {
+            console.error(`Failed to play looping sound ${soundType}:`, error);
+        }
+
+        // Set up loop to replay after delay
+        const loop = async () => {
+            if (this.loopingSoundType === soundType) {
+                try {
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                    if (this.loopingSoundType === soundType) {
+                        await this.play(soundType);
+                        await loop();
+                    }
+                } catch (error) {
+                    console.error(`Failed to play looping sound ${soundType}:`, error);
+                }
+            }
+        };
+
+        loop();
+    }
+
+    /**
+     * Stop looping the current sound
+     */
+    stopLooping(): void {
+        if (this.loopingIntervalId !== null) {
+            clearInterval(this.loopingIntervalId);
+            this.loopingIntervalId = null;
+        }
+        this.loopingSoundType = null;
+    }
+
+    /**
+     * Check if a sound is currently looping
+     */
+    isLooping(): boolean {
+        return this.loopingSoundType !== null;
     }
 }
 

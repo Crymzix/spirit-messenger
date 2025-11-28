@@ -226,19 +226,6 @@
             "positioner:default",
             "os:default"
           ]
-        },
-        {
-          "identifier": "ringing-window-capability",
-          "windows": [
-            "ringing-*"
-          ],
-          "permissions": [
-            "core:window:allow-close",
-            "core:event:allow-listen",
-            "core:event:default",
-            "positioner:default",
-            "os:default"
-          ]
         }
       ]
     }

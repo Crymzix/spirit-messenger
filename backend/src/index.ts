@@ -5,6 +5,8 @@ import corsPlugin from './plugins/cors.js';
 import rateLimitPlugin from './plugins/rate-limit.js';
 import multipartPlugin from './plugins/multipart.js';
 import { startPresenceListener, stopPresenceListener } from './services/presence-listener.js';
+import { createCallTimeoutWorker } from './workers/call-timeout-worker.js';
+import type { Worker } from 'bullmq';
 
 const fastify = Fastify({
     logger: {
@@ -105,10 +107,16 @@ fastify.get('/', async () => {
     };
 });
 
+// Global reference to workers
+let callTimeoutWorker: Worker | null = null;
+
 // Graceful shutdown handler
 const shutdown = async (signal: string) => {
     console.log(`\n${signal} received, shutting down gracefully...`);
     await stopPresenceListener();
+    if (callTimeoutWorker) {
+        await callTimeoutWorker.close();
+    }
     await fastify.close();
     process.exit(0);
 };
@@ -126,6 +134,9 @@ const start = async () => {
 
         // Start presence listener after server is ready
         await startPresenceListener();
+
+        // Start call timeout worker for handling missed call timeouts
+        callTimeoutWorker = createCallTimeoutWorker();
 
         console.log(`🚀 Backend service running on http://${host}:${port}`);
         console.log(`📊 Health check available at http://${host}:${port}/health`);

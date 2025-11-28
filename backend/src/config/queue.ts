@@ -72,6 +72,23 @@ export const autonomousMessageQueue = new Queue('autonomous-messages', {
 });
 
 /**
+ * Queue for call timeouts
+ * Handles automatic call timeout after 30 seconds if not answered
+ */
+export const callTimeoutQueue = new Queue('call-timeouts', {
+    connection: redisConnection,
+    defaultJobOptions: {
+        attempts: 1, // Don't retry - timeout jobs are time-sensitive
+        removeOnComplete: {
+            age: 3600, // Remove completed jobs after 1 hour
+        },
+        removeOnFail: {
+            age: 86400, // Keep failed jobs for 24 hours for debugging
+        },
+    },
+});
+
+/**
  * Queue events for monitoring
  */
 export const botResponseQueueEvents = new QueueEvents('bot-responses', {
@@ -79,6 +96,10 @@ export const botResponseQueueEvents = new QueueEvents('bot-responses', {
 });
 
 export const autonomousMessageQueueEvents = new QueueEvents('autonomous-messages', {
+    connection: redisConnection,
+});
+
+export const callTimeoutQueueEvents = new QueueEvents('call-timeouts', {
     connection: redisConnection,
 });
 
@@ -99,6 +120,14 @@ autonomousMessageQueueEvents.on('failed', ({ jobId, failedReason }) => {
     console.error(`Autonomous message job ${jobId} failed: ${failedReason}`);
 });
 
+callTimeoutQueueEvents.on('completed', ({ jobId }) => {
+    console.log(`Call timeout job ${jobId} completed`);
+});
+
+callTimeoutQueueEvents.on('failed', ({ jobId, failedReason }) => {
+    console.error(`Call timeout job ${jobId} failed: ${failedReason}`);
+});
+
 /**
  * Job data types
  */
@@ -114,6 +143,13 @@ export interface BotResponseJobData {
 export interface AutonomousMessageJobData {
     botUserId: string;
     conversationId: string;
+}
+
+export interface CallTimeoutJobData {
+    callId: string;
+    conversationId: string;
+    initiatorId: string;
+    callType: 'voice' | 'video';
 }
 
 /**
@@ -145,6 +181,22 @@ export async function queueAutonomousMessage(
     });
 
     console.log(`Queued autonomous message job ${job.id}`);
+    return job.id || '';
+}
+
+/**
+ * Add a call timeout job to the queue
+ * Automatically marks call as missed after 30 seconds if not answered
+ */
+export async function queueCallTimeout(
+    data: CallTimeoutJobData
+): Promise<string> {
+    const job = await callTimeoutQueue.add('call-timeout', data, {
+        delay: 30000, // 30 seconds
+        jobId: `call-timeout-${data.callId}`,
+    });
+
+    console.log(`Queued call timeout job ${job.id} for call ${data.callId}`);
     return job.id || '';
 }
 
@@ -191,8 +243,10 @@ export async function getQueueStats(): Promise<{
 export async function closeQueues(): Promise<void> {
     await botResponseQueue.close();
     await autonomousMessageQueue.close();
+    await callTimeoutQueue.close();
     await botResponseQueueEvents.close();
     await autonomousMessageQueueEvents.close();
+    await callTimeoutQueueEvents.close();
     await redisConnection.quit();
     console.log('All queues closed');
 }

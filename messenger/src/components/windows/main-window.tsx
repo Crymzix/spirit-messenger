@@ -14,6 +14,8 @@ import { ContactsScreen } from "../screens/contacts-screen";
 import { Loading } from "../loading";
 import { useFileUploadStore } from "@/lib/store/file-upload-store";
 import { initPresenceLifecycle, startActivityTracking, initPresenceChannel } from "@/lib/services/presence-service";
+import { useCallUpdates } from "@/lib/hooks/call-hooks";
+import { useAuthStore } from "@/lib/store/auth-store";
 
 type AuthView = 'signin' | 'register' | 'main';
 
@@ -28,9 +30,13 @@ export function MainWindow() {
     const signInMutation = useSignIn();
     const signUpMutation = useSignUp();
     const initializeMainWindow = useFileUploadStore((state) => state.initializeMainWindow);
+    const updateUser = useAuthStore((state) => state.updateUser);
 
     // Global message listener for all conversations
     useGlobalMessageUpdates();
+
+    // Global call broadcast listener for incoming calls
+    useCallUpdates();
 
     useEffect(() => {
         if (isAuthInitialized && isAuthenticated) {
@@ -60,10 +66,11 @@ export function MainWindow() {
                 console.error('Failed to initialize presence lifecycle:', error);
             });
 
-            // Start activity tracking for auto-away
+            // Start activity tracking for auto-away and update store with initial online status
             startActivityTracking('online');
+            updateUser({ presenceStatus: 'online' });
         }
-    }, [isAuthInitialized, isAuthenticated, user?.id]);
+    }, [isAuthInitialized, isAuthenticated, user?.id, updateUser]);
 
     // Initialize file upload manager for main window
     useEffect(() => {

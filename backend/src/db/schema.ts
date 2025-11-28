@@ -191,6 +191,7 @@ export const calls = pgTable('calls', {
     initiatorId: uuid('initiator_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     callType: varchar('call_type', { length: 20 }).notNull(), // 'voice' | 'video'
     status: varchar('status', { length: 20 }).notNull().default('ringing'), // 'ringing' | 'active' | 'ended' | 'declined' | 'missed' | 'failed'
+    messageId: uuid('message_id').references(() => messages.id, { onDelete: 'set null' }),
     startedAt: timestamp('started_at'),
     endedAt: timestamp('ended_at'),
     errorReason: text('error_reason'),

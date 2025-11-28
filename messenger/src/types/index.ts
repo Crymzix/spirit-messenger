@@ -65,7 +65,7 @@ export interface Message {
     callId?: string;
     callType?: CallType;
     durationSeconds?: number;
-    status?: 'completed' | 'declined' | 'missed';
+    status?: 'completed' | 'declined' | 'missed' | 'ringing' | 'active';
   };
   createdAt: Date;
   deliveredAt?: Date;

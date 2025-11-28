@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { findEmoticonMatches } from '@/lib/emoticons';
-import { CallType } from '@/types';
+import { CallType, User } from '@/types';
+import { IncomingCallMessage } from './incoming-call-message';
+import { useUser } from '@/lib';
 
 interface MessageContentProps {
     content: string;
@@ -12,25 +14,43 @@ interface MessageContentProps {
         callId?: string;
         callType?: CallType;
         durationSeconds?: number;
-        status?: 'completed' | 'declined' | 'missed';
+        status?: 'completed' | 'declined' | 'missed' | 'ringing' | 'active';
     };
+    caller?: User;
+    conversationId?: string;
+    initiatorId?: string;
 }
 
 /**
  * Component to render message content with emoticons converted to images and text formatting
  * Also handles system messages for call history
  */
-export function MessageContent({ content, messageType, metadata }: MessageContentProps) {
+export function MessageContent({ content, messageType, metadata, caller, conversationId, initiatorId }: MessageContentProps) {
     // Check if this is a call system message
     const isCallMessage = messageType === 'system' && metadata?.callId && metadata?.callType;
+
+    // Get current user for determining message visibility
+    const currentUser = useUser();
+
     // Render call history message
     const callHistoryContent = useMemo(() => {
         if (!isCallMessage) return null;
 
-        const { callType, status, durationSeconds } = metadata!;
+        const { callId, callType, status, durationSeconds } = metadata!;
 
-        // Determine icon based on call type
-        const callIcon = callType === 'voice' ? '📞' : '📹';
+        // Handle ringing status with interactive buttons
+        if (status === 'ringing' && caller && conversationId && callId && initiatorId) {
+            return (
+                <IncomingCallMessage
+                    callId={callId}
+                    callType={callType!}
+                    caller={caller}
+                    conversationId={conversationId}
+                    initiatorId={initiatorId}
+                    callStatus={status as 'ringing' | 'active' | 'declined' | 'missed' | 'ended'}
+                />
+            );
+        }
 
         // Format duration if available
         let durationText = '';
@@ -51,11 +71,23 @@ export function MessageContent({ content, messageType, metadata }: MessageConten
                 break;
             case 'declined':
                 statusClass = 'text-red-600';
-                statusText = `${callType === 'voice' ? 'Voice' : 'Video'} call declined`;
+                // Show different message based on user's role in the call
+                const isReceiver = currentUser?.id !== initiatorId;
+                if (isReceiver) {
+                    // Receiver sees who declined (the initiator)
+                    statusText = `Declined ${callType === 'voice' ? 'voice' : 'video'} call from ${caller?.displayName || 'unknown'}`;
+                } else {
+                    // Initiator just sees that the call was declined
+                    statusText = `${callType === 'voice' ? 'Voice' : 'Video'} call declined`;
+                }
                 break;
             case 'missed':
-                statusClass = 'text-orange-600';
-                statusText = `Missed ${callType === 'voice' ? 'voice' : 'video'} call`;
+                statusClass = 'text-red-600';
+                statusText = `Missed ${callType === 'voice' ? 'voice' : 'video'} call from ${caller?.displayName || 'unknown'}`;
+                break;
+            case 'active':
+                statusClass = 'text-blue-600';
+                statusText = `${callType === 'voice' ? 'Voice' : 'Video'} call in progress...`;
                 break;
             default:
                 statusClass = 'text-gray-600';
@@ -64,11 +96,10 @@ export function MessageContent({ content, messageType, metadata }: MessageConten
 
         return (
             <div className={`flex items-center gap-2 italic ${statusClass}`}>
-                <span className="text-xl">{callIcon}</span>
                 <span>{statusText}</span>
             </div>
         );
-    }, [isCallMessage, metadata, content]);
+    }, [isCallMessage, metadata, content, caller, conversationId, initiatorId, currentUser?.id]);
 
     const renderedContent = useMemo(() => {
         // Find all emoticon matches in the content

@@ -25,7 +25,7 @@ import {
 import { soundService } from '../services/sound-service';
 import { showNotificationWindow } from '../utils/window-utils';
 import { useAuthStore } from '../store/auth-store';
-import type { User, Contact } from '@/types';
+import type { User, Contact, Bot } from '@/types';
 import { WINDOW_EVENTS } from '../utils/constants';
 
 /**
@@ -419,7 +419,16 @@ export function useGlobalMessageUpdates(
                         // Get sender name from cached contacts
                         const contacts = queryClient.getQueryData<Contact[]>(['contacts', 'accepted']);
                         const contact = contacts?.find(c => c.contactUser?.id === senderId);
-                        const senderName = contact?.contactUser?.displayName || contact?.contactUser?.email || 'Unknown';
+                        let senderName = 'Unknown'
+                        if (contact) {
+                            senderName = contact?.contactUser?.displayName || contact?.contactUser?.email
+                        } else {
+                            // Retrieve from cached bots
+                            const bots = queryClient.getQueryData<Bot[]>(['bots']);
+                            const bot = bots?.find(b => b.id === senderId);
+                            senderName = bot?.displayName || bot?.email || 'Unknown'
+                        }
+
                         const message = `${senderName} says:`
                         const description = newMessage.content || '';
 

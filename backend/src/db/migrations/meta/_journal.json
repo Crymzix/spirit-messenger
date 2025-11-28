@@ -148,6 +148,13 @@
       "when": 1764169499137,
       "tag": "0020_daily_vulcan",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1764302501636,
+      "tag": "0021_milky_the_order",
+      "breakpoints": true
     }
   ]
 }

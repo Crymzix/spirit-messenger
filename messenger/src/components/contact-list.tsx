@@ -129,27 +129,33 @@ export function ContactList() {
         }
     }, [refetchGroups])
 
-
     useEffect(() => {
         // Listen for notification clicks to open chat windows
         const unsubscribe = listen<{ senderId: string }>('chat-notification-clicked', async (event) => {
             const { senderId } = event.payload;
 
             // Find the contact to get their display name
-            const contact = acceptedContacts.find(c => c.contactUser.id === senderId);
-            const contactName = contact?.contactUser?.displayName || contact?.contactUser?.email;
+            const contact = acceptedContacts?.find(c => c.contactUser?.id === senderId);
+            let senderName = ''
+            if (contact) {
+                senderName = contact?.contactUser?.displayName || contact?.contactUser?.email
+            } else {
+                // Retrieve from cached bots
+                const bot = bots?.find(b => b.id === senderId);
+                senderName = bot?.displayName || bot?.email || ''
+            }
 
             // Open chat window with the sender
             await invoke('open_chat_window', {
                 dialogWindow: senderId,
-                contactName: contactName,
+                contactName: senderName,
             });
         });
 
         return () => {
             unsubscribe.then(fn => fn()).catch(err => console.error(err));
         };
-    }, [acceptedContacts])
+    }, [acceptedContacts, bots])
 
     const toggleGroup = (groupId: string) => {
         setCollapsedGroups((prev) => {
