@@ -7,7 +7,7 @@
 
 import { useCallEnd } from '@/lib/hooks/call-hooks';
 import { useCallStore } from '@/lib/store/call-store';
-import { webrtcService } from '@/lib/services/webrtc-service';
+import { simplePeerService } from '@/lib/services/simple-peer-service';
 
 interface CallControlsProps {
     /** Whether this is a video call (shows camera toggle) */
@@ -44,7 +44,7 @@ export function CallControls({
             await endCallMutation.mutateAsync(activeCall.id);
 
             // Close peer connection and stop streams
-            webrtcService.closePeerConnection();
+            simplePeerService.destroy();
 
             // Reset call store
             const callStore = useCallStore.getState();

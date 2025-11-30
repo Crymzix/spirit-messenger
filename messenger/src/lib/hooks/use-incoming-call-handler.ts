@@ -1,14 +1,7 @@
 import { useState } from 'react';
 import { useCallAnswer, useCallDecline, useCallSignal } from './call-hooks';
 import { useCallStore } from '../store/call-store';
-import { webrtcService } from '../services/webrtc-service';
-import { callRealtimeService } from '../services/call-realtime-service';
-import { endCall } from '../services/call-service';
-import {
-    createConnectionStateHandler,
-    handleRemoteStream,
-    handleIceConnectionStateChange,
-} from '../utils/webrtc-connection-handler';
+import { simplePeerService } from '../services/simple-peer-service';
 import { supabase } from '../supabase';
 import type { CallType } from '@/types';
 
@@ -55,7 +48,7 @@ export function useIncomingCallHandler({
 
             let localStream: MediaStream;
             try {
-                localStream = await webrtcService.getLocalStream(constraints);
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
                 callStore.setLocalStream(localStream);
                 console.log('Local stream obtained');
             } catch (mediaError: any) {
@@ -78,44 +71,46 @@ export function useIncomingCallHandler({
                 return;
             }
 
-            // Step 4: Create peer connection
-            console.log('Creating peer connection');
-            webrtcService.createPeerConnection();
-
-            // Step 5: Set up WebRTC event handlers with connection state management
-            const { handler: connectionStateHandler, cleanup: cleanupConnectionHandler } =
-                createConnectionStateHandler(
-                    async () => {
-                        // Callback when call should end due to connection failure
-                        try {
-                            await endCall(callId);
-                        } catch (error) {
-                            console.error('Error ending call:', error);
-                        }
-                    },
-                    (errorMessage: string) => {
-                        // Callback for displaying connection errors
-                        setCallError(errorMessage);
-                    }
-                );
-
-            webrtcService.setEventHandlers({
-                onIceCandidate: (candidate) => {
-                    console.log('Generated ICE candidate, sending to peer');
-                    signalMutation.mutate({
+            // Step 4: Set up simple-peer event handlers BEFORE creating peer
+            // This ensures handlers are attached when peer fires events
+            console.log('Setting up event handlers');
+            simplePeerService.setEventHandlers({
+                onSignal: async (signalData) => {
+                    // This fires after we call peer.signal() with initiator's signal
+                    // Send our answer signal via backend API
+                    console.log('Sending signal to caller');
+                    await signalMutation.mutateAsync({
                         callId,
-                        signalType: 'ice-candidate',
-                        signalData: candidate.toJSON(),
+                        signalType: 'signal',
+                        signalData: signalData,
                         targetUserId: callerId,
                     });
                 },
-                onConnectionStateChange: connectionStateHandler,
-                onIceConnectionStateChange: handleIceConnectionStateChange,
-                onRemoteStream: handleRemoteStream,
+                onStream: (stream) => {
+                    // Receive remote stream from peer
+                    console.log('Received remote stream');
+                    callStore.setRemoteStream(stream);
+                    callStore.setCallState('active');
+                },
+                onConnect: () => {
+                    console.log('Peer connection established');
+                    callStore.setCallState('active');
+                },
+                onError: (error) => {
+                    console.error('Peer connection error:', error);
+                    setCallError('Connection failed');
+                },
+                onClose: () => {
+                    console.log('Peer connection closed');
+                },
             });
 
-            // Store cleanup function for later use
-            (window as any).__webrtcCleanup = cleanupConnectionHandler;
+            // Step 5: Create simple-peer instance as non-initiator (receiver)
+            console.log('Creating peer connection');
+            simplePeerService.createPeer({
+                initiator: false,
+                stream: localStream,
+            });
 
             // Step 6: Subscribe to signaling events via Realtime
             console.log('Subscribing to signaling events');
@@ -125,39 +120,6 @@ export function useIncomingCallHandler({
             if (!user) {
                 throw new Error('User not authenticated');
             }
-
-            callRealtimeService.setCurrentUserId(user.id);
-
-            await callRealtimeService.subscribeToSignaling(callId, {
-                onSdpOffer: async (offer, fromUserId) => {
-                    console.log('Received SDP offer from:', fromUserId);
-
-                    try {
-                        // Step 7: When sdp_offer received, set remote description and generate SDP answer
-                        console.log('Creating SDP answer');
-                        const answer = await webrtcService.createAnswer(offer);
-
-                        // Step 8: Send SDP answer via useCallSignal hook
-                        console.log('Sending SDP answer to caller');
-                        await signalMutation.mutateAsync({
-                            callId,
-                            signalType: 'answer',
-                            signalData: answer,
-                            targetUserId: callerId,
-                        });
-
-                        console.log('Call answering flow complete, waiting for connection');
-                    } catch (signalingError) {
-                        console.error('Error during signaling:', signalingError);
-                        setCallError('Failed to establish connection');
-                    }
-                },
-                onIceCandidate: async (_candidate, fromUserId) => {
-                    console.log('Received ICE candidate from:', fromUserId);
-                    // ICE candidates are automatically added by callRealtimeService
-                },
-            });
-
         } catch (error) {
             console.error('Failed to answer call:', error);
             setCallError('Failed to answer call. Please try again.');

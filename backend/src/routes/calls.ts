@@ -31,9 +31,9 @@ interface CallParams {
 }
 
 interface SignalBody {
-    type: 'offer' | 'answer' | 'ice-candidate';
+    type: 'signal';
     data: any;
-    target_user_id: string;
+    targetUserId: string;
 }
 
 interface ActiveCallParams {
@@ -366,16 +366,16 @@ const callsRoutes: FastifyPluginAsync = async (fastify) => {
                 },
                 body: {
                     type: 'object',
-                    required: ['type', 'data', 'target_user_id'],
+                    required: ['type', 'data', 'targetUserId'],
                     properties: {
                         type: {
                             type: 'string',
-                            enum: ['offer', 'answer', 'ice-candidate'],
+                            enum: ['signal'],
                         },
                         data: {
                             type: 'object',
                         },
-                        target_user_id: {
+                        targetUserId: {
                             type: 'string',
                             format: 'uuid',
                         },
@@ -394,12 +394,12 @@ const callsRoutes: FastifyPluginAsync = async (fastify) => {
 
                 const userId = request.user.id;
                 const { callId } = request.params;
-                const { type, data, target_user_id } = request.body;
+                const { type, data, targetUserId } = request.body;
 
                 const signalData: SignalData = {
                     type,
                     data,
-                    targetUserId: target_user_id,
+                    targetUserId: targetUserId,
                 };
 
                 // Handle signal using service

@@ -22,9 +22,56 @@ import {
 } from '../services/call-service';
 import type { CallType } from '@/types';
 import { supabase } from '../supabase';
-import { useAuthStore } from '../store/auth-store';
+import { useAuthStore, useUser } from '../store/auth-store';
 import { useCallStore } from '../store/call-store';
 import { soundService } from '../services/sound-service';
+import { emit } from '@tauri-apps/api/event';
+import { WINDOW_EVENTS } from '../utils/constants';
+
+export interface CallRingingPayload {
+    callId: string;
+    conversationId: string;
+    initiatorId: string;
+    callType: 'voice' | 'video';
+}
+
+export interface CallAnsweredPayload {
+    callId: string;
+    conversationId: string;
+    answeredBy: string;
+}
+
+export interface CallDeclinedPayload {
+    callId: string;
+    conversationId: string;
+    declinedBy: string;
+}
+
+export interface CallEndedPayload {
+    callId: string;
+    conversationId: string;
+    endedBy: string;
+    durationSeconds: number;
+}
+
+export interface CallMissedPayload {
+    callId: string;
+    conversationId: string;
+}
+
+export interface CallFailedPayload {
+    callId: string;
+    conversationId: string;
+    errorReason: string;
+}
+
+export interface SignalPayload {
+    callId: string;
+    conversationId: string;
+    fromUserId: string;
+    targetUserId?: string;
+    data: any;
+}
 
 /**
  * Hook for initiating a new voice or video call
@@ -256,6 +303,62 @@ export function useActiveCall(conversationId: string) {
     });
 }
 
+export function useCallSignalUpdates(
+    callId: string | undefined,
+    onSignal: (signalData: any, fromUserId: string) => void
+) {
+    const user = useUser()
+
+    useEffect(() => {
+        if (!callId) {
+            return
+        }
+        if (!user) {
+            return
+        }
+
+        // Create a new channel for signaling events specific to this call
+        // Use call ID in channel name to isolate signaling per call
+        const signalingChannel = supabase.channel(`call-signaling:${callId}`);
+
+        // Listen for signaling broadcasts (bundled signal events)
+        signalingChannel
+            .on(
+                'broadcast',
+                { event: 'signal' },
+                (payload: { payload: SignalPayload }) => {
+                    console.log('Received signaling event payload for call', payload)
+                    const { fromUserId, targetUserId, data } = payload.payload;
+
+                    // Verify the signal is for the current user
+                    if (targetUserId && targetUserId !== user?.id) {
+                        console.log('Ignoring signaling event not meant for this user');
+                        return;
+                    }
+
+                    onSignal(data, fromUserId)
+                }
+            );
+
+        // Subscribe to the channel
+        signalingChannel.subscribe((status, err) => {
+            if (status === 'SUBSCRIBED') {
+                console.log(`Subscribed to signaling channel for call ${callId}`);
+            } else if (status === 'CHANNEL_ERROR') {
+                console.error('Error subscribing to signaling channel', err);
+            } else if (status === 'TIMED_OUT') {
+                console.error('Timed out subscribing to signaling channel', err);
+            }
+        });
+
+        return () => {
+            signalingChannel.unsubscribe().catch((error) => {
+                console.error('Error unsubscribing from call signal channel:', error);
+            });
+        };
+    }, [callId, user])
+}
+
 /**
  * Global hook for listening to call-related broadcasts from Supabase Realtime
  * Sets up listeners for incoming calls, call state changes, and signaling events
@@ -274,8 +377,8 @@ export function useCallUpdates() {
             return;
         }
 
-        // Subscribe to user's personal channel for call broadcasts
-        const channel = supabase.channel(`user:${user.id}`);
+        // Subscribe to user's call events channel for call broadcasts
+        const channel = supabase.channel(`call-events:${user.id}`);
         channel
             .on(
                 'broadcast',
@@ -336,7 +439,7 @@ export function useCallUpdates() {
                             console.log('Received call missed event');
 
                             // Stop any playing ringing sound
-                            await soundService.stopLooping();
+                            soundService.stopLooping();
 
                             // Invalidate messages to show updated status
                             queryClient.invalidateQueries({
@@ -358,23 +461,9 @@ export function useCallUpdates() {
                             });
                             break;
                         }
-
-                        case 'call_failed':
-                            console.log('Received call failed event');
-                            break;
-
-                        case 'sdp_offer':
-                            console.log('Received SDP offer event');
-                            break;
-
-                        case 'sdp_answer':
-                            console.log('Received SDP answer event');
-                            break;
-
-                        case 'ice_candidate':
-                            console.log('Received ICE candidate event');
-                            break;
                     }
+
+                    await emit(WINDOW_EVENTS.CALL_EVENTS, payload)
                 }
             )
             .subscribe();

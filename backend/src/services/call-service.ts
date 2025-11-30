@@ -27,7 +27,7 @@ export interface InitiateCallData {
 }
 
 export interface SignalData {
-    type: 'offer' | 'answer' | 'ice-candidate';
+    type: 'signal';
     data: any;
     targetUserId: string;
 }
@@ -454,8 +454,8 @@ export async function answerCall(
         const participantUserIds = participants.map(p => p.userId);
         try {
             await realtimePublisher.publishCallAnswered(participantUserIds, {
-                callId: callId,
-                conversationId: call.conversationId,
+                callId: updatedCall.id,
+                conversationId: updatedCall.conversationId,
                 answeredBy: userId,
             });
         } catch (publishError) {
@@ -604,8 +604,8 @@ export async function declineCall(
         const participantUserIds = participants.map(p => p.userId);
         try {
             await realtimePublisher.publishCallDeclined(participantUserIds, {
-                callId: callId,
-                conversationId: call.conversationId,
+                callId: updatedCall.id,
+                conversationId: updatedCall.conversationId,
                 declinedBy: userId,
             });
         } catch (publishError) {
@@ -730,8 +730,8 @@ export async function missedCall(
         const participantUserIds = participants.map(p => p.userId);
         try {
             await realtimePublisher.publishCallMissed(participantUserIds, {
-                callId: callId,
-                conversationId: call.conversationId,
+                callId: updatedCall.id,
+                conversationId: updatedCall.conversationId,
             });
         } catch (publishError) {
             console.error('Error publishing call_missed event:', publishError);
@@ -894,8 +894,8 @@ export async function endCall(
         const participantUserIds = participants.map(p => p.userId);
         try {
             await realtimePublisher.publishCallEnded(participantUserIds, {
-                callId: callId,
-                conversationId: call.conversationId,
+                callId: updatedCall.id,
+                conversationId: updatedCall.conversationId,
                 endedBy: userId,
                 durationSeconds: durationSeconds,
             });
@@ -1042,7 +1042,7 @@ export async function handleSignal(
             throw new CallServiceError('Invalid signal data', 'INVALID_SIGNAL_DATA', 400);
         }
 
-        const validSignalTypes = ['offer', 'answer', 'ice-candidate'];
+        const validSignalTypes = ['offer', 'answer', 'ice-candidate', 'signal'];
         if (!validSignalTypes.includes(signalData.type)) {
             throw new CallServiceError(
                 `Invalid signal type. Must be one of: ${validSignalTypes.join(', ')}`,
@@ -1102,19 +1102,14 @@ export async function handleSignal(
         }
 
         // Forward signal via Supabase Realtime
-        const eventName = signalData.type === 'ice-candidate' ? 'ice_candidate' : `sdp_${signalData.type}`;
-
         try {
-            await realtimePublisher.publishSignal(
-                signalData.targetUserId,
-                eventName as 'sdp_offer' | 'sdp_answer' | 'ice_candidate',
-                {
-                    callId: callId,
-                    conversationId: call.conversationId,
-                    fromUserId: userId,
-                    data: signalData.data,
-                }
-            );
+            await realtimePublisher.publishSignal({
+                callId: callId,
+                conversationId: call.conversationId,
+                fromUserId: userId,
+                targetUserId: signalData.targetUserId,
+                data: signalData.data,
+            });
         } catch (publishError) {
             // If signaling fails, mark call as failed
             console.error('Error publishing signal:', publishError);

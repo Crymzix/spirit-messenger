@@ -66,7 +66,7 @@ export function MessageContent({ content, messageType, metadata, caller, convers
 
         switch (status) {
             case 'completed':
-                statusClass = 'text-green-700';
+                statusClass = 'text-blue-700';
                 statusText = `${callType === 'voice' ? 'Voice' : 'Video'} call${durationText}`;
                 break;
             case 'declined':
@@ -95,9 +95,12 @@ export function MessageContent({ content, messageType, metadata, caller, convers
         }
 
         return (
-            <div className={`flex items-center gap-2 italic ${statusClass}`}>
+            <div
+                className={`flex flex-col gap-2 italic ${statusClass}`}
+            >
+                <div className='h-[1px] bg-gray-400 w-16'></div>
                 <span>{statusText}</span>
-            </div>
+            </div >
         );
     }, [isCallMessage, metadata, content, caller, conversationId, initiatorId, currentUser?.id]);
 

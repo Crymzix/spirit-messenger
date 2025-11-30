@@ -6,7 +6,6 @@
 
 import { create } from 'zustand';
 import type { Call } from '@/types';
-import { webrtcService } from '@/lib/services/webrtc-service';
 
 export type CallState =
     | 'idle'           // No active call
@@ -113,8 +112,11 @@ export const useCallStore = create<CallStoreState>((set, get) => ({
         const { isMuted } = get();
         const newMutedState = !isMuted;
 
-        // Update the audio track via WebRTC service
-        const success = webrtcService.toggleMute(newMutedState);
+        // Lazy load simplePeerService to avoid circular dependency
+        const { simplePeerService } = require('@/lib/services/simple-peer-service');
+
+        // Update the audio track via simple-peer service
+        const success = simplePeerService.toggleMute(newMutedState);
 
         // Only update state if the operation succeeded
         if (success) {
@@ -124,14 +126,17 @@ export const useCallStore = create<CallStoreState>((set, get) => ({
 
     /**
      * Toggle camera state
-     * Modifies the video track enabled state in the local stream via WebRTC service
+     * Modifies the video track enabled state in the local stream via simple-peer service
      */
     toggleCamera: () => {
         const { isCameraOff } = get();
         const newCameraOffState = !isCameraOff;
 
-        // Update the video track via WebRTC service
-        const success = webrtcService.toggleCamera(newCameraOffState);
+        // Lazy load simplePeerService to avoid circular dependency
+        const { simplePeerService } = require('@/lib/services/simple-peer-service');
+
+        // Update the video track via simple-peer service
+        const success = simplePeerService.toggleCamera(newCameraOffState);
 
         // Only update state if the operation succeeded
         if (success) {

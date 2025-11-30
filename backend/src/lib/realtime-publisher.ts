@@ -50,6 +50,7 @@ export interface SignalPayload {
     callId: string;
     conversationId: string;
     fromUserId: string;
+    targetUserId?: string;
     data: any;
 }
 
@@ -73,7 +74,7 @@ export class RealtimePublisher {
         payload: CallRingingPayload
     ): Promise<void> {
         try {
-            const channel = this.supabase.channel(`user:${recipientUserId}`);
+            const channel = this.supabase.channel(`call-events:${recipientUserId}`);
 
             await channel.send({
                 type: 'broadcast',
@@ -103,7 +104,7 @@ export class RealtimePublisher {
     ): Promise<void> {
         try {
             const publishPromises = participantUserIds.map(async (userId) => {
-                const channel = this.supabase.channel(`user:${userId}`);
+                const channel = this.supabase.channel(`call-events:${userId}`);
 
                 await channel.send({
                     type: 'broadcast',
@@ -136,7 +137,7 @@ export class RealtimePublisher {
     ): Promise<void> {
         try {
             const publishPromises = participantUserIds.map(async (userId) => {
-                const channel = this.supabase.channel(`user:${userId}`);
+                const channel = this.supabase.channel(`call-events:${userId}`);
 
                 await channel.send({
                     type: 'broadcast',
@@ -169,7 +170,7 @@ export class RealtimePublisher {
     ): Promise<void> {
         try {
             const publishPromises = participantUserIds.map(async (userId) => {
-                const channel = this.supabase.channel(`user:${userId}`);
+                const channel = this.supabase.channel(`call-events:${userId}`);
 
                 await channel.send({
                     type: 'broadcast',
@@ -202,7 +203,7 @@ export class RealtimePublisher {
     ): Promise<void> {
         try {
             const publishPromises = participantUserIds.map(async (userId) => {
-                const channel = this.supabase.channel(`user:${userId}`);
+                const channel = this.supabase.channel(`call-events:${userId}`);
 
                 await channel.send({
                     type: 'broadcast',
@@ -235,7 +236,7 @@ export class RealtimePublisher {
     ): Promise<void> {
         try {
             const publishPromises = participantUserIds.map(async (userId) => {
-                const channel = this.supabase.channel(`user:${userId}`);
+                const channel = this.supabase.channel(`call-events:${userId}`);
 
                 await channel.send({
                     type: 'broadcast',
@@ -255,33 +256,30 @@ export class RealtimePublisher {
     }
 
     /**
-     * Publish signaling data (SDP offers/answers and ICE candidates)
-     * Forwards WebRTC signaling data from one peer to another
-     * 
-     * @param recipientUserId - The user ID of the signal recipient
-     * @param eventName - The specific signal event name (sdp_offer, sdp_answer, ice_candidate)
-     * @param payload - Signal data payload
+     * Publish signaling data (bundled signal events with SDP and ICE candidates)
+     * Forwards WebRTC signaling data from one peer to another via the call-signaling channel
+     *
+     * @param payload - Signal data payload (must include callId)
      * @throws Error if publishing fails
      */
     async publishSignal(
-        recipientUserId: string,
-        eventName: 'sdp_offer' | 'sdp_answer' | 'ice_candidate',
         payload: SignalPayload
     ): Promise<void> {
         try {
-            const channel = this.supabase.channel(`user:${recipientUserId}`);
-
+            // Use call-signaling channel keyed by callId to isolate signaling per call
+            const channel = this.supabase.channel(`call-signaling:${payload.callId}`);
+            console.log('Publishing WebRTC signal for call:', payload.callId)
             await channel.send({
                 type: 'broadcast',
-                event: eventName,
+                event: 'signal',
                 payload,
             });
 
             // Unsubscribe after sending to clean up
             await channel.unsubscribe();
         } catch (error) {
-            console.error(`Error publishing ${eventName} event:`, error);
-            throw new Error(`Failed to publish ${eventName} event: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            console.error('Error publishing signal event:', error);
+            throw new Error(`Failed to publish signal event: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
 }

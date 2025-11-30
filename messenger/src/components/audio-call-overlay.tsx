@@ -9,7 +9,7 @@ import { useCallEnd } from '@/lib/hooks/call-hooks';
 import { useCallStore } from '@/lib/store/call-store';
 import { User } from '@/types';
 import Avatar from 'boring-avatars';
-import { webrtcService } from '@/lib/services/webrtc-service';
+import { simplePeerService } from '@/lib/services/simple-peer-service';
 
 interface AudioCallOverlayProps {
     contact: User;
@@ -89,7 +89,7 @@ export function AudioCallOverlay({ contact }: AudioCallOverlayProps) {
             await endCallMutation.mutateAsync(activeCall.id);
 
             // Close peer connection and stop streams
-            webrtcService.closePeerConnection();
+            simplePeerService.destroy();
 
             // Reset call store
             const callStore = useCallStore.getState();

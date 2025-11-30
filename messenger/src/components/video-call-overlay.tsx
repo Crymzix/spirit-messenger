@@ -8,7 +8,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useCallEnd } from '@/lib/hooks/call-hooks';
 import { useCallStore } from '@/lib/store/call-store';
 import { User } from '@/types';
-import { webrtcService } from '@/lib/services/webrtc-service';
+import { simplePeerService } from '@/lib/services/simple-peer-service';
 
 interface VideoCallOverlayProps {
     contact: User;
@@ -111,7 +111,7 @@ export function VideoCallOverlay({ contact }: VideoCallOverlayProps) {
             await endCallMutation.mutateAsync(activeCall.id);
 
             // Close peer connection and stop streams
-            webrtcService.closePeerConnection();
+            simplePeerService.destroy();
 
             // Reset call store
             const callStore = useCallStore.getState();

@@ -11,7 +11,7 @@
 import { apiPost, apiGet } from '../api-client';
 import type { Call, CallType, CallWithParticipants } from '@/types';
 
-export type SignalType = 'offer' | 'answer' | 'ice-candidate';
+export type SignalType = 'signal';
 
 export interface InitiateCallData {
     conversationId: string;
@@ -148,7 +148,7 @@ export async function sendSignal(
         {
             type: signalType,
             data: signalData,
-            target_user_id: targetUserId,
+            targetUserId,
         }
     );
 

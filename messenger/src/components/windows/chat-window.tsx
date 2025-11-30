@@ -4,7 +4,7 @@ import { TitleBar } from "../title-bar";
 import { useUser } from "@/lib";
 import { useSendMessage, useConversationMessagesInfinite, useConversationRealtimeUpdates, useSendNudge, useMarkMessagesAsRead } from "@/lib/hooks/message-hooks";
 import { getCurrentWindow, PhysicalPosition } from '@tauri-apps/api/window';
-import { listen } from '@tauri-apps/api/event';
+import { Event, listen } from '@tauri-apps/api/event';
 import { useTypingIndicator } from "@/lib/hooks/typing-hooks";
 import { useConversation, useParticipantRealtimeUpdates } from "@/lib/hooks/conversation-hooks";
 import { TypingIndicator } from "../typing-indicator";
@@ -23,16 +23,11 @@ import { WINDOW_EVENTS } from "@/lib/utils/constants";
 import { VoiceRecordingInterface } from "../voice-recording-interface";
 import { VoiceMessagePlayer } from "../voice-message-player";
 import { useSendVoiceClip } from "@/lib/hooks/voice-hooks";
-import { useCallInitiate } from "@/lib/hooks/call-hooks";
+import { useCallInitiate, useCallSignalUpdates } from "@/lib/hooks/call-hooks";
 import { useCallStore, useHasActiveCall } from "@/lib/store/call-store";
 import { callRealtimeService } from "@/lib/services/call-realtime-service";
-import { webrtcService } from "@/lib/services/webrtc-service";
+import { simplePeerService } from "@/lib/services/simple-peer-service";
 import { endCall, sendSignal } from "@/lib/services/call-service";
-import {
-    createConnectionStateHandler,
-    handleRemoteStream,
-    handleIceConnectionStateChange
-} from "@/lib/utils/webrtc-connection-handler";
 import { AudioCallOverlay } from "../audio-call-overlay";
 import { VideoCallOverlay } from "../video-call-overlay";
 
@@ -77,6 +72,7 @@ export function ChatWindow() {
     const callState = useCallStore((state) => state.callState);
     const [callDeclinedMessage, setCallDeclinedMessage] = useState<string | null>(null);
     const [callError, setCallError] = useState<string | null>(null);
+    const callStore = useCallStore()
 
     const sendMessageMutation = useSendMessage(conversation?.id || '');
     const sendNudgeMutation = useSendNudge(conversation?.id || '');
@@ -90,6 +86,10 @@ export function ChatWindow() {
     } = useConversationMessagesInfinite(conversation?.id || '', 50);
 
     const messagesData = messagesQueryData?.messages || [];
+
+    useCallSignalUpdates(activeCall?.id, (signalData) => {
+        simplePeerService.signal(signalData);
+    })
 
     // Mark messages as read when conversation is loaded and when window receives focus
     useEffect(() => {
@@ -369,6 +369,151 @@ export function ChatWindow() {
         }
     }, [callState]);
 
+    useEffect(() => {
+        if (!user) {
+            return
+        }
+        if (!conversation) {
+            return
+        }
+
+        const unsubscribe = listen(WINDOW_EVENTS.CALL_EVENTS, async (event: Event<any>) => {
+            const eventPayload = event.payload;
+
+            if (conversation.id !== eventPayload.payload.conversationId) {
+                console.log('Call event belongs to different conversation.')
+            }
+
+            callRealtimeService.handleCallEvent(event, user.id)
+
+            switch (eventPayload.event) {
+                case 'call_answered': {
+                    if (!activeCall) {
+                        return
+                    }
+                    console.log('Call answered, transitioning to active state');
+
+                    // Get the other participant's user ID
+                    const otherParticipant = participants[0];
+                    if (!otherParticipant) {
+                        throw new Error('No participant found for call');
+                    }
+
+                    try {
+                        // Set up simple-peer event handlers BEFORE creating peer
+                        // This ensures handlers are attached when peer fires events
+                        simplePeerService.setEventHandlers({
+                            onSignal: async (signalData) => {
+                                // Send bundled signal (includes SDP offer + ICE candidates)
+                                await sendSignal(
+                                    activeCall.id,
+                                    'signal',
+                                    signalData,
+                                    otherParticipant.id
+                                );
+                            },
+                            onStream: (stream) => {
+                                // Receive remote stream from peer
+                                console.log('Received remote stream');
+                                callStore.setRemoteStream(stream);
+                                callStore.setCallState('active');
+                            },
+                            onConnect: () => {
+                                console.log('Peer connection established');
+                                callStore.setCallState('active');
+                            },
+                            onError: (error) => {
+                                console.error('Peer connection error:', error);
+                                setCallError('Connection failed');
+                            },
+                            onClose: () => {
+                                console.log('Peer connection closed');
+                            },
+                        });
+
+                        const localStream = await navigator.mediaDevices.getUserMedia({
+                            audio: {
+                                echoCancellation: true,
+                                noiseSuppression: true,
+                                autoGainControl: true,
+                            },
+                            video: activeCall.callType === 'voice' ? false : {
+                                width: 640,
+                                height: 480,
+                                frameRate: 15,
+                            },
+                        });
+
+                        // Create simple-peer instance as initiator (caller)
+                        simplePeerService.createPeer({
+                            initiator: true,
+                            stream: localStream,
+                        });
+
+                        console.log('Call initiation complete, waiting for answer');
+                    } catch (mediaPermissionError: any) {
+                        console.error('Media permission error:', mediaPermissionError);
+
+                        // Display error in modal dialog
+                        setCallError(mediaPermissionError.message || 'Failed to access microphone');
+
+                        // End the call
+                        try {
+                            await endCall(activeCall.id);
+                        } catch (endCallError) {
+                            console.error('Failed to end call after media error:', endCallError);
+                        }
+
+                        // Clean up
+                        simplePeerService.destroy();
+                        callStore.reset();
+                    }
+                    break
+                }
+
+                case 'call_declined': {
+                    console.log('Call declined by remote user');
+
+                    // Display "Call declined" message
+                    setCallDeclinedMessage('Call declined');
+
+                    // Close WebRTC connection and stop media tracks
+                    simplePeerService.destroy();
+
+                    // Update call state to ended
+                    callStore.setCallState('ended');
+
+                    // Reset call store and clear message after a short delay to show declined state
+                    setTimeout(() => {
+                        callStore.reset();
+                        setCallDeclinedMessage(null);
+                    }, 2000);
+                    break
+                }
+
+                case 'call_ended': {
+                    console.log('Call ended by remote user');
+
+                    // Close WebRTC connection and stop media tracks
+                    simplePeerService.destroy();
+
+                    // Update call state to ended
+                    callStore.setCallState('ended');
+
+                    // Reset call store after a short delay
+                    setTimeout(() => {
+                        callStore.reset();
+                    }, 1000);
+                    break
+                }
+            }
+        })
+
+        return () => {
+            unsubscribe.then(fn => fn()).catch(err => console.error(err))
+        }
+    }, [user, activeCall, participants, conversation])
+
     const handleSendMessage = async () => {
         if (!messageInput.trim() || !conversation?.id) {
             return;
@@ -584,161 +729,34 @@ export function ChatWindow() {
         }
 
         try {
-            // Initiate the call via Backend Service API
+            console.log('Requesting media permissions for voice call...');
+
+            const localStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                },
+                video: false,
+            });
+
+            // Store local stream immediately so overlay can show audio
+            callStore.setLocalStream(localStream);
+
             const call = await callInitiateMutation.mutateAsync({
                 conversationId: conversation.id,
                 callType: 'voice',
             });
 
-            // Update call store with active call and set state to 'initiating'
-            const callStore = useCallStore.getState();
+            // Update call store with active call and set state to 'connecting' so overlay shows immediately
             callStore.setActiveCall(call);
-            callStore.setCallState('initiating');
-
-            // Set current user ID for realtime service
-            callRealtimeService.setCurrentUserId(user.id);
+            callStore.setCallState('connecting');
 
             // Get the other participant's user ID
             const otherParticipant = participants[0];
             if (!otherParticipant) {
                 throw new Error('No participant found for call');
             }
-
-            // Subscribe to call_answered event via Realtime
-            await callRealtimeService.subscribeToCallEvents({
-                onCallAnswered: async () => {
-                    console.log('Call answered, transitioning to connecting state');
-
-                    // Update call state to 'connecting'
-                    callStore.setCallState('connecting');
-
-                    try {
-                        // Request media permissions (audio only for voice call)
-                        const localStream = await webrtcService.getLocalStream({
-                            audio: {
-                                echoCancellation: true,
-                                noiseSuppression: true,
-                                autoGainControl: true,
-                            },
-                            video: false,
-                        });
-
-                        // Update call store with local stream
-                        callStore.setLocalStream(localStream);
-
-                        // Create peer connection
-                        webrtcService.createPeerConnection();
-
-                        // Set up WebRTC event handlers with connection state management
-                        const { handler: connectionStateHandler, cleanup: cleanupConnectionHandler } =
-                            createConnectionStateHandler(
-                                async () => {
-                                    // Callback when call should end due to connection failure
-                                    try {
-                                        await endCall(call.id);
-                                    } catch (error) {
-                                        console.error('Error ending call:', error);
-                                    }
-                                },
-                                (errorMessage: string) => {
-                                    // Callback for displaying connection errors
-                                    setCallError(errorMessage);
-                                }
-                            );
-
-                        webrtcService.setEventHandlers({
-                            onIceCandidate: async (candidate) => {
-                                // Send ICE candidate via signaling
-                                await sendSignal(
-                                    call.id,
-                                    'ice-candidate',
-                                    candidate.toJSON(),
-                                    otherParticipant.id
-                                );
-                            },
-                            onConnectionStateChange: connectionStateHandler,
-                            onIceConnectionStateChange: handleIceConnectionStateChange,
-                            onRemoteStream: handleRemoteStream,
-                        });
-
-                        // Store cleanup function for later use
-                        (window as any).__webrtcCleanup = cleanupConnectionHandler;
-
-                        // Subscribe to signaling events for this call
-                        await callRealtimeService.subscribeToSignaling(call.id, {
-                            onSdpAnswer: async () => {
-                                console.log('Received SDP answer');
-                                // Remote description is set automatically by callRealtimeService
-                            },
-                            onIceCandidate: async (_candidate) => {
-                                console.log('Received ICE candidate');
-                                // ICE candidate is added automatically by callRealtimeService
-                            },
-                        });
-
-                        // Generate SDP offer
-                        const offer = await webrtcService.createOffer();
-
-                        // Send SDP offer via signaling
-                        await sendSignal(
-                            call.id,
-                            'offer',
-                            offer,
-                            otherParticipant.id
-                        );
-
-                        console.log('Call initiation complete, waiting for answer');
-                    } catch (mediaPermissionError: any) {
-                        console.error('Media permission error:', mediaPermissionError);
-
-                        // Display error in modal dialog
-                        setCallError(mediaPermissionError.message || 'Failed to access microphone');
-
-                        // End the call
-                        try {
-                            await endCall(call.id);
-                        } catch (endCallError) {
-                            console.error('Failed to end call after media error:', endCallError);
-                        }
-
-                        // Clean up
-                        webrtcService.closePeerConnection();
-                        callStore.reset();
-                    }
-                },
-                onCallDeclined: () => {
-                    console.log('Call declined by remote user');
-
-                    // Display "Call declined" message
-                    setCallDeclinedMessage('Call declined');
-
-                    // Close WebRTC connection and stop media tracks
-                    webrtcService.closePeerConnection();
-
-                    // Update call state to ended
-                    callStore.setCallState('ended');
-
-                    // Reset call store and clear message after a short delay to show declined state
-                    setTimeout(() => {
-                        callStore.reset();
-                        setCallDeclinedMessage(null);
-                    }, 2000);
-                },
-                onCallEnded: () => {
-                    console.log('Call ended by remote user');
-
-                    // Close WebRTC connection and stop media tracks
-                    webrtcService.closePeerConnection();
-
-                    // Update call state to ended
-                    callStore.setCallState('ended');
-
-                    // Reset call store after a short delay
-                    setTimeout(() => {
-                        callStore.reset();
-                    }, 1000);
-                },
-            });
 
             console.log('Voice call initiated, waiting for answer');
         } catch (error: any) {
@@ -750,8 +768,12 @@ export function ChatWindow() {
                 errorMessage = error.message;
             }
 
-            // Check if error is due to user being busy (simultaneous call prevention)
-            if (errorMessage.includes('User is currently on another call') ||
+            // Provide better error messages for different failure types
+            if (errorMessage.includes('Permission denied') ||
+                errorMessage.includes('NotAllowedError') ||
+                errorMessage.includes('microphone')) {
+                setCallError('Microphone access is required. Please grant permissions and try again.');
+            } else if (errorMessage.includes('User is currently on another call') ||
                 errorMessage.includes('USER_BUSY')) {
                 setCallError('You or your contact is currently on another call. Please try again later.');
             } else {
@@ -759,7 +781,6 @@ export function ChatWindow() {
             }
 
             // Clean up on error
-            const callStore = useCallStore.getState();
             callStore.reset();
         }
     };
@@ -770,163 +791,37 @@ export function ChatWindow() {
         }
 
         try {
-            // Initiate the call via Backend Service API
+            const localStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                },
+                video: {
+                    width: 640,
+                    height: 480,
+                    frameRate: 15,
+                },
+            });
+
+            // Store local stream immediately so overlay can show video
+            callStore.setLocalStream(localStream);
+
+            // NOW initiate the call via Backend Service API
             const call = await callInitiateMutation.mutateAsync({
                 conversationId: conversation.id,
                 callType: 'video',
             });
 
-            // Update call store with active call and set state to 'initiating'
-            const callStore = useCallStore.getState();
+            // Update call store with active call and set state to 'connecting' so overlay shows immediately
             callStore.setActiveCall(call);
-            callStore.setCallState('initiating');
-
-            // Set current user ID for realtime service
-            callRealtimeService.setCurrentUserId(user.id);
+            callStore.setCallState('connecting');
 
             // Get the other participant's user ID
             const otherParticipant = participants[0];
             if (!otherParticipant) {
                 throw new Error('No participant found for call');
             }
-
-            // Subscribe to call_answered event via Realtime
-            await callRealtimeService.subscribeToCallEvents({
-                onCallAnswered: async () => {
-                    console.log('Call answered, transitioning to connecting state');
-
-                    // Update call state to 'connecting'
-                    callStore.setCallState('connecting');
-
-                    try {
-                        // Request media permissions (audio and video for video call)
-                        const localStream = await webrtcService.getLocalStream({
-                            audio: {
-                                echoCancellation: true,
-                                noiseSuppression: true,
-                                autoGainControl: true,
-                            },
-                            video: {
-                                width: 640,
-                                height: 480,
-                                frameRate: 15,
-                            },
-                        });
-
-                        // Update call store with local stream
-                        callStore.setLocalStream(localStream);
-
-                        // Create peer connection
-                        webrtcService.createPeerConnection();
-
-                        // Set up WebRTC event handlers with connection state management
-                        const { handler: connectionStateHandler, cleanup: cleanupConnectionHandler } =
-                            createConnectionStateHandler(
-                                async () => {
-                                    // Callback when call should end due to connection failure
-                                    try {
-                                        await endCall(call.id);
-                                    } catch (error) {
-                                        console.error('Error ending call:', error);
-                                    }
-                                },
-                                (errorMessage: string) => {
-                                    setCallError(errorMessage);
-                                }
-                            );
-
-                        webrtcService.setEventHandlers({
-                            onIceCandidate: async (candidate) => {
-                                // Send ICE candidate via signaling
-                                await sendSignal(
-                                    call.id,
-                                    'ice-candidate',
-                                    candidate.toJSON(),
-                                    otherParticipant.id
-                                );
-                            },
-                            onConnectionStateChange: connectionStateHandler,
-                            onIceConnectionStateChange: handleIceConnectionStateChange,
-                            onRemoteStream: handleRemoteStream,
-                        });
-
-                        // Store cleanup function for later use
-                        (window as any).__webrtcCleanup = cleanupConnectionHandler;
-
-                        // Subscribe to signaling events for this call
-                        await callRealtimeService.subscribeToSignaling(call.id, {
-                            onSdpAnswer: async () => {
-                                console.log('Received SDP answer');
-                                // Remote description is set automatically by callRealtimeService
-                            },
-                            onIceCandidate: async (_candidate) => {
-                                console.log('Received ICE candidate');
-                                // ICE candidate is added automatically by callRealtimeService
-                            },
-                        });
-
-                        // Generate SDP offer
-                        const offer = await webrtcService.createOffer();
-
-                        // Send SDP offer via signaling
-                        await sendSignal(
-                            call.id,
-                            'offer',
-                            offer,
-                            otherParticipant.id
-                        );
-
-                        console.log('Call initiation complete, waiting for answer');
-                    } catch (mediaPermissionError: any) {
-                        console.error('Media permission error:', mediaPermissionError);
-
-                        setCallError(mediaPermissionError.message || 'Failed to access camera/microphone');
-
-                        // End the call
-                        try {
-                            await endCall(call.id);
-                        } catch (endCallError) {
-                            console.error('Failed to end call after media error:', endCallError);
-                        }
-
-                        // Clean up
-                        webrtcService.closePeerConnection();
-                        callStore.reset();
-                    }
-                },
-                onCallDeclined: () => {
-                    console.log('Call declined by remote user');
-
-                    // Display "Call declined" message
-                    setCallDeclinedMessage('Call declined');
-
-                    // Close WebRTC connection and stop media tracks
-                    webrtcService.closePeerConnection();
-
-                    // Update call state to ended
-                    callStore.setCallState('ended');
-
-                    // Reset call store and clear message after a short delay to show declined state
-                    setTimeout(() => {
-                        callStore.reset();
-                        setCallDeclinedMessage(null);
-                    }, 2000);
-                },
-                onCallEnded: () => {
-                    console.log('Call ended by remote user');
-
-                    // Close WebRTC connection and stop media tracks
-                    webrtcService.closePeerConnection();
-
-                    // Update call state to ended
-                    callStore.setCallState('ended');
-
-                    // Reset call store after a short delay
-                    setTimeout(() => {
-                        callStore.reset();
-                    }, 1000);
-                },
-            });
 
             console.log('Video call initiated, waiting for answer');
         } catch (error: any) {
@@ -938,17 +833,24 @@ export function ChatWindow() {
                 errorMessage = error.message;
             }
 
-            // Check if error is due to user being busy (simultaneous call prevention)
-            if (errorMessage.includes('User is currently on another call') ||
+            // Provide better error messages for different failure types
+            if (errorMessage.includes('Permission denied') ||
+                errorMessage.includes('NotAllowedError') ||
+                errorMessage.includes('camera') ||
+                errorMessage.includes('microphone')) {
+                setCallError('Camera and microphone access is required. Please grant permissions and try again.');
+            } else if (errorMessage.includes('User is currently on another call') ||
                 errorMessage.includes('USER_BUSY')) {
                 setCallError('You or your contact is currently on another call. Please try again later.');
             } else {
                 setCallError(errorMessage);
             }
 
-            // Clean up on error
-            const callStore = useCallStore.getState();
-            callStore.reset();
+            // Stop any media tracks that may have been started
+            const localStream = callStore.activeCall ? callStore.activeCall : null;
+            if (localStream) {
+                callStore.reset();
+            }
         }
     };
 

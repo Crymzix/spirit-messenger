@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import react from "@vitejs/plugin-react";
 import path, { resolve } from "path";
 
@@ -6,7 +7,7 @@ const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react()],
+  plugins: [react(), nodePolyfills()],
   build: {
     rollupOptions: {
       input: {
@@ -31,6 +32,11 @@ export default defineConfig(async () => ({
       "@/types": path.resolve(__dirname, "./src/types"),
       "@/styles": path.resolve(__dirname, "./src/styles"),
     },
+  },
+
+  // Define global variables for browser environment (simple-peer requires Node.js globals)
+  define: {
+    global: 'globalThis',
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
