@@ -17,7 +17,7 @@ import { useInitiateFileTransfer } from "@/lib/hooks/file-hooks";
 import { createFileInput, validateFile } from "@/lib/utils/file-utils";
 import { useFileUploadStore, fileToArrayBuffer } from "@/lib/store/file-upload-store";
 import { HandwritingCanvas } from "../handwriting-canvas";
-import { useContacts } from "@/lib/hooks/contact-hooks";
+import { useBlockContact, useContacts } from "@/lib/hooks/contact-hooks";
 import { WINDOW_EVENTS } from "@/lib/utils/constants";
 import { VoiceRecordingInterface } from "../voice-recording-interface";
 import { VoiceMessagePlayer } from "../voice-message-player";
@@ -28,9 +28,10 @@ import { callRealtimeService } from "@/lib/services/call-realtime-service";
 import { simplePeerService } from "@/lib/services/simple-peer-service";
 import { endCall, sendSignal } from "@/lib/services/call-service";
 import { ChatAvatar } from "../chat-avatar";
+import { createWindow } from "@/lib/utils/window-utils";
 
 export function ChatWindow() {
-    // Extract contactId and contactName from URL query parameters
+    // Extract contactUserId and contactName from URL query parameters
     const params = new URLSearchParams(window.location.search);
     const contactUserId = params.get('contactUserId');
     const contactName = params.get('contactName');
@@ -76,6 +77,8 @@ export function ChatWindow() {
     const sendMessageMutation = useSendMessage(conversation?.id || '');
     const sendNudgeMutation = useSendNudge(conversation?.id || '');
     const markAsReadMutation = useMarkMessagesAsRead();
+    const blockContactMutation = useBlockContact();
+
     const {
         data: messagesQueryData,
         isLoading: isLoadingMessages,
@@ -841,6 +844,41 @@ export function ChatWindow() {
         }
     };
 
+    const handleBlockContact = async () => {
+        try {
+            const participant = participants[0]
+
+            // Confirm block
+            const description = `Are you sure you want to block "${participant.displayName || participant.username}"?`
+
+            const eventName = 'block-contact'
+            const path = `/alert-dialog.html?title=${encodeURI("Block Contact")}&description=${encodeURI(description)}&event=${eventName}`;
+
+            createWindow('alert-dialog', path, {
+                title: 'Block Contact',
+                width: 320,
+                height: 140,
+                resizable: true,
+                decorations: false,
+                transparent: true,
+                center: true,
+            });
+
+            const appWindow = getCurrentWindow()
+            appWindow.listen(eventName, async () => {
+                if (!participant || !participant.contactId) {
+                    return
+                }
+                await blockContactMutation.mutateAsync({
+                    contactId: participant.contactId,
+                    userId: participant.id
+                });
+            });
+        } catch (error) {
+            console.error('Failed to block contact:', error);
+        }
+    };
+
     const renderInfo = () => {
         if (!participants?.length) {
             return null
@@ -929,7 +967,7 @@ export function ChatWindow() {
                                 }}
                             >
                                 <div className="flex items-center gap-4">
-                                    <div className="whitespace-nowrap box-border hidden min-[346px]:block cursor-pointer hover:opacity-80">
+                                    <div className="opacity-50 cursor-not-allowed whitespace-nowrap box-border hidden min-[346px]:block">
                                         <div className="flex flex-col items-center justify-center ">
                                             <img src="/toolbar/invite.png" alt="" />
                                             <div className="text">
@@ -1026,7 +1064,7 @@ export function ChatWindow() {
 
                             {/* Toolbar Right */}
                             <div
-                                className="bg-no-repeat bg-[top_left,top_right,top]"
+                                className="bg-no-repeat bg-[top_left,top_right,top] pointer-events-none"
                                 style={{
                                     backgroundImage: "url('/toolbar/background/3_803.png'), url('/toolbar/background/5_804.png'), url('/toolbar/background/4_802.png')",
                                     backgroundRepeat: 'no-repeat, no-repeat, repeat-x',
@@ -1037,21 +1075,26 @@ export function ChatWindow() {
                                     <img src="/spirit-logo.png" alt="" className="ml-auto h-6" />
                                 </div>
                                 <div
-                                    className="relative -z-[1] h-[26px] max-w-[114px] box-border pl-[52px] mr-[35px] bg-repeat-x bg-[top] bg-content-box after:content-[''] after:absolute after:top-0 after:left-full after:w-[35px] after:h-[26px] after:bg-no-repeat after:bg-[top_right]"
+                                    className="relative -z-[1] h-[26px] max-w-[114px] box-border pl-[52px] mr-[35px] bg-repeat-x bg-[top] bg-content-box pointer-events-none after:content-[''] after:absolute after:top-0 after:left-full after:w-[35px] after:h-[26px] after:bg-no-repeat after:bg-[top_right]"
                                     style={{
                                         backgroundImage: "url('/toolbar/background/mini-1_807.png')"
                                     }}
                                 >
                                     <div className="pt-[2px] flex items-center gap-4">
+                                        {
+                                            !isContactBlocked &&
+                                            <div
+                                                className="z-50 w-[19px] h-[19px] flex justify-center items-center bg-no-repeat cursor-pointer pointer-events-auto"
+                                                style={{ backgroundImage: "url('/toolbar/background/small-circle-button_850.png')" }}
+                                                onClick={handleBlockContact}
+                                            >
+                                                <img src="/toolbar/small-block.png" alt="" className="w-[13px] h-[13px]" />
+                                            </div>
+                                        }
                                         <div
-                                            className="w-[19px] h-[19px] flex justify-center items-center bg-no-repeat cursor-pointer"
+                                            className="z-50 w-[19px] h-[19px] flex justify-center items-center bg-no-repeat cursor-pointer pointer-events-auto"
                                             style={{ backgroundImage: "url('/toolbar/background/small-circle-button_850.png')" }}
-                                        >
-                                            <img src="/toolbar/small-block.png" alt="" className="w-[13px] h-[13px]" />
-                                        </div>
-                                        <div
-                                            className="w-[19px] h-[19px] flex justify-center items-center bg-no-repeat cursor-pointer"
-                                            style={{ backgroundImage: "url('/toolbar/background/small-circle-button_850.png')" }}
+                                            onClick={() => setActiveTab('handwrite')}
                                         >
                                             <img src="/toolbar/small-paint.png" alt="" className="w-[13px] h-[13px]" />
                                         </div>

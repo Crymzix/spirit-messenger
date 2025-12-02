@@ -116,7 +116,7 @@ export async function signOut(): Promise<{
   }
 
   // Clear auth data but preserve preferences (true = preserve preferences)
-  await useAuthStore.getState().clearAuth(true);
+  await useAuthStore.getState().clearAuth();
 
   return {
     success: true,

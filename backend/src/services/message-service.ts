@@ -1,10 +1,11 @@
-import { eq, and, desc, isNull, inArray, lt, ne, count } from 'drizzle-orm';
+import { eq, and, desc, isNull, inArray, lt, ne, count, or } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import {
     messages,
     conversations,
     conversationParticipants,
     users,
+    contacts,
     SelectMessage,
     InsertMessage,
     SelectConversation,
@@ -41,8 +42,12 @@ export interface MessageWithSender extends SelectMessage {
     sender: SelectUser;
 }
 
+export interface ParticipantWithContactId extends SelectUser {
+    contactId?: string;
+}
+
 export interface ConversationWithParticipants extends SelectConversation {
-    participants: SelectUser[];
+    participants: ParticipantWithContactId[];
 }
 
 export class MessageServiceError extends Error {
@@ -261,20 +266,54 @@ export async function createConversation(
         // Ensure creator is not in the participant list (will be added separately)
         const participantIds = data.participantIds.filter(id => id !== userId);
 
-        // Verify all participants exist
+        // Verify all participants exist and get their contact IDs using a single query with LEFT JOIN
         const allParticipantIds = [userId, ...participantIds];
-        const participantUsers = await db
-            .select()
+
+        const participantsQuery = await db
+            .select({
+                id: users.id,
+                email: users.email,
+                username: users.username,
+                displayName: users.displayName,
+                personalMessage: users.personalMessage,
+                displayPictureUrl: users.displayPictureUrl,
+                presenceStatus: users.presenceStatus,
+                isAiBot: users.isAiBot,
+                aiBotPersonality: users.aiBotPersonality,
+                lastSeen: users.lastSeen,
+                createdAt: users.createdAt,
+                updatedAt: users.updatedAt,
+                contactId: contacts.id,
+            })
             .from(users)
+            .leftJoin(
+                contacts,
+                or(
+                    and(
+                        eq(contacts.userId, userId),
+                        eq(contacts.contactUserId, users.id)
+                    ),
+                    and(
+                        eq(contacts.userId, users.id),
+                        eq(contacts.contactUserId, userId)
+                    )
+                )
+            )
             .where(inArray(users.id, allParticipantIds));
 
-        if (participantUsers.length !== allParticipantIds.length) {
+        if (participantsQuery.length !== allParticipantIds.length) {
             throw new MessageServiceError(
                 'One or more participants not found',
                 'PARTICIPANTS_NOT_FOUND',
                 404
             );
         }
+
+        // Map null to undefined for contactId to match TypeScript types
+        const participantsWithContactIds: ParticipantWithContactId[] = participantsQuery.map(p => ({
+            ...p,
+            contactId: p.contactId ?? undefined,
+        }));
 
         // For one-on-one conversations, check if conversation already exists
         if (data.type === 'one_on_one' && participantIds.length === 1) {
@@ -311,9 +350,10 @@ export async function createConversation(
                     participantUserIds.length === 2
                 ) {
                     // Return existing conversation (even if blocked - they can view old messages)
+                    // We already have participantsWithContactIds from the earlier query
                     return {
                         ...conv.conversation,
-                        participants: participantUsers,
+                        participants: participantsWithContactIds,
                     };
                 }
             }
@@ -359,7 +399,7 @@ export async function createConversation(
 
         return {
             ...newConversation,
-            participants: participantUsers,
+            participants: participantsWithContactIds,
         };
     } catch (error) {
         if (error instanceof MessageServiceError) {

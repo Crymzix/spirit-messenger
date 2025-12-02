@@ -86,11 +86,10 @@ export function useSignIn() {
  */
 export function useSignOut() {
     const queryClient = useQueryClient();
+    const { token } = useAuthStore()
 
     return useMutation({
         mutationFn: async () => {
-            const token = getStoredToken();
-
             if (token) {
                 // Call backend logout endpoint
                 const response = await apiPost<{ message: string }>(

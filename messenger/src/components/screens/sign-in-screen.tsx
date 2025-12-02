@@ -26,8 +26,8 @@ export function SignInScreen({ onSignIn, onSwitchToRegister }: SignInWindowProps
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [status, setStatus] = useState('Online');
-    const [rememberMe, setRememberMe] = useState(true);
-    const [rememberPassword, setRememberPassword] = useState(true);
+    const [rememberMe, setRememberMe] = useState(false);
+    const [rememberPassword, setRememberPassword] = useState(false);
     const [signInAutomatically, setSignInAutomatically] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
     const [generalError, setGeneralError] = useState('');
@@ -107,16 +107,19 @@ export function SignInScreen({ onSignIn, onSwitchToRegister }: SignInWindowProps
         try {
             await onSignIn(email, password);
 
-            // Save preferences after successful sign-in
-            await invoke('save_auth_preferences', {
-                preferences: {
-                    rememberMe,
-                    rememberPassword,
-                    signInAutomatically,
-                    rememberedEmail: rememberMe ? email : null,
-                },
-                password: rememberPassword ? password : null,
-            });
+            try {
+                await invoke('save_auth_preferences', {
+                    preferences: {
+                        rememberMe,
+                        rememberPassword,
+                        signInAutomatically,
+                        rememberedEmail: rememberMe ? email : null,
+                    },
+                    password: rememberPassword ? password : null,
+                });
+            } catch (prefError) {
+                console.error('Failed to save preferences:', prefError);
+            }
         } catch (error) {
             setGeneralError(error instanceof Error ? error.message : 'Sign in failed. Please try again.');
         } finally {

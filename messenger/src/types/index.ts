@@ -20,6 +20,7 @@ export interface User {
   lastSeen: Date;
   createdAt: Date;
   updatedAt: Date;
+  contactId?: string; // Contact ID when user is a participant in a conversation
 }
 
 export interface Contact {

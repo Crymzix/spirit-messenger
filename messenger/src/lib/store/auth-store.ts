@@ -23,7 +23,7 @@ interface AuthState {
 
     // Actions
     setAuth: (user: AuthUser, token: string, refreshToken: string) => Promise<void>;
-    clearAuth: (preservePreferences?: boolean) => Promise<void>;
+    clearAuth: () => Promise<void>;
     updateUser: (user: Partial<AuthUser>) => Promise<void>;
     restoreSession: () => Promise<void>;
     refreshAccessToken: () => Promise<boolean>;
@@ -85,18 +85,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
      * Stops token refresh interval
      * @param preservePreferences - If true, keeps saved credentials; if false, clears them
      */
-    clearAuth: async (preservePreferences?: boolean) => {
+    clearAuth: async () => {
         try {
             // Stop token refresh interval
             get().stopTokenRefreshInterval();
 
             // Clear from Tauri backend
             await invoke('clear_auth');
-
-            // Clear preferences if not preserving them
-            if (!preservePreferences) {
-                await invoke('clear_auth_preferences');
-            }
 
             // Sign out from Supabase
             await supabase.auth.signOut();
@@ -280,6 +275,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             // Set up Supabase auth state listener
             supabase.auth.onAuthStateChange(async (event, session) => {
                 if (event === 'SIGNED_OUT') {
+                    // Preserve authentication preferences when signing out
                     await get().clearAuth();
                 } else if (event === 'TOKEN_REFRESHED' && session) {
                     // Update token when Supabase auto-refreshes
