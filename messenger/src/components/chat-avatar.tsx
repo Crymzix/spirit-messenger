@@ -254,34 +254,36 @@ export function ChatAvatar({
                     </div>
                     <div className="flex p-[3px_5px] w-full">
                         {
-                            isCurrentUser ?
-                                <div
-                                    className="relative"
-                                    onClick={toggleCamera}
-                                >
-                                    <img src='/webcam.png' className="size-[14px]" />
-                                    {
-                                        isCameraOff &&
-                                        <svg className="absolute top-0 size-[14px]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
-                                            <circle cx="50" cy="50" r="45" stroke="red" stroke-width="10" fill="none" />
-                                            <line x1="20" y1="80" x2="80" y2="20" stroke="red" stroke-width="10" />
-                                        </svg>
-                                    }
-                                </div> :
-                                callState === 'connecting' ?
-                                    <div className="text-[#31497C] text-sm">
-                                        Loading...
+                            isVideoCall ?
+                                isCurrentUser ?
+                                    <div
+                                        className="relative"
+                                        onClick={toggleCamera}
+                                    >
+                                        <img src='/webcam.png' className="size-[14px]" />
+                                        {
+                                            isCameraOff &&
+                                            <svg className="absolute top-0 size-[14px]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+                                                <circle cx="50" cy="50" r="45" stroke="red" stroke-width="10" fill="none" />
+                                                <line x1="20" y1="80" x2="80" y2="20" stroke="red" stroke-width="10" />
+                                            </svg>
+                                        }
                                     </div> :
-                                    callState === 'active' ?
-                                        <div className="flex items-center gap-2">
-                                            <div
-                                                className="size-2 rounded-full"
-                                                style={{ backgroundColor: connectionQuality.color }}
-                                            />
-                                            <span className="text-sm font-verdana text-[#31497C]">
-                                                {connectionQuality.label}
-                                            </span>
-                                        </div> : null
+                                    callState === 'connecting' ?
+                                        <div className="text-[#31497C] text-sm">
+                                            Loading...
+                                        </div> :
+                                        callState === 'active' ?
+                                            <div className="flex items-center gap-2">
+                                                <div
+                                                    className="size-2 rounded-full"
+                                                    style={{ backgroundColor: connectionQuality.color }}
+                                                />
+                                                <span className="text-sm font-verdana text-[#31497C]">
+                                                    {connectionQuality.label}
+                                                </span>
+                                            </div> : null
+                                : null
                         }
                         <img className="ml-auto" src="/down.png" alt="" />
                     </div>
