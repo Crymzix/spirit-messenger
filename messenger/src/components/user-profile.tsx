@@ -12,6 +12,9 @@ interface UserProfileProps {
 const statusOptions: { value: PresenceStatus; label: string; color: string }[] = [
     { value: 'online', label: 'Online', color: 'bg-msn-online' },
     { value: 'away', label: 'Away', color: 'bg-msn-away' },
+    { value: 'be_right_back', label: 'Be Right Back', color: 'bg-msn-away' },
+    { value: 'on_the_phone', label: 'On The Phone', color: 'bg-msn-away' },
+    { value: 'out_to_lunch', label: 'Out To Lunch', color: 'bg-msn-away' },
     { value: 'busy', label: 'Busy', color: 'bg-msn-busy' },
     { value: 'appear_offline', label: 'Appear Offline', color: 'bg-gray-400' },
 ];

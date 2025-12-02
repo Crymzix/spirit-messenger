@@ -18,6 +18,7 @@ export interface RegisterData {
 export interface LoginData {
   email: string;
   password: string;
+  presenceStatus?: PresenceStatus;
 }
 
 export interface AuthUser {

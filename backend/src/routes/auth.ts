@@ -121,13 +121,17 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
                     required: ['email', 'password'],
                     properties: {
                         email: { type: 'string', format: 'email' },
-                        password: { type: 'string', minLength: 1 }
+                        password: { type: 'string', minLength: 1 },
+                        presenceStatus: {
+                            type: 'string',
+                            enum: ['online', 'away', 'busy', 'be_right_back', 'on_the_phone', 'out_to_lunch', 'appear_offline', 'offline']
+                        }
                     }
                 }
             }
         },
         async (request, reply) => {
-            const { email, password } = request.body;
+            const { email, password, presenceStatus } = request.body;
 
             try {
                 // Sign in with Supabase Auth
@@ -157,6 +161,20 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
                     });
                 }
 
+                // Update presence status if provided
+                let finalPresenceStatus = userProfile.presenceStatus || 'offline';
+                if (presenceStatus) {
+                    await db
+                        .update(users)
+                        .set({
+                            presenceStatus,
+                            lastSeen: new Date(),
+                            updatedAt: new Date(),
+                        })
+                        .where(eq(users.id, data.user.id));
+                    finalPresenceStatus = presenceStatus;
+                }
+
                 return reply.status(200).send({
                     success: true,
                     data: {
@@ -169,7 +187,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
                             displayName: userProfile.displayName,
                             personalMessage: userProfile.personalMessage || '',
                             displayPictureUrl: userProfile.displayPictureUrl || '',
-                            presenceStatus: userProfile.presenceStatus || 'offline'
+                            presenceStatus: finalPresenceStatus
                         }
                     }
                 });

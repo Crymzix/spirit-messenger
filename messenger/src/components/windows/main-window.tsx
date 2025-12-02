@@ -16,6 +16,7 @@ import { useFileUploadStore } from "@/lib/store/file-upload-store";
 import { initPresenceLifecycle, startActivityTracking, initPresenceChannel } from "@/lib/services/presence-service";
 import { useCallUpdates } from "@/lib/hooks/call-hooks";
 import { useAuthStore } from "@/lib/store/auth-store";
+import { PresenceStatus } from "@/types";
 
 type AuthView = 'signin' | 'register' | 'main';
 
@@ -66,9 +67,10 @@ export function MainWindow() {
                 console.error('Failed to initialize presence lifecycle:', error);
             });
 
-            // Start activity tracking for auto-away and update store with initial online status
-            startActivityTracking('online');
-            updateUser({ presenceStatus: 'online' });
+            // Start activity tracking for auto-away with user's current status
+            const initialStatus = user.presenceStatus || 'online';
+            startActivityTracking(initialStatus);
+            // No need to update user here - status is already set from login
         }
     }, [isAuthInitialized, isAuthenticated, user?.id, updateUser]);
 
@@ -85,9 +87,22 @@ export function MainWindow() {
         };
     }, [initializeMainWindow]);
 
-    const handleSignIn = async (email: string, password: string) => {
+    const handleSignIn = async (email: string, password: string, status: string) => {
         try {
-            await signInMutation.mutateAsync({ email, password });
+            // Map UI status strings to backend PresenceStatus format
+            const statusMap: Record<string, PresenceStatus> = {
+                'Online': 'online',
+                'Busy': 'busy',
+                'Be Right Back': 'be_right_back',
+                'Away': 'away',
+                'On The Phone': 'on_the_phone',
+                'Out To Lunch': 'out_to_lunch',
+                'Appear Offline': 'appear_offline',
+            };
+
+            const presenceStatus = statusMap[status] || 'online';
+
+            await signInMutation.mutateAsync({ email, password, presenceStatus });
             setCurrentView('main');
         } catch (error) {
             throw error;

@@ -1,6 +1,14 @@
 // Core type definitions for MSN Messenger Clone
 
-export type PresenceStatus = 'online' | 'away' | 'busy' | 'appear_offline' | 'offline';
+export type PresenceStatus =
+  'online' |
+  'away' |
+  'busy' |
+  'be_right_back' |
+  'on_the_phone' |
+  'out_to_lunch' |
+  'appear_offline' |
+  'offline'
 
 export type MessageType = 'text' | 'file' | 'system' | 'image' | 'voice';
 

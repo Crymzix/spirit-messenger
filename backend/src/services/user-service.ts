@@ -1,6 +1,7 @@
 import { eq, desc } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { users, SelectUser, userProfilePictures, SelectUserProfilePicture, InsertUserProfilePicture } from '../db/schema.js';
+import { PresenceStatus } from '../types/index.js';
 
 /**
  * User Service
@@ -14,7 +15,7 @@ export interface UpdateProfileData {
 }
 
 export interface UpdatePresenceData {
-    presenceStatus: 'online' | 'away' | 'busy' | 'appear_offline' | 'offline';
+    presenceStatus: PresenceStatus
 }
 
 export interface UpdateDisplayPictureData {
@@ -156,7 +157,7 @@ export async function updateUserPresence(
         }
 
         // Validate presence status
-        const validStatuses = ['online', 'away', 'busy', 'appear_offline', 'offline'];
+        const validStatuses = ['online', 'away', 'busy', 'be_right_back', 'on_the_phone', 'out_to_lunch', 'appear_offline', 'offline'];
         if (!validStatuses.includes(data.presenceStatus)) {
             throw new UserServiceError(
                 `Invalid presence status. Must be one of: ${validStatuses.join(', ')}`,

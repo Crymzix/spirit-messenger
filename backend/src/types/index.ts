@@ -12,6 +12,16 @@ declare module 'fastify' {
     }
 }
 
+export type PresenceStatus =
+    'online' |
+    'away' |
+    'busy' |
+    'be_right_back' |
+    'on_the_phone' |
+    'out_to_lunch' |
+    'appear_offline' |
+    'offline'
+
 // User types
 export interface UserProfile {
     id: string;
@@ -20,7 +30,7 @@ export interface UserProfile {
     displayName: string | null;
     personalMessage: string | null;
     displayPictureUrl: string | null;
-    presenceStatus: 'online' | 'away' | 'busy' | 'appear_offline' | 'offline';
+    presenceStatus: PresenceStatus;
     lastSeen: Date | null;
     createdAt: Date;
     updatedAt: Date;
@@ -82,6 +92,7 @@ export interface RegisterRequest {
 export interface LoginRequest {
     email: string;
     password: string;
+    presenceStatus?: PresenceStatus;
 }
 
 export interface AuthResponse {

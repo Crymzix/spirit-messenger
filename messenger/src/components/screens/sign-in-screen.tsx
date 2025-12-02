@@ -4,7 +4,7 @@ import { Layout } from '../layout';
 import type { AuthPreferences } from '../../lib/types/auth-preferences';
 
 interface SignInWindowProps {
-    onSignIn: (email: string, password: string) => Promise<void>;
+    onSignIn: (email: string, password: string, status: string) => Promise<void>;
     onSwitchToRegister: () => void;
 }
 
@@ -105,7 +105,7 @@ export function SignInScreen({ onSignIn, onSwitchToRegister }: SignInWindowProps
 
         setIsLoading(true);
         try {
-            await onSignIn(email, password);
+            await onSignIn(email, password, status);
 
             try {
                 await invoke('save_auth_preferences', {

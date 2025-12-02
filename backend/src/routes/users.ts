@@ -11,7 +11,7 @@ import {
     UpdateProfileData,
     UpdatePresenceData,
 } from '../services/user-service.js';
-import type { ApiResponse, UserProfile } from '../types/index.js';
+import type { ApiResponse, PresenceStatus, UserProfile } from '../types/index.js';
 import type { SelectUserProfilePicture } from '../db/schema.js';
 
 interface ProfilePicturesResponse {
@@ -72,7 +72,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
                             displayName: updatedUser.displayName,
                             personalMessage: updatedUser.personalMessage,
                             displayPictureUrl: updatedUser.displayPictureUrl,
-                            presenceStatus: updatedUser.presenceStatus as 'online' | 'away' | 'busy' | 'appear_offline' | 'offline',
+                            presenceStatus: updatedUser.presenceStatus as PresenceStatus,
                             lastSeen: updatedUser.lastSeen,
                             createdAt: updatedUser.createdAt!,
                             updatedAt: updatedUser.updatedAt!
@@ -240,7 +240,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
                     properties: {
                         presenceStatus: {
                             type: 'string',
-                            enum: ['online', 'away', 'busy', 'appear_offline', 'offline']
+                            enum: ['online', 'away', 'busy', 'be_right_back', 'on_the_phone', 'out_to_lunch', 'appear_offline', 'offline']
                         }
                     }
                 }
