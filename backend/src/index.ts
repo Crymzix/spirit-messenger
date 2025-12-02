@@ -98,6 +98,29 @@ fastify.get('/health', async () => {
     };
 });
 
+// Global error handler - logs all errors before sending response
+fastify.setErrorHandler((error, request, reply) => {
+    // Log the full error with stack trace
+    fastify.log.error(
+        {
+            err: error,
+            url: request.url,
+            method: request.method,
+            statusCode: reply.statusCode,
+        },
+        'Unhandled error'
+    );
+
+    // Send error response
+    const statusCode = (error as any).statusCode || 500;
+    const errorMessage = (error as any).message || 'Internal server error';
+
+    reply.status(statusCode).send({
+        success: false,
+        error: errorMessage,
+    });
+});
+
 // Root endpoint
 fastify.get('/', async () => {
     return {

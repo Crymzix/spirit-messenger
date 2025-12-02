@@ -1,8 +1,8 @@
 import { useUser } from "@/lib";
 import { useCallStore } from "@/lib/store/call-store";
 import { User } from "@/types"
-import Avatar from "boring-avatars";
 import { useEffect, useRef, useState } from "react";
+import AIAvatar from "./ai-avatar";
 
 /**
  * Get connection quality label based on ICE connection state
@@ -208,7 +208,7 @@ export function ChatAvatar({
                         {
                             user ?
                                 user?.isAiBot ?
-                                    <Avatar name={user?.displayName || user?.username} colors={["#0481f6", "#4edfb3", "#ff005b", "#ff7d10", "#ffb238"]} variant="marble" square className='size-[96px] rounded-[7px]' /> :
+                                    <AIAvatar name={user?.displayName || user?.username} colors={["#0481f6", "#4edfb3", "#ff005b", "#ff7d10", "#ffb238"]} square className='size-[96px] rounded-[7px]' /> :
                                     isVideoCall ? renderVideo() : <img className="size-[96px] border border-[#586170] rounded-[7px]" src={user?.displayPictureUrl || '/default-profile-pictures/friendly_dog.png'} alt="" /> :
                                 <div className="size-[96px] bg-gray-300 rounded-[7px]" />
                         }

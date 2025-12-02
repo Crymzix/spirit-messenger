@@ -26,10 +26,14 @@ export class UserServiceError extends Error {
     constructor(
         message: string,
         public code: string,
-        public statusCode: number = 400
+        public statusCode: number = 400,
+        public cause?: unknown
     ) {
         super(message);
         this.name = 'UserServiceError';
+        if (cause instanceof Error) {
+            this.stack = cause.stack;
+        }
     }
 }
 
@@ -134,7 +138,8 @@ export async function updateUserProfile(
         throw new UserServiceError(
             'Failed to update user profile',
             'UPDATE_PROFILE_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -189,7 +194,8 @@ export async function updateUserPresence(
         throw new UserServiceError(
             'Failed to update user presence',
             'UPDATE_PRESENCE_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -244,7 +250,8 @@ export async function updateUserDisplayPicture(
         throw new UserServiceError(
             'Failed to update display picture',
             'UPDATE_DISPLAY_PICTURE_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -272,7 +279,8 @@ export async function getUserById(userId: string): Promise<SelectUser | null> {
         throw new UserServiceError(
             'Failed to get user',
             'GET_USER_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -300,7 +308,8 @@ export async function getUserByEmail(email: string): Promise<SelectUser | null> 
         throw new UserServiceError(
             'Failed to get user by email',
             'GET_USER_BY_EMAIL_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -355,7 +364,8 @@ export async function saveUserProfilePicture(
         throw new UserServiceError(
             'Failed to save profile picture',
             'SAVE_PICTURE_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -383,7 +393,8 @@ export async function getUserProfilePictures(userId: string): Promise<SelectUser
         throw new UserServiceError(
             'Failed to get profile pictures',
             'GET_PICTURES_FAILED',
-            500
+            500,
+            error
         );
     }
 }

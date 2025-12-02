@@ -38,10 +38,14 @@ export class ContactGroupServiceError extends Error {
     constructor(
         message: string,
         public code: string,
-        public statusCode: number = 400
+        public statusCode: number = 400,
+        public cause?: unknown
     ) {
         super(message);
         this.name = 'ContactGroupServiceError';
+        if (cause instanceof Error) {
+            this.stack = cause.stack;
+        }
     }
 }
 
@@ -122,7 +126,8 @@ export async function createContactGroup(
         throw new ContactGroupServiceError(
             'Failed to create contact group',
             'CREATE_GROUP_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -177,7 +182,8 @@ export async function getUserContactGroups(
         throw new ContactGroupServiceError(
             'Failed to get user contact groups',
             'GET_GROUPS_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -217,7 +223,8 @@ export async function getContactGroupById(
         throw new ContactGroupServiceError(
             'Failed to get contact group',
             'GET_GROUP_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -322,7 +329,8 @@ export async function updateContactGroup(
         throw new ContactGroupServiceError(
             'Failed to update contact group',
             'UPDATE_GROUP_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -368,7 +376,8 @@ export async function deleteContactGroup(
         throw new ContactGroupServiceError(
             'Failed to delete contact group',
             'DELETE_GROUP_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -447,7 +456,8 @@ export async function reorderContactGroups(
         throw new ContactGroupServiceError(
             'Failed to reorder contact groups',
             'REORDER_GROUPS_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -535,7 +545,8 @@ export async function addContactToGroup(
         throw new ContactGroupServiceError(
             'Failed to add contact to group',
             'ADD_CONTACT_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -601,7 +612,8 @@ export async function removeContactFromGroup(
         throw new ContactGroupServiceError(
             'Failed to remove contact from group',
             'REMOVE_CONTACT_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -643,7 +655,8 @@ export async function getGroupMemberships(
         throw new ContactGroupServiceError(
             'Failed to get group memberships',
             'GET_MEMBERSHIPS_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -685,7 +698,8 @@ export async function getAllUserGroupMemberships(
         throw new ContactGroupServiceError(
             'Failed to get user group memberships',
             'GET_USER_MEMBERSHIPS_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -807,7 +821,8 @@ export async function bulkUpdateContactGroupMemberships(
         throw new ContactGroupServiceError(
             'Failed to bulk update contact group memberships',
             'BULK_UPDATE_FAILED',
-            500
+            500,
+            error
         );
     }
 }

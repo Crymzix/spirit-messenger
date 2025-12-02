@@ -44,10 +44,14 @@ export class FileServiceError extends Error {
     constructor(
         message: string,
         public code: string,
-        public statusCode: number = 400
+        public statusCode: number = 400,
+        public cause?: unknown
     ) {
         super(message);
         this.name = 'FileServiceError';
+        if (cause instanceof Error) {
+            this.stack = cause.stack;
+        }
     }
 }
 
@@ -227,7 +231,8 @@ export async function createFile(
         throw new FileServiceError(
             'Failed to create file record',
             'CREATE_FILE_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -301,7 +306,8 @@ export async function getFileById(
         throw new FileServiceError(
             'Failed to get file',
             'GET_FILE_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -375,7 +381,8 @@ export async function getFileByTransferRequestId(
         throw new FileServiceError(
             'Failed to get file by transfer request ID',
             'GET_FILE_BY_TRANSFER_REQUEST_ID_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -437,7 +444,8 @@ export async function updateFileStatus(
         throw new FileServiceError(
             'Failed to update file status',
             'UPDATE_FILE_STATUS_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -504,7 +512,8 @@ export async function getMessageFiles(
         throw new FileServiceError(
             'Failed to get message files',
             'GET_MESSAGE_FILES_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -562,7 +571,8 @@ export async function deleteFile(
         throw new FileServiceError(
             'Failed to delete file',
             'DELETE_FILE_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -666,7 +676,8 @@ export async function createFileTransferRequest(
         throw new FileServiceError(
             'Failed to create file transfer request',
             'CREATE_REQUEST_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -716,7 +727,8 @@ export async function getFileTransferRequestById(
         throw new FileServiceError(
             'Failed to get file transfer request',
             'GET_REQUEST_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -788,7 +800,8 @@ export async function acceptFileTransferRequest(
         throw new FileServiceError(
             'Failed to accept file transfer request',
             'ACCEPT_REQUEST_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -845,7 +858,8 @@ export async function declineFileTransferRequest(
         throw new FileServiceError(
             'Failed to decline file transfer request',
             'DECLINE_REQUEST_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -909,7 +923,8 @@ export async function getFileTransferRequestByMessageId(
         throw new FileServiceError(
             'Failed to get file transfer request',
             'GET_REQUEST_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -967,7 +982,8 @@ export async function getFileTransferRequestsByConversation(
         throw new FileServiceError(
             'Failed to get file transfer requests',
             'GET_REQUESTS_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -1026,7 +1042,8 @@ export async function cancelFileTransferRequest(
         throw new FileServiceError(
             'Failed to cancel file transfer request',
             'CANCEL_REQUEST_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -1102,7 +1119,8 @@ export async function updateFileTransferRequestStatus(
         throw new FileServiceError(
             'Failed to update file transfer request status',
             'UPDATE_REQUEST_FAILED',
-            500
+            500,
+            error
         );
     }
 }

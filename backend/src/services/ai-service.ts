@@ -19,10 +19,14 @@ export class AIServiceError extends Error {
     constructor(
         message: string,
         public code: string,
-        public statusCode: number = 400
+        public statusCode: number = 400,
+        public cause?: unknown
     ) {
         super(message);
         this.name = 'AIServiceError';
+        if (cause instanceof Error) {
+            this.stack = cause.stack;
+        }
     }
 }
 

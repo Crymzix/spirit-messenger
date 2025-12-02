@@ -54,10 +54,14 @@ export class MessageServiceError extends Error {
     constructor(
         message: string,
         public code: string,
-        public statusCode: number = 400
+        public statusCode: number = 400,
+        public cause?: unknown
     ) {
         super(message);
         this.name = 'MessageServiceError';
+        if (cause instanceof Error) {
+            this.stack = cause.stack;
+        }
     }
 }
 
@@ -185,7 +189,8 @@ export async function createMessage(
         throw new MessageServiceError(
             'Failed to create message',
             'CREATE_MESSAGE_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -279,7 +284,6 @@ export async function createConversation(
                 displayPictureUrl: users.displayPictureUrl,
                 presenceStatus: users.presenceStatus,
                 isAiBot: users.isAiBot,
-                aiBotPersonality: users.aiBotPersonality,
                 lastSeen: users.lastSeen,
                 createdAt: users.createdAt,
                 updatedAt: users.updatedAt,
@@ -408,7 +412,8 @@ export async function createConversation(
         throw new MessageServiceError(
             'Failed to create conversation',
             'CREATE_CONVERSATION_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -537,7 +542,8 @@ export async function addParticipant(
         throw new MessageServiceError(
             'Failed to add participant',
             'ADD_PARTICIPANT_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -610,7 +616,8 @@ export async function removeParticipant(
         throw new MessageServiceError(
             'Failed to remove participant',
             'REMOVE_PARTICIPANT_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -704,7 +711,8 @@ export async function getConversationMessages(
         throw new MessageServiceError(
             'Failed to get conversation messages',
             'GET_MESSAGES_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -782,7 +790,8 @@ export async function getConversationById(
         throw new MessageServiceError(
             'Failed to get conversation',
             'GET_CONVERSATION_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -854,7 +863,8 @@ export async function getUserConversations(userId: string): Promise<Conversation
         throw new MessageServiceError(
             'Failed to get user conversations',
             'GET_USER_CONVERSATIONS_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -923,7 +933,8 @@ export async function getUnreadCounts(
         throw new MessageServiceError(
             'Failed to get unread counts',
             'GET_UNREAD_COUNTS_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -987,7 +998,8 @@ export async function markMessagesAsRead(
         throw new MessageServiceError(
             'Failed to mark messages as read',
             'MARK_READ_FAILED',
-            500
+            500,
+            error
         );
     }
 }

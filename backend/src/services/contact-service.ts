@@ -19,10 +19,14 @@ export class ContactServiceError extends Error {
     constructor(
         message: string,
         public code: string,
-        public statusCode: number = 400
+        public statusCode: number = 400,
+        public cause?: unknown
     ) {
         super(message);
         this.name = 'ContactServiceError';
+        if (cause instanceof Error) {
+            this.stack = cause.stack;
+        }
     }
 }
 
@@ -123,7 +127,8 @@ export async function createContactRequest(
         throw new ContactServiceError(
             'Failed to create contact request',
             'CREATE_REQUEST_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -197,7 +202,8 @@ export async function acceptContactRequest(
         throw new ContactServiceError(
             'Failed to accept contact request',
             'ACCEPT_REQUEST_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -261,7 +267,8 @@ export async function declineContactRequest(
         throw new ContactServiceError(
             'Failed to decline contact request',
             'DECLINE_REQUEST_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -316,7 +323,8 @@ export async function removeContact(
         throw new ContactServiceError(
             'Failed to remove contact',
             'REMOVE_CONTACT_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -382,7 +390,8 @@ export async function getUserContacts(
         throw new ContactServiceError(
             'Failed to get user contacts',
             'GET_CONTACTS_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -426,7 +435,8 @@ export async function getPendingContactRequests(userId: string): Promise<Contact
         throw new ContactServiceError(
             'Failed to get pending contact requests',
             'GET_PENDING_REQUESTS_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -454,7 +464,8 @@ export async function getContactById(contactId: string): Promise<SelectContact |
         throw new ContactServiceError(
             'Failed to get contact',
             'GET_CONTACT_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -528,7 +539,8 @@ export async function blockContact(
         throw new ContactServiceError(
             'Failed to block contact',
             'BLOCK_CONTACT_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -602,7 +614,8 @@ export async function unblockContact(
         throw new ContactServiceError(
             'Failed to unblock contact',
             'UNBLOCK_CONTACT_FAILED',
-            500
+            500,
+            error
         );
     }
 }

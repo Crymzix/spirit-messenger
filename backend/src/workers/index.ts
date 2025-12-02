@@ -11,6 +11,7 @@ import {
     createAutonomousMessageWorker,
     startAutonomousMessageScheduler,
 } from './autonomous-message-worker.js';
+import { startPersonalMessageScheduler, stopPersonalMessageScheduler } from './personal-message-worker.js';
 import { closeQueues } from '../config/queue.js';
 
 console.log('🚀 Starting bot workers...');
@@ -22,12 +23,20 @@ const autonomousMessageWorker = createAutonomousMessageWorker();
 // Start the autonomous message scheduler (runs 30 seconds)
 const schedulerInterval = startAutonomousMessageScheduler(30000);
 
+// Start the personal message scheduler (runs every 2 hours)
+const personalMessageCheckIntervalMs = parseInt(
+    process.env.PERSONAL_MESSAGE_CHECK_INTERVAL_MS || '7200000',
+    10
+);
+startPersonalMessageScheduler(personalMessageCheckIntervalMs);
+
 // Graceful shutdown
 async function shutdown(): Promise<void> {
     console.log('\n🛑 Shutting down workers...');
 
-    // Stop scheduler
+    // Stop schedulers
     clearInterval(schedulerInterval);
+    stopPersonalMessageScheduler();
 
     // Close workers
     await botResponseWorker.close();

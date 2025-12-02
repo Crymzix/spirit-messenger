@@ -21,7 +21,6 @@
     "@tauri-apps/plugin-os": "^2.3.2",
     "@tauri-apps/plugin-positioner": "~2",
     "@tauri-apps/plugin-window-state": "^2.4.1",
-    "boring-avatars": "^2.0.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "simple-peer": "^9.11.1",

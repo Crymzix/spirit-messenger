@@ -40,10 +40,14 @@ export class CallServiceError extends Error {
     constructor(
         message: string,
         public code: string,
-        public statusCode: number = 400
+        public statusCode: number = 400,
+        public cause?: unknown
     ) {
         super(message);
         this.name = 'CallServiceError';
+        if (cause instanceof Error) {
+            this.stack = cause.stack;
+        }
     }
 }
 
@@ -317,7 +321,8 @@ export async function initiateCall(
         throw new CallServiceError(
             'Failed to initiate call',
             'INITIATE_CALL_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -502,7 +507,8 @@ export async function answerCall(
         throw new CallServiceError(
             'Failed to answer call',
             'ANSWER_CALL_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -642,7 +648,8 @@ export async function declineCall(
         throw new CallServiceError(
             'Failed to decline call',
             'DECLINE_CALL_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -767,7 +774,8 @@ export async function missedCall(
         throw new CallServiceError(
             'Failed to mark call as missed',
             'MISSED_CALL_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -933,7 +941,8 @@ export async function endCall(
         throw new CallServiceError(
             'Failed to end call',
             'END_CALL_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -1014,7 +1023,8 @@ export async function getActiveCall(
         throw new CallServiceError(
             'Failed to get active call',
             'GET_ACTIVE_CALL_FAILED',
-            500
+            500,
+            error
         );
     }
 }
@@ -1153,7 +1163,8 @@ export async function handleSignal(
         throw new CallServiceError(
             'Failed to handle signal',
             'HANDLE_SIGNAL_FAILED',
-            500
+            500,
+            error
         );
     }
 }

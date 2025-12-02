@@ -11,7 +11,6 @@ export const users = pgTable('users', {
     displayPictureUrl: text('display_picture_url'),
     presenceStatus: varchar('presence_status', { length: 20 }).default('offline'),
     isAiBot: boolean('is_ai_bot').default(false),
-    aiBotPersonality: text('ai_bot_personality'),
     lastSeen: timestamp('last_seen'),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
@@ -356,6 +355,8 @@ export const botConfigs = pgTable('bot_configs', {
     emoticonUsageFrequency: doublePrecision('emoticon_usage_frequency').default(0.3), // 30% of messages
     webSearchEnabled: boolean('web_search_enabled').default(true),
     voiceConfig: jsonb('voice_config'), // TTS voice settings
+    personalMessageAutoUpdateEnabled: boolean('personal_message_auto_update_enabled'),
+    personalMessageUpdateIntervalMs: bigint('personal_message_update_interval_ms', { mode: 'number' }),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
@@ -405,6 +406,63 @@ export const botActionLogs = pgTable('bot_action_logs', {
     index('idx_bot_action_logs_created_at').on(table.createdAt.desc()),
 ]);
 
+// Orchestrator decisions log
+export const orchestratorDecisions = pgTable('orchestrator_decisions', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    botUserId: uuid('bot_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    conversationId: uuid('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+    decision: varchar('decision', { length: 50 }).notNull(),
+    confidence: doublePrecision('confidence').notNull(),
+    engagementScore: doublePrecision('engagement_score').notNull(),
+    reasoning: text('reasoning'),
+    signals: jsonb('signals'),
+    toneAdjustment: varchar('tone_adjustment', { length: 50 }),
+    outcome: varchar('outcome', { length: 50 }),
+    outcomeMetadata: jsonb('outcome_metadata'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
+}, (table) => [
+    index('idx_orchestrator_decisions_bot_conversation').on(table.botUserId, table.conversationId),
+    index('idx_orchestrator_decisions_outcome').on(table.outcome),
+    index('idx_orchestrator_decisions_created_at').on(table.createdAt.desc()),
+]);
+
+// User engagement profiles
+export const userEngagementProfiles = pgTable('user_engagement_profiles', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    botUserId: uuid('bot_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    conversationId: uuid('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+    averageResponseTime: bigint('average_response_time', { mode: 'number' }),
+    averageMessageLength: doublePrecision('average_message_length'),
+    responseRate: doublePrecision('response_rate'),
+    recentEngagementTrend: varchar('recent_engagement_trend', { length: 20 }),
+    oneWordReplyCount: integer('one_word_reply_count').default(0),
+    totalMessagesExchanged: integer('total_messages_exchanged').default(0),
+    lastCalculatedAt: timestamp('last_calculated_at').defaultNow(),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
+}, (table) => [
+    index('idx_user_engagement_profiles_user').on(table.userId, table.botUserId),
+    index('idx_user_engagement_profiles_updated').on(table.updatedAt.desc()),
+]);
+
+// Bot personal message updates history
+export const botPersonalMessageUpdates = pgTable('bot_personal_message_updates', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    botUserId: uuid('bot_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    oldMessage: text('old_message'),
+    newMessage: text('new_message').notNull(),
+    moodScore: doublePrecision('mood_score').notNull(),
+    moodState: varchar('mood_state', { length: 20 }).notNull(), // 'low' | 'neutral' | 'high'
+    contextSummary: text('context_summary'),
+    updateReason: varchar('update_reason', { length: 50 }), // 'mood_shift' | 'max_interval' | 'manual'
+    createdAt: timestamp('created_at').defaultNow(),
+}, (table) => [
+    index('idx_bot_personal_message_updates_bot_user_id').on(table.botUserId),
+    index('idx_bot_personal_message_updates_created_at').on(table.createdAt.desc()),
+]);
+
 export type SelectUser = InferSelectModel<typeof users>;
 export type InsertUser = InferInsertModel<typeof users>;
 
@@ -452,6 +510,15 @@ export type InsertBotAutonomousSchedule = InferInsertModel<typeof botAutonomousS
 
 export type SelectBotActionLog = InferSelectModel<typeof botActionLogs>;
 export type InsertBotActionLog = InferInsertModel<typeof botActionLogs>;
+
+export type SelectOrchestratorDecision = InferSelectModel<typeof orchestratorDecisions>;
+export type InsertOrchestratorDecision = InferInsertModel<typeof orchestratorDecisions>;
+
+export type SelectUserEngagementProfile = InferSelectModel<typeof userEngagementProfiles>;
+export type InsertUserEngagementProfile = InferInsertModel<typeof userEngagementProfiles>;
+
+export type SelectBotPersonalMessageUpdate = InferSelectModel<typeof botPersonalMessageUpdates>;
+export type InsertBotPersonalMessageUpdate = InferInsertModel<typeof botPersonalMessageUpdates>;
 
 export type SelectCall = InferSelectModel<typeof calls>;
 export type InsertCall = InferInsertModel<typeof calls>;

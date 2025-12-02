@@ -32,6 +32,10 @@ import {
     messageNeedsWebSearch,
     type Message as LLMMessage,
 } from './llm-service.js';
+import {
+    makeOrchestratorDecision,
+    computeUserEngagementProfile,
+} from './orchestrator-service.js';
 import { createMessage } from './message-service.js';
 
 export interface BotWithConfig {
@@ -325,6 +329,7 @@ export async function sendBotNudge(
 
 /**
  * Generate and queue an autonomous message from a bot
+ * NOW WITH ORCHESTRATOR INTEGRATION
  */
 export async function generateAutonomousBotMessage(
     botUserId: string,
@@ -333,13 +338,59 @@ export async function generateAutonomousBotMessage(
     const bot = await getBotWithConfig(botUserId);
     if (!bot) return null;
 
-    // Check backoff - stop messaging after too many unanswered attempts
-    const unansweredCount = await getUnansweredCount(botUserId, conversationId);
-    const maxUnanswered = 3; // Stop after 3 unanswered messages
+    // Check if orchestrator is enabled
+    const useOrchestrator = process.env.ENABLE_ORCHESTRATOR === 'true';
 
-    if (unansweredCount >= maxUnanswered) {
-        console.log(`Bot ${bot.user.username} backing off - ${unansweredCount} unanswered messages`);
-        return null;
+    // ========== NEW: ORCHESTRATOR DECISION ==========
+
+    if (useOrchestrator) {
+        // Get conversation data for orchestrator analysis
+        const contextData = await getConversationContextData(botUserId, conversationId);
+        const recentMessages = await getRecentMessagesForAnalysis(conversationId, 20);
+
+        // Get user participant for engagement profile
+        const userParticipant = await getUserParticipantInConversation(conversationId);
+        const userEngagementHistory = userParticipant
+            ? await computeUserEngagementProfile(userParticipant.userId, botUserId, conversationId)
+            : undefined;
+
+        // Make orchestrator decision
+        const orchestratorDecision = await makeOrchestratorDecision(
+            {
+                botUserId,
+                conversationId,
+                recentMessages,
+                contextData,
+                userEngagementHistory,
+            },
+            bot.personality,
+            {
+                orchestratorModel: process.env.ORCHESTRATOR_MODEL || 'openai/gpt-4-turbo',
+                enableOrchestrator: true,
+            }
+        );
+
+        // Respect orchestrator decision
+        if (!orchestratorDecision.shouldSendMessage) {
+            // Log the backoff action
+            await logBotAction(botUserId, conversationId, 'orchestrator_backoff', {
+                decision: orchestratorDecision.recommendedAction,
+                reasoning: orchestratorDecision.reasoning,
+                engagementScore: orchestratorDecision.engagementScore,
+                signals: orchestratorDecision.signals,
+            });
+
+            return null;
+        }
+    } else {
+        // ========== OLD: SIMPLE BACKOFF (fallback) ==========
+        const unansweredCount = await getUnansweredCount(botUserId, conversationId);
+        const maxUnanswered = 3; // Stop after 3 unanswered messages
+
+        if (unansweredCount >= maxUnanswered) {
+            console.log(`Bot ${bot.user.username} backing off - ${unansweredCount} unanswered messages`);
+            return null;
+        }
     }
 
     // Get conversation history
@@ -378,10 +429,20 @@ export async function generateAutonomousBotMessage(
         return null;
     }
 
-    // Calculate delay with exponential backoff based on unanswered count
-    const baseDelay = Math.random() * 5000 + 2000; // 2-7 seconds
-    const backoffMultiplier = Math.pow(2, unansweredCount); // 1x, 2x, 4x
-    const delay = baseDelay * backoffMultiplier;
+    // Calculate delay
+    let delay: number;
+    if (useOrchestrator) {
+        // Delay already calculated by orchestrator - would be used if we were getting it from decision
+        const baseDelay = Math.random() * 5000 + 2000; // 2-7 seconds
+        delay = baseDelay; // Orchestrator could override this, but for now use normal delay
+    } else {
+        // Old backoff logic
+        const unansweredCount = await getUnansweredCount(botUserId, conversationId);
+        const baseDelay = Math.random() * 5000 + 2000; // 2-7 seconds
+        const backoffMultiplier = Math.pow(2, unansweredCount); // 1x, 2x, 4x
+        delay = baseDelay * backoffMultiplier;
+    }
+
     const typingDuration = Math.min(content.length * (bot.config.typingSpeed || 50), 5000);
 
     // Update autonomous schedule and increment unanswered count
@@ -392,8 +453,7 @@ export async function generateAutonomousBotMessage(
     await logBotAction(botUserId, conversationId, 'autonomous_message', {
         delay,
         typingDuration,
-        unansweredCount: unansweredCount + 1,
-        backoffMultiplier,
+        orchestratorUsed: useOrchestrator,
     });
 
     return {
@@ -594,6 +654,100 @@ export async function getActiveBotConversations(
     }
 
     return result;
+}
+
+/**
+ * Helper: Get conversation context data for orchestrator
+ */
+async function getConversationContextData(
+    botUserId: string,
+    conversationId: string
+): Promise<{
+    unansweredCount: number;
+    lastInteractionAt: Date | null;
+    interactionCount: number;
+    timeSinceLastInteraction: number;
+}> {
+    const [context] = await db
+        .select()
+        .from(botConversationContexts)
+        .where(
+            and(
+                eq(botConversationContexts.botUserId, botUserId),
+                eq(botConversationContexts.conversationId, conversationId)
+            )
+        )
+        .limit(1);
+
+    const lastInteractionAt = context?.lastInteractionAt || null;
+    const timeSinceLastInteraction = lastInteractionAt
+        ? Date.now() - lastInteractionAt.getTime()
+        : Infinity;
+
+    return {
+        unansweredCount: context?.unansweredCount || 0,
+        lastInteractionAt,
+        interactionCount: context?.interactionCount || 0,
+        timeSinceLastInteraction,
+    };
+}
+
+/**
+ * Helper: Get recent messages for orchestrator analysis
+ */
+async function getRecentMessagesForAnalysis(
+    conversationId: string,
+    limit: number = 20
+): Promise<Array<{
+    senderId: string;
+    content: string;
+    messageType: string;
+    createdAt: Date;
+    isBot: boolean;
+}>> {
+    const msgs = await db
+        .select({
+            senderId: messages.senderId,
+            content: messages.content,
+            messageType: messages.messageType,
+            createdAt: messages.createdAt,
+            isBot: users.isAiBot,
+        })
+        .from(messages)
+        .innerJoin(users, eq(messages.senderId, users.id))
+        .where(eq(messages.conversationId, conversationId))
+        .orderBy(desc(messages.createdAt))
+        .limit(limit);
+
+    return msgs.reverse().map(m => ({
+        senderId: m.senderId,
+        content: m.content,
+        messageType: m.messageType || 'text',
+        createdAt: m.createdAt || new Date(),
+        isBot: m.isBot || false,
+    }));
+}
+
+/**
+ * Helper: Get user participant (non-bot) in conversation
+ */
+async function getUserParticipantInConversation(
+    conversationId: string
+): Promise<{ userId: string } | null> {
+    const participants = await db
+        .select({ userId: conversationParticipants.userId })
+        .from(conversationParticipants)
+        .innerJoin(users, eq(conversationParticipants.userId, users.id))
+        .where(
+            and(
+                eq(conversationParticipants.conversationId, conversationId),
+                isNull(conversationParticipants.leftAt),
+                eq(users.isAiBot, false)
+            )
+        )
+        .limit(1);
+
+    return participants[0] || null;
 }
 
 export default {

@@ -8,8 +8,8 @@ import { useEffect, useState } from 'react';
 import { useCallEnd } from '@/lib/hooks/call-hooks';
 import { useCallStore } from '@/lib/store/call-store';
 import { User } from '@/types';
-import Avatar from 'boring-avatars';
 import { simplePeerService } from '@/lib/services/simple-peer-service';
+import AIAvatar from './ai-avatar';
 
 interface AudioCallOverlayProps {
     contact: User;
@@ -120,10 +120,9 @@ export function AudioCallOverlay({ contact }: AudioCallOverlayProps) {
                     {/* Display Picture */}
                     <div className="relative">
                         {contact.isAiBot ? (
-                            <Avatar
+                            <AIAvatar
                                 name={contact.displayName || contact.username}
                                 colors={['#0481f6', '#4edfb3', '#ff005b', '#ff7d10', '#ffb238']}
-                                variant="marble"
                                 square
                                 className="size-[96px] rounded-lg border-2 border-[#586170]"
                             />

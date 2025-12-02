@@ -1,6 +1,6 @@
 import { Bot, PresenceStatus } from '@/types';
 import { invoke } from '@tauri-apps/api/core';
-import Avatar from 'boring-avatars';
+import AIAvatar from './ai-avatar';
 
 interface BotItemProps {
     bot: Bot;
@@ -40,7 +40,7 @@ export function BotItem({ bot, hasUnread }: BotItemProps) {
             <div className="relative flex-shrink-0">
                 <div className="w-8 h-8 rounded-full bg-gray-300 overflow-hidden">
                     {bot.displayPictureUrl ? (
-                        <Avatar name={bot.displayName || bot.username} colors={["#0481f6", "#4edfb3", "#ff005b", "#ff7d10", "#ffb238"]} variant="marble" className='size-8' />
+                        <AIAvatar name={bot.displayName || bot.username} colors={["#0481f6", "#4edfb3", "#ff005b", "#ff7d10", "#ffb238"]} className='absolute size-8' />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-600 text-xs font-bold">
                             {(bot.displayName || bot.username).charAt(0).toUpperCase()}
