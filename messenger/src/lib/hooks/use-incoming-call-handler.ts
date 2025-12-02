@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useCallAnswer, useCallDecline, useCallSignal } from './call-hooks';
+import { useCallAnswer, useCallDecline, useCallSignal, useIceServers } from './call-hooks';
 import { useCallStore } from '../store/call-store';
 import { simplePeerService } from '../services/simple-peer-service';
 import { supabase } from '../supabase';
@@ -22,6 +22,7 @@ export function useIncomingCallHandler({
     const signalMutation = useCallSignal();
     const callStore = useCallStore();
     const [callError, setCallError] = useState<string | null>(null);
+    const { data: iceServers } = useIceServers();
 
     const handleAnswer = async () => {
         try {
@@ -103,13 +104,18 @@ export function useIncomingCallHandler({
                 onClose: () => {
                     console.log('Peer connection closed');
                 },
+                onIceStateChange: (state) => {
+                    console.log('ICE connection state:', state);
+                    callStore.setIceConnectionState(state as any);
+                },
             });
 
             // Step 5: Create simple-peer instance as non-initiator (receiver)
-            console.log('Creating peer connection');
+            console.log('Creating peer connection with ICE servers');
             simplePeerService.createPeer({
                 initiator: false,
                 stream: localStream,
+                iceServers: iceServers || [],
             });
 
             // Step 6: Subscribe to signaling events via Realtime

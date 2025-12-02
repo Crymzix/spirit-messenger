@@ -16,20 +16,18 @@ import { FileTransferRequestMessage } from "../file-transfer-request-message";
 import { useInitiateFileTransfer } from "@/lib/hooks/file-hooks";
 import { createFileInput, validateFile } from "@/lib/utils/file-utils";
 import { useFileUploadStore, fileToArrayBuffer } from "@/lib/store/file-upload-store";
-import Avatar from "boring-avatars";
 import { HandwritingCanvas } from "../handwriting-canvas";
 import { useContacts } from "@/lib/hooks/contact-hooks";
 import { WINDOW_EVENTS } from "@/lib/utils/constants";
 import { VoiceRecordingInterface } from "../voice-recording-interface";
 import { VoiceMessagePlayer } from "../voice-message-player";
 import { useSendVoiceClip } from "@/lib/hooks/voice-hooks";
-import { useCallInitiate, useCallSignalUpdates } from "@/lib/hooks/call-hooks";
+import { useCallInitiate, useCallSignalUpdates, useIceServers } from "@/lib/hooks/call-hooks";
 import { useCallStore, useHasActiveCall } from "@/lib/store/call-store";
 import { callRealtimeService } from "@/lib/services/call-realtime-service";
 import { simplePeerService } from "@/lib/services/simple-peer-service";
 import { endCall, sendSignal } from "@/lib/services/call-service";
-import { AudioCallOverlay } from "../audio-call-overlay";
-import { VideoCallOverlay } from "../video-call-overlay";
+import { ChatAvatar } from "../chat-avatar";
 
 export function ChatWindow() {
     // Extract contactId and contactName from URL query parameters
@@ -72,7 +70,8 @@ export function ChatWindow() {
     const callState = useCallStore((state) => state.callState);
     const [callDeclinedMessage, setCallDeclinedMessage] = useState<string | null>(null);
     const [callError, setCallError] = useState<string | null>(null);
-    const callStore = useCallStore()
+    const callStore = useCallStore();
+    const { data: iceServers } = useIceServers();
 
     const sendMessageMutation = useSendMessage(conversation?.id || '');
     const sendNudgeMutation = useSendNudge(conversation?.id || '');
@@ -347,21 +346,6 @@ export function ChatWindow() {
         };
     }, [conversation?.id, participants]);
 
-    // Cleanup WebRTC connection handler and realtime subscriptions on unmount
-    useEffect(() => {
-        return () => {
-            // Call cleanup function if it exists
-            if ((window as any).__webrtcCleanup) {
-                (window as any).__webrtcCleanup();
-                (window as any).__webrtcCleanup = undefined;
-            }
-
-            // Unsubscribe from all realtime channels
-            callRealtimeService.unsubscribeAll();
-        };
-    }, []);
-
-    // Clear error when call state changes (call ends)
     useEffect(() => {
         if (callState === 'idle' || callState === 'ended') {
             // Clear any error messages when call ends
@@ -381,7 +365,7 @@ export function ChatWindow() {
             const eventPayload = event.payload;
 
             if (conversation.id !== eventPayload.payload.conversationId) {
-                console.log('Call event belongs to different conversation.')
+                console.log('Call event belongs to a different conversation.')
             }
 
             callRealtimeService.handleCallEvent(event, user.id)
@@ -429,6 +413,10 @@ export function ChatWindow() {
                             onClose: () => {
                                 console.log('Peer connection closed');
                             },
+                            onIceStateChange: (state) => {
+                                console.log('ICE connection state:', state);
+                                callStore.setIceConnectionState(state as any);
+                            },
                         });
 
                         const localStream = await navigator.mediaDevices.getUserMedia({
@@ -445,9 +433,11 @@ export function ChatWindow() {
                         });
 
                         // Create simple-peer instance as initiator (caller)
+                        console.log('Creating peer with ICE servers');
                         simplePeerService.createPeer({
                             initiator: true,
                             stream: localStream,
+                            iceServers: iceServers || [],
                         });
 
                         console.log('Call initiation complete, waiting for answer');
@@ -847,10 +837,7 @@ export function ChatWindow() {
             }
 
             // Stop any media tracks that may have been started
-            const localStream = callStore.activeCall ? callStore.activeCall : null;
-            if (localStream) {
-                callStore.reset();
-            }
+            callStore.reset();
         }
     };
 
@@ -1081,7 +1068,7 @@ export function ChatWindow() {
                         </div>
                     </div>
 
-                    <div className="flex p-6 z-10 flex-1">
+                    <div className="flex p-6 z-10 flex-1 gap-4">
                         <div className="flex flex-col flex-1 min-h-0 z-10 gap-4">
                             <div className="flex flex-1 gap-4">
                                 {/* Message History Panel */}
@@ -1195,20 +1182,6 @@ export function ChatWindow() {
                                                 </div>
                                             )
                                         }
-                                    </div>
-                                </div>
-                                {/* MSN Messenger Avatar */}
-                                <div className="hidden min-[470px]:block">
-                                    <div className="w-[104px] flex items-center flex-col border border-[#586170] pt-[3px] rounded-lg relative bg-[#dee7f7]">
-                                        {
-                                            participants[0] ?
-                                                participants[0]?.isAiBot ?
-                                                    <Avatar name={participants[0]?.displayName || participants[0]?.username} colors={["#0481f6", "#4edfb3", "#ff005b", "#ff7d10", "#ffb238"]} variant="marble" square className='size-[96px] rounded-[7px]' /> :
-                                                    <img className="size-[96px] border border-[#586170] rounded-[7px]" src={participants[0]?.displayPictureUrl || '/default-profile-pictures/friendly_dog.png'} alt="" /> :
-                                                <div className="size-[96px] bg-gray-300 rounded-[7px]" />
-                                        }
-                                        <img className="self-end m-[3px_5px]" src="/down.png" alt="" />
-                                        <img className="absolute top-1 right-0 translate-x-[9px]" src="/expand-left.png" alt="" />
                                     </div>
                                 </div>
                             </div>
@@ -1384,15 +1357,11 @@ export function ChatWindow() {
                                         </div>
                                     </div>
                                 </div>
-                                {/* MSN Messenger Avatar */}
-                                <div className="hidden min-[470px]:block">
-                                    <div className="w-[104px] flex items-center flex-col border border-[#586170] pt-[3px] rounded-lg relative bg-[#dee7f7]">
-                                        <img className="size-[96px] border border-[#586170] rounded-[7px]" src={user?.displayPictureUrl || "/default-profile-pictures/friendly_dog.png"} alt="" />
-                                        <img className="self-end m-[3px_5px]" src="/down.png" alt="" />
-                                        <img className="absolute top-1 right-0 translate-x-[9px]" src="/expand-left.png" alt="" />
-                                    </div>
-                                </div>
                             </div>
+                        </div>
+                        <div className="flex flex-col">
+                            <ChatAvatar user={participants[0]} />
+                            <ChatAvatar user={user as User} className="mt-auto" />
                         </div>
                     </div>
                     <div
@@ -1414,16 +1383,6 @@ export function ChatWindow() {
                                 </div>
                             </div>
                         </div>
-                    )}
-
-                    {/* Audio Call Overlay - shown when in an active audio call */}
-                    {hasActiveCall && activeCall?.callType === 'voice' && participants[0] && (
-                        <AudioCallOverlay contact={participants[0]} />
-                    )}
-
-                    {/* Video Call Overlay - shown when in an active video call */}
-                    {hasActiveCall && activeCall?.callType === 'video' && participants[0] && (
-                        <VideoCallOverlay contact={participants[0]} />
                     )}
                 </div>
             </div>

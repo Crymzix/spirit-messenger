@@ -9,9 +9,7 @@
  * Requirements: 2.1, 2.3, 6.3
  */
 
-import { supabase } from '../supabase';
 import { useCallStore } from '../store/call-store';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { Call } from '@/types';
 import { Event } from '@tauri-apps/api/event';
 import { CallAnsweredPayload, CallDeclinedPayload, CallEndedPayload, CallRingingPayload } from '../hooks/call-hooks';
@@ -61,8 +59,6 @@ export interface SignalingEventHandlers {
  * Manages Supabase Realtime subscriptions for call events and signaling
  */
 export class CallRealtimeService {
-    private callEventsChannel: RealtimeChannel | null = null;
-    private signalingChannel: RealtimeChannel | null = null;
 
     handleCallEvent(event: Event<any>, userId: string) {
         const eventPayload = event.payload
@@ -209,54 +205,6 @@ export class CallRealtimeService {
         }, 1000);
     }
 
-    /**
-     * Unsubscribe from call events
-     * Cleans up the call events channel
-     */
-    async unsubscribeFromCallEvents(): Promise<void> {
-        if (this.callEventsChannel) {
-            console.log('Unsubscribing from call events channel');
-            await supabase.removeChannel(this.callEventsChannel);
-            this.callEventsChannel = null;
-        }
-    }
-
-    /**
-     * Unsubscribe from signaling events
-     * Cleans up the signaling channel
-     */
-    async unsubscribeFromSignaling(): Promise<void> {
-        if (this.signalingChannel) {
-            console.log('Unsubscribing from signaling channel');
-            await supabase.removeChannel(this.signalingChannel);
-            this.signalingChannel = null;
-        }
-    }
-
-    /**
-     * Unsubscribe from all channels
-     * Cleans up both call events and signaling channels
-     */
-    async unsubscribeAll(): Promise<void> {
-        await Promise.all([
-            this.unsubscribeFromCallEvents(),
-            this.unsubscribeFromSignaling(),
-        ]);
-    }
-
-    /**
-     * Check if subscribed to call events
-     */
-    isSubscribedToCallEvents(): boolean {
-        return this.callEventsChannel !== null;
-    }
-
-    /**
-     * Check if subscribed to signaling
-     */
-    isSubscribedToSignaling(): boolean {
-        return this.signalingChannel !== null;
-    }
 }
 
 /**

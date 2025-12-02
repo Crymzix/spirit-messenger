@@ -180,7 +180,7 @@ export async function initiateCall(
             .where(inArray(users.id, [userId, otherParticipant.userId]));
 
         for (const user of participantUsers) {
-            if (user.presenceStatus !== 'online') {
+            if (user.presenceStatus === 'offline' || user.presenceStatus === 'appear_offline') {
                 throw new CallServiceError(
                     `User ${user.displayName || user.username} is not online`,
                     'USER_NOT_ONLINE',

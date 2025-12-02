@@ -48,6 +48,32 @@ export interface GetActiveCallResponse {
     call: CallWithParticipants | null;
 }
 
+export interface IceServer {
+    url?: string;
+    urls: string | string[];
+    username?: string;
+    credential?: string;
+}
+
+export interface GetIceServersResponse {
+    iceServers: IceServer[];
+}
+
+/**
+ * Get ICE servers for WebRTC connection
+ */
+export async function getIceServers(): Promise<IceServer[]> {
+    const response = await apiGet<GetIceServersResponse>(
+        '/api/calls/ice-servers'
+    );
+
+    if (!response.success || !response.data) {
+        throw new Error(response.error || 'Failed to get ICE servers');
+    }
+
+    return response.data.iceServers;
+}
+
 /**
  * Initiate a new voice or video call
  */
@@ -58,8 +84,8 @@ export async function initiateCall(
     const response = await apiPost<InitiateCallResponse>(
         '/api/calls/initiate',
         {
-            conversation_id: conversationId,
-            call_type: callType,
+            conversationId,
+            callType,
         }
     );
 

@@ -6,6 +6,7 @@
 
 import { create } from 'zustand';
 import type { Call } from '@/types';
+import { simplePeerService } from '../services/simple-peer-service';
 
 export type CallState =
     | 'idle'           // No active call
@@ -44,6 +45,7 @@ interface CallStoreState {
     // Media controls
     isMuted: boolean;
     isCameraOff: boolean;
+    isRemoteMuted: boolean;
 
     // Connection state
     connectionState: ConnectionState;
@@ -55,6 +57,7 @@ interface CallStoreState {
     setLocalStream: (stream: MediaStream | null) => void;
     setRemoteStream: (stream: MediaStream | null) => void;
     toggleMute: () => void;
+    toggleRemoteMute: () => void;
     toggleCamera: () => void;
     setConnectionState: (state: ConnectionState) => void;
     setIceConnectionState: (state: IceConnectionState) => void;
@@ -72,6 +75,7 @@ export const useCallStore = create<CallStoreState>((set, get) => ({
     localStream: null,
     remoteStream: null,
     isMuted: false,
+    isRemoteMuted: false,
     isCameraOff: false,
     connectionState: 'new',
     iceConnectionState: 'new',
@@ -112,15 +116,30 @@ export const useCallStore = create<CallStoreState>((set, get) => ({
         const { isMuted } = get();
         const newMutedState = !isMuted;
 
-        // Lazy load simplePeerService to avoid circular dependency
-        const { simplePeerService } = require('@/lib/services/simple-peer-service');
-
         // Update the audio track via simple-peer service
         const success = simplePeerService.toggleMute(newMutedState);
 
         // Only update state if the operation succeeded
         if (success) {
             set({ isMuted: newMutedState });
+        }
+    },
+
+
+    /**
+     * Toggle mute state
+     * Modifies the audio track enabled state in the local stream via WebRTC service
+     */
+    toggleRemoteMute: () => {
+        const { isRemoteMuted } = get();
+        const newMutedState = !isRemoteMuted;
+
+        // Update the audio track via simple-peer service
+        const success = simplePeerService.toggleRemoteMute(newMutedState);
+
+        // Only update state if the operation succeeded
+        if (success) {
+            set({ isRemoteMuted: newMutedState });
         }
     },
 
@@ -131,9 +150,6 @@ export const useCallStore = create<CallStoreState>((set, get) => ({
     toggleCamera: () => {
         const { isCameraOff } = get();
         const newCameraOffState = !isCameraOff;
-
-        // Lazy load simplePeerService to avoid circular dependency
-        const { simplePeerService } = require('@/lib/services/simple-peer-service');
 
         // Update the video track via simple-peer service
         const success = simplePeerService.toggleCamera(newCameraOffState);

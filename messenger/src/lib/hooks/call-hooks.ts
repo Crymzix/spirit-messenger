@@ -18,7 +18,9 @@ import {
     endCall,
     sendSignal,
     getActiveCall,
+    getIceServers,
     type SignalType,
+    type IceServer,
 } from '../services/call-service';
 import type { CallType } from '@/types';
 import { supabase } from '../supabase';
@@ -300,6 +302,30 @@ export function useActiveCall(conversationId: string) {
         retry: 1,
         // Keep data fresh for 3 seconds
         staleTime: 3000,
+    });
+}
+
+/**
+ * Hook for fetching ICE servers for WebRTC connection
+ * Returns STUN/TURN servers from Twilio
+ *
+ * @example
+ * const { data: iceServers, isLoading } = useIceServers();
+ */
+export function useIceServers() {
+    return useQuery<IceServer[]>({
+        queryKey: ['iceServers'],
+        queryFn: async () => {
+            return await getIceServers();
+        },
+        // Cache ICE servers for 1 hour (they have 24h TTL from Twilio)
+        staleTime: 60 * 60 * 1000,
+        // Keep in cache for 2 hours
+        gcTime: 2 * 60 * 60 * 1000,
+        // Retry once on failure
+        retry: 1,
+        // Don't refetch on window focus
+        refetchOnWindowFocus: false,
     });
 }
 

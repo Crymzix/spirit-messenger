@@ -7,12 +7,22 @@
 import SimplePeer from 'simple-peer';
 
 /**
+ * ICE Server configuration
+ */
+export interface IceServer {
+    url?: string;
+    urls: string | string[];
+    username?: string;
+    credential?: string;
+}
+
+/**
  * Configuration for creating a SimplePeer instance
  */
 export interface SimplePeerConfig {
     initiator: boolean;
     stream?: MediaStream;
-    config?: RTCConfiguration;
+    iceServers?: IceServer[];
 }
 
 /**
@@ -24,6 +34,7 @@ export interface SimplePeerEventHandlers {
     onError?: (error: Error) => void;
     onClose?: () => void;
     onConnect?: () => void;
+    onIceStateChange?: (state: RTCIceConnectionState) => void;
 }
 
 /**
@@ -33,11 +44,12 @@ export interface SimplePeerEventHandlers {
 export class SimplePeerService {
     private peer: SimplePeer.Instance | null = null;
     private localStream: MediaStream | null = null;
+    private remoteStream: MediaStream | null = null;
     private eventHandlers: SimplePeerEventHandlers = {};
 
     /**
      * Create a new SimplePeer instance
-     * @param config - Configuration for the peer (initiator flag, local stream)
+     * @param config - Configuration for the peer (initiator flag, local stream, ICE servers)
      */
     createPeer(config: SimplePeerConfig): void {
         // Close existing peer if any
@@ -48,32 +60,20 @@ export class SimplePeerService {
         // Store local stream
         this.localStream = config.stream || null;
 
+        // Use provided ICE servers or fallback to default STUN server
+        const iceServers = config.iceServers && config.iceServers.length > 0
+            ? config.iceServers
+            : [{ urls: 'stun:stun.l.google.com:19302' }];
+
+        console.log('Creating peer with ICE servers:', iceServers);
+
         // Create SimplePeer instance with proper configuration
         this.peer = new SimplePeer({
             initiator: config.initiator,
             stream: config.stream,
-            trickle: true, // Enable trickle ICE for faster connection establishment,
+            trickle: true, // Enable trickle ICE for faster connection establishment
             config: {
-                iceServers: [
-                    {
-                        urls: "stun:global.stun.twilio.com:3478",
-                    },
-                    {
-                        credential: "MIxGUSx8bUHiyjMWtzL+lTGAS6LfHcj3VxiGlSRLsEE=",
-                        urls: "turn:global.turn.twilio.com:3478?transport=udp",
-                        username: "409b6de8e512fe8220b8188e9c346b5e7eba833bf6ee3f8b93a439f45d674167"
-                    },
-                    {
-                        credential: "MIxGUSx8bUHiyjMWtzL+lTGAS6LfHcj3VxiGlSRLsEE=",
-                        urls: "turn:global.turn.twilio.com:3478?transport=tcp",
-                        username: "409b6de8e512fe8220b8188e9c346b5e7eba833bf6ee3f8b93a439f45d674167"
-                    },
-                    {
-                        credential: "MIxGUSx8bUHiyjMWtzL+lTGAS6LfHcj3VxiGlSRLsEE=",
-                        urls: "turn:global.turn.twilio.com:443?transport=tcp",
-                        username: "409b6de8e512fe8220b8188e9c346b5e7eba833bf6ee3f8b93a439f45d674167"
-                    }
-                ]
+                iceServers: iceServers as RTCIceServer[],
             }
         });
 
@@ -103,6 +103,7 @@ export class SimplePeerService {
         // Handle remote stream
         peer.on('stream', (stream: MediaStream) => {
             console.log('SimplePeer received remote stream with tracks:', stream.getTracks().length);
+            this.remoteStream = stream
             if (this.eventHandlers.onStream) {
                 this.eventHandlers.onStream(stream);
             }
@@ -131,6 +132,19 @@ export class SimplePeerService {
                 this.eventHandlers.onClose();
             }
         });
+
+        // Monitor ICE connection state changes
+        // Access the underlying RTCPeerConnection to track ICE state
+        const rtcPeerConnection = (peer as any)._pc as RTCPeerConnection;
+        if (rtcPeerConnection) {
+            rtcPeerConnection.oniceconnectionstatechange = () => {
+                const iceState = rtcPeerConnection.iceConnectionState;
+                console.log('ICE connection state changed:', iceState);
+                if (this.eventHandlers.onIceStateChange) {
+                    this.eventHandlers.onIceStateChange(iceState);
+                }
+            };
+        }
     }
 
     /**
@@ -176,6 +190,7 @@ export class SimplePeerService {
 
         // Stop local stream tracks
         this.stopLocalStream();
+        this.stopRemoteStream()
 
         // Clear event handlers
         this.eventHandlers = {};
@@ -195,6 +210,19 @@ export class SimplePeerService {
     }
 
     /**
+     * Stop all tracks in the local media stream
+     * @private
+     */
+    private stopRemoteStream(): void {
+        if (this.remoteStream) {
+            this.remoteStream.getTracks().forEach(track => {
+                track.stop();
+            });
+            this.remoteStream = null;
+        }
+    }
+
+    /**
      * Get the current SimplePeer instance
      * @returns SimplePeer instance or null if not initialized
      */
@@ -208,6 +236,14 @@ export class SimplePeerService {
      */
     getLocalStream(): MediaStream | null {
         return this.localStream;
+    }
+
+    /**
+     * Get the current remote stream
+     * @returns MediaStream or null if not initialized
+     */
+    getRemoteStream(): MediaStream | null {
+        return this.remoteStream;
     }
 
     /**
@@ -242,7 +278,35 @@ export class SimplePeerService {
             track.enabled = !muted;
         });
 
-        console.log(`Audio ${muted ? 'muted' : 'unmuted'}`);
+        console.log(`Local audio ${muted ? 'muted' : 'unmuted'}`);
+        return true;
+    }
+
+    /**
+     * Toggle mute state for remote audio track
+     * Enables or disables the audio track in the local stream
+     * @param muted - true to mute, false to unmute
+     * @returns true if operation succeeded, false otherwise
+     */
+    toggleRemoteMute(muted: boolean): boolean {
+        if (!this.remoteStream) {
+            console.warn('Cannot toggle mute: no remote stream available');
+            return false;
+        }
+
+        const audioTracks = this.remoteStream.getAudioTracks();
+
+        if (audioTracks.length === 0) {
+            console.warn('Cannot toggle mute: no audio tracks remote stream');
+            return false;
+        }
+
+        // Set enabled state for all audio tracks
+        audioTracks.forEach(track => {
+            track.enabled = !muted;
+        });
+
+        console.log(`Remote audio ${muted ? 'muted' : 'unmuted'}`);
         return true;
     }
 

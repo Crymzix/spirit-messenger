@@ -39,7 +39,7 @@ export function MessageContent({ content, messageType, metadata, caller, convers
         const { callId, callType, status, durationSeconds } = metadata!;
 
         // Handle ringing status with interactive buttons
-        if (status === 'ringing' && caller && conversationId && callId && initiatorId) {
+        if (caller && conversationId && callId && initiatorId && (status === 'ringing' || status === 'active')) {
             return (
                 <IncomingCallMessage
                     callId={callId}

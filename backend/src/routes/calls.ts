@@ -21,9 +21,26 @@ import {
 import type { ApiResponse } from '../types/index.js';
 import type { SelectCall } from '../db/schema.js';
 
+interface IceServer {
+    url?: string;
+    urls: string | string[];
+    username?: string;
+    credential?: string;
+}
+
+interface TwilioTokenResponse {
+    account_sid: string;
+    date_created: string;
+    date_updated: string;
+    ice_servers: IceServer[];
+    password: string;
+    ttl: string;
+    username: string;
+}
+
 interface InitiateCallBody {
-    conversation_id: string;
-    call_type: 'voice' | 'video';
+    conversationId: string;
+    callType: 'voice' | 'video';
 }
 
 interface CallParams {
@@ -41,6 +58,72 @@ interface ActiveCallParams {
 }
 
 const callsRoutes: FastifyPluginAsync = async (fastify) => {
+    // GET /api/calls/ice-servers - Get ICE servers for WebRTC
+    fastify.get<{
+        Reply: ApiResponse<{ iceServers: IceServer[] }>;
+    }>(
+        '/ice-servers',
+        {
+            preHandler: fastify.authenticate,
+        },
+        async (request, reply) => {
+            try {
+                if (!request.user) {
+                    return reply.status(401).send({
+                        success: false,
+                        error: 'Unauthorized',
+                    });
+                }
+
+                const accountSid = process.env.TWILIO_ACCOUNT_SID;
+                const authToken = process.env.TWILIO_AUTH_TOKEN;
+
+                if (!accountSid || !authToken) {
+                    fastify.log.error('Twilio credentials not configured');
+                    return reply.status(500).send({
+                        success: false,
+                        error: 'ICE server configuration missing',
+                    });
+                }
+
+                // Create basic auth header
+                const credentials = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+
+                // Request ICE servers from Twilio
+                const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Tokens.json`;
+                const response = await fetch(twilioUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Basic ${credentials}`,
+                    },
+                });
+
+                if (!response.ok) {
+                    fastify.log.error(`Twilio API error: ${response.status} ${response.statusText}`);
+                    return reply.status(500).send({
+                        success: false,
+                        error: 'Failed to retrieve ICE servers',
+                    });
+                }
+
+                const data = await response.json() as TwilioTokenResponse;
+
+                return reply.status(200).send({
+                    success: true,
+                    data: {
+                        iceServers: data.ice_servers,
+                    },
+                });
+            } catch (error) {
+                fastify.log.error(error);
+                return reply.status(500).send({
+                    success: false,
+                    error: 'Internal server error',
+                });
+            }
+        }
+    );
+
     // POST /api/calls/initiate - Initiate a new call
     fastify.post<{
         Body: InitiateCallBody;
@@ -52,13 +135,13 @@ const callsRoutes: FastifyPluginAsync = async (fastify) => {
             schema: {
                 body: {
                     type: 'object',
-                    required: ['conversation_id', 'call_type'],
+                    required: ['conversationId', 'callType'],
                     properties: {
-                        conversation_id: {
+                        conversationId: {
                             type: 'string',
                             format: 'uuid',
                         },
-                        call_type: {
+                        callType: {
                             type: 'string',
                             enum: ['voice', 'video'],
                         },
@@ -76,11 +159,11 @@ const callsRoutes: FastifyPluginAsync = async (fastify) => {
                 }
 
                 const userId = request.user.id;
-                const { conversation_id, call_type } = request.body;
+                const { conversationId, callType } = request.body;
 
                 const callData: InitiateCallData = {
-                    conversationId: conversation_id,
-                    callType: call_type,
+                    conversationId: conversationId,
+                    callType: callType,
                 };
 
                 // Initiate call using service

@@ -1,7 +1,7 @@
 import { useUser } from '@/lib';
 import { MessageWithSender } from '@/lib/services/message-service';
 import { useAcceptFileTransfer, useCancelFileTransfer, useDeclineFileTransfer, useDownloadFile, useFileTransferRequest } from '@/lib/hooks/file-hooks';
-import { useEffect, useState } from 'react';
+import { KeyboardEventHandler, useEffect, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { useFileUploadStore, FileUploadProgressPayload, FileUploadCompletePayload } from '@/lib/store/file-upload-store';
 
@@ -199,8 +199,17 @@ export function FileTransferRequestMessage({
     );
 
     // Action link component
-    const ActionLink = ({ onClick, label, shortcut }: { onClick?: () => void; label: string; shortcut: string }) => (
-        <div onClick={onClick} className="cursor-pointer flex items-center">
+    const ActionLink = ({ onClick, label, shortcut, onKeyDown }: {
+        onClick?: () => void;
+        onKeyDown?: KeyboardEventHandler<HTMLDivElement>
+        label: string;
+        shortcut: string
+    }) => (
+        <div
+            onClick={onClick}
+            className="cursor-pointer flex items-center"
+            onKeyDown={onKeyDown}
+        >
             {label}
             <div className="text-gray-600">({shortcut})</div>
         </div>
@@ -213,21 +222,48 @@ export function FileTransferRequestMessage({
                 return (
                     <>
                         <StatusMessage>Waiting for acceptance...</StatusMessage>
-                        <ActionLink onClick={handleCancelTransfer} label="Cancel" shortcut="Alt+Q" />
+                        <ActionLink
+                            onKeyDown={e => {
+                                if (e.altKey && e.key === 'q') {
+                                    handleCancelTransfer()
+                                }
+                            }}
+                            onClick={handleCancelTransfer}
+                            label="Cancel"
+                            shortcut="Alt+Q"
+                        />
                     </>
                 );
             case 'accepted':
                 return (
                     <>
                         <ProgressBar progress={0} statusText="Preparing upload..." />
-                        <ActionLink onClick={handleCancelTransfer} label="Cancel" shortcut="Alt+Q" />
+                        <ActionLink
+                            onKeyDown={e => {
+                                if (e.altKey && e.key === 'q') {
+                                    handleCancelTransfer()
+                                }
+                            }}
+                            onClick={handleCancelTransfer}
+                            label="Cancel"
+                            shortcut="Alt+Q"
+                        />
                     </>
                 );
             case 'uploading':
                 return (
                     <>
                         <ProgressBar progress={uploadProgress} statusText={`Uploading... ${uploadProgress}%`} />
-                        <ActionLink onClick={handleCancelTransfer} label="Cancel" shortcut="Alt+Q" />
+                        <ActionLink
+                            onKeyDown={e => {
+                                if (e.altKey && e.key === 'q') {
+                                    handleCancelTransfer()
+                                }
+                            }}
+                            onClick={handleCancelTransfer}
+                            label="Cancel"
+                            shortcut="Alt+Q"
+                        />
                     </>
                 );
             case 'completed':
@@ -251,8 +287,26 @@ export function FileTransferRequestMessage({
             case 'pending':
                 return (
                     <div className='flex gap-1'>
-                        <ActionLink onClick={handleAcceptTransfer} label="Accept" shortcut="Alt+W" />
-                        <ActionLink onClick={handleDeclineTransfer} label="Decline" shortcut="Alt+Q" />
+                        <ActionLink
+                            onClick={handleAcceptTransfer}
+                            onKeyDown={e => {
+                                if (e.altKey && e.key === 'w') {
+                                    handleAcceptTransfer()
+                                }
+                            }}
+                            label="Accept"
+                            shortcut="Alt+W"
+                        />
+                        <ActionLink
+                            onKeyDown={e => {
+                                if (e.altKey && e.key === 'q') {
+                                    handleDeclineTransfer()
+                                }
+                            }}
+                            onClick={handleDeclineTransfer}
+                            label="Decline"
+                            shortcut="Alt+Q"
+                        />
                     </div>
                 );
             case 'accepted':
@@ -263,12 +317,30 @@ export function FileTransferRequestMessage({
                             progress={uploadProgress}
                             statusText={displayStatus === 'uploading' ? `Receiving... ${uploadProgress}%` : "Waiting for sender..."}
                         />
-                        <ActionLink onClick={handleCancelTransfer} label="Cancel" shortcut="Alt+Q" />
+                        <ActionLink
+                            onKeyDown={e => {
+                                if (e.altKey && e.key === 'q') {
+                                    handleCancelTransfer()
+                                }
+                            }}
+                            onClick={handleCancelTransfer}
+                            label="Cancel"
+                            shortcut="Alt+Q"
+                        />
                     </>
                 );
             case 'completed':
                 return (
-                    <ActionLink onClick={handleDownloadFile} label="Open" shortcut="Alt+P" />
+                    <ActionLink
+                        onKeyDown={e => {
+                            if (e.altKey && e.key === 'p') {
+                                handleDownloadFile()
+                            }
+                        }}
+                        onClick={handleDownloadFile}
+                        label="Open"
+                        shortcut="Alt+P"
+                    />
                 );
             case 'failed':
                 return <StatusMessage>Transfer failed</StatusMessage>;
