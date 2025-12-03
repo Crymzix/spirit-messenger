@@ -1,0 +1,20 @@
+# Fly.io configuration for MSN Messenger Backend Worker
+app = "msn-messenger-worker"
+primary_region = "sjc"
+
+[build]
+  builder = "paketobuildpacks"
+
+[env]
+  NODE_ENV = "production"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
+
+[processes]
+  worker = "npm run workers"
+
+[env.production]
+  NODE_ENV = "production"
