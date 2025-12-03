@@ -1,36 +1,39 @@
-# Fly.io configuration for MSN Messenger Backend Server
-app = "msn-messenger-server"
-primary_region = "sjc"
+# fly.toml app configuration file generated for spirit-messenger-server on 2025-12-03T13:26:32+08:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'spirit-messenger-server'
+primary_region = 'sjc'
 
 [build]
-  builder = "paketobuildpacks"
+  dockerfile = 'Dockerfile'
 
 [env]
-  NODE_ENV = "production"
+  NODE_ENV = 'production'
+  production = 'map[NODE_ENV:production]'
+  PORT = '3000'
 
 [http_service]
   internal_port = 3000
   force_https = true
-  auto_stop_machines = true
+  auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
 
 [[services]]
+  protocol = 'tcp'
   internal_port = 3000
-  protocol = "tcp"
 
-  [services.ports]
+  [[services.ports]]
     port = 443
-    handlers = ["tls", "http"]
+    handlers = ['tls', 'http']
 
 [[vm]]
-  cpu_kind = "shared"
+  cpu_kind = 'shared'
   cpus = 1
   memory_mb = 512
 
 [[statics]]
-  guest_path = "/app/public"
-  url_prefix = "/static"
-
-[env.production]
-  NODE_ENV = "production"
+  guest_path = '/app/public'
+  url_prefix = '/static'

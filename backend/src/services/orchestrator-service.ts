@@ -181,7 +181,7 @@ function analyzeConversationSignals(
  */
 function analyzeResponsePattern(
     userMessages: ConversationAnalysis['recentMessages'],
-    botMessages: ConversationAnalysis['recentMessages']
+    _botMessages: ConversationAnalysis['recentMessages']
 ): 'healthy' | 'declining' | 'poor' {
     if (userMessages.length === 0) return 'poor';
 
@@ -216,7 +216,7 @@ function analyzeResponsePattern(
  * Conversation momentum analysis
  */
 function analyzeConversationMomentum(
-    userMessages: ConversationAnalysis['recentMessages'],
+    _userMessages: ConversationAnalysis['recentMessages'],
     contextData: ConversationAnalysis['contextData']
 ): 'strong' | 'moderate' | 'weak' | 'dead' {
     const { timeSinceLastInteraction, unansweredCount } = contextData;
@@ -245,7 +245,7 @@ function analyzeConversationMomentum(
  */
 function analyzeUserInterest(
     userMessages: ConversationAnalysis['recentMessages'],
-    contextData: ConversationAnalysis['contextData']
+    _contextData: ConversationAnalysis['contextData']
 ): 'high' | 'medium' | 'low' | 'disinterested' {
     if (userMessages.length === 0) return 'disinterested';
 
@@ -493,7 +493,7 @@ async function logOrchestratorDecision(
  */
 export async function computeUserEngagementProfile(
     userId: string,
-    botUserId: string,
+    _botUserId: string,
     conversationId: string
 ): Promise<UserEngagementMetrics | null> {
     try {

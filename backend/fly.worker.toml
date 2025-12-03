@@ -1,20 +1,22 @@
-# Fly.io configuration for MSN Messenger Backend Worker
-app = "msn-messenger-worker"
-primary_region = "sjc"
+# fly.toml app configuration file generated for spirit-messenger-worker on 2025-12-03T13:28:17+08:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'spirit-messenger-worker'
+primary_region = 'sjc'
 
 [build]
-  builder = "paketobuildpacks"
+  dockerfile = 'Dockerfile'
 
 [env]
-  NODE_ENV = "production"
-
-[[vm]]
-  cpu_kind = "shared"
-  cpus = 1
-  memory_mb = 512
+  NODE_ENV = 'production'
+  production = 'map[NODE_ENV:production]'
 
 [processes]
-  worker = "npm run workers"
+  worker = 'node dist/workers/index.js'
 
-[env.production]
-  NODE_ENV = "production"
+[[vm]]
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 512

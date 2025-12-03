@@ -9,7 +9,6 @@ import { db } from '../db/client.js';
 import {
     botPersonalMessageUpdates,
     botConversationContexts,
-    messages,
     users,
     orchestratorDecisions,
     botConfigs,
@@ -480,7 +479,7 @@ export async function generatePersonalMessage(
  */
 export async function shouldUpdatePersonalMessage(
     botUserId: string,
-    currentMessage: string | null,
+    _currentMessage: string | null,
     lastUpdateAt: Date | null,
     currentMood: BotMood
 ): Promise<boolean> {
