@@ -106,6 +106,10 @@ function generateData(name: string, colors: string[]) {
             wrapperTranslateX > SIZE / 6 ? wrapperTranslateX / 2 : getUnit(numFromName, 8, 1),
         faceTranslateY:
             wrapperTranslateY > SIZE / 6 ? wrapperTranslateY / 2 : getUnit(numFromName, 7, 2),
+        blinkDuration: 150 + getUnit(numFromName, 100),
+        blinkInterval: 3000 + getUnit(numFromName, 2000),
+        mouthAnimationSpeed: 1000 + getUnit(numFromName, 500),
+        breathingAmount: 0.3 + getUnit(numFromName, 0.2),
     };
 
     return data;
@@ -115,6 +119,32 @@ const AIAvatar = ({ name, colors, title, square, size, ...otherProps }: AvatarPr
     const properties = generateColors(name, colors);
     const maskID = React.useId();
     const data = generateData(name, colors);
+
+    const [animationTime, setAnimationTime] = React.useState(0);
+
+    React.useEffect(() => {
+        const interval = setInterval(() => {
+            setAnimationTime(prev => prev + 1);
+        }, 16);
+
+        return () => clearInterval(interval);
+    }, []);
+
+
+    // Calculate mouth animation - oscillates between closed and open
+    const mouthPhase = (animationTime * 2 * Math.PI) / (data.mouthAnimationSpeed / 16);
+    const mouthOpenAmount = Math.abs(Math.sin(mouthPhase));
+    const shouldShowOpenMouth = mouthOpenAmount > 0.5;
+
+    // Calculate breathing effect (subtle)
+    const breathingPulse = Math.abs(Math.sin((animationTime * 2 * Math.PI) / 120)) * data.breathingAmount;
+    const animatedMouthSpread = data.mouthSpread + breathingPulse;
+
+    // Calculate eye height (for blinking)
+    const blinkPhase = animationTime % Math.ceil((data.blinkInterval + data.blinkDuration) / 16);
+    const timeUntilBlink = Math.ceil(data.blinkInterval / 16);
+    const blinkProgress = Math.max(0, (blinkPhase - timeUntilBlink) / Math.ceil(data.blinkDuration / 16));
+    const eyeBlinkHeight = 2 * Math.max(0, Math.abs(blinkProgress * 2 - 1));
 
     return (
         <svg
@@ -216,16 +246,16 @@ const AIAvatar = ({ name, colors, title, square, size, ...otherProps }: AvatarPr
                             ') scale(2.5)'
                         }
                     >
-                        {data.isMouthOpen ? (
+                        {shouldShowOpenMouth ? (
                             <path
-                                d={'M15 ' + (19 + data.mouthSpread) + 'c2 1 4 1 6 0'}
+                                d={'M15 ' + (19 + animatedMouthSpread) + 'c2 1 4 1 6 0'}
                                 stroke={data.faceColor}
                                 fill="none"
                                 strokeLinecap="round"
                             />
                         ) : (
                             <path
-                                d={'M13,' + (19 + data.mouthSpread) + ' a1,0.75 0 0,0 10,0'}
+                                d={'M13,' + (19 + animatedMouthSpread) + ' a1,0.75 0 0,0 10,0'}
                                 fill={data.faceColor}
                             />
                         )}
@@ -233,7 +263,7 @@ const AIAvatar = ({ name, colors, title, square, size, ...otherProps }: AvatarPr
                             x={14 - data.eyeSpread}
                             y={14}
                             width={1.5}
-                            height={2}
+                            height={eyeBlinkHeight}
                             rx={1}
                             stroke="none"
                             fill={data.faceColor}
@@ -242,7 +272,7 @@ const AIAvatar = ({ name, colors, title, square, size, ...otherProps }: AvatarPr
                             x={20 + data.eyeSpread}
                             y={14}
                             width={1.5}
-                            height={2}
+                            height={eyeBlinkHeight}
                             rx={1}
                             stroke="none"
                             fill={data.faceColor}
