@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "../../lib/query-client";
-import { useAuthStore } from "../../lib/store/auth-store";
 import { Loading } from "../loading";
-import { useSettingsStore } from "@/lib";
+import { useAuthStore, useSettingsStore } from "@/lib";
+import { Subscription } from "@supabase/supabase-js";
 
 interface WindowEntryWrapperProps {
     children: React.ReactNode;
@@ -12,9 +12,9 @@ interface WindowEntryWrapperProps {
 }
 
 function WindowEntryWrapper({ children, showLoading = false }: WindowEntryWrapperProps) {
-    const [isInitialized, setIsInitialized] = useState(false);
-    const initialize = useAuthStore((state) => state.initialize);
+    const isAuthInitialized = useAuthStore(state => state.isAuthInitialized)
     const loadSettings = useSettingsStore((state) => state.loadSettings);
+    const initialize = useAuthStore(state => state.initialize)
 
     useEffect(() => {
         loadSettings().catch((error) => {
@@ -23,12 +23,16 @@ function WindowEntryWrapper({ children, showLoading = false }: WindowEntryWrappe
     }, [loadSettings]);
 
     useEffect(() => {
-        initialize().then(() => {
-            setIsInitialized(true);
-        });
-    }, [initialize]);
+        let subcription: Subscription | undefined = undefined
+        initialize().then((res) => {
+            subcription = res
+        })
+        return () => {
+            subcription?.unsubscribe()
+        }
+    }, []);
 
-    if (!isInitialized && showLoading) {
+    if (!isAuthInitialized && showLoading) {
         return <Loading />
     }
 

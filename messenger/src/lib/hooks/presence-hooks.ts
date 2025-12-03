@@ -1,5 +1,4 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuthStore } from '../store/auth-store';
 import { setUserPresenceStatus } from '../services/presence-service';
 import type { PresenceStatus } from '@/types';
 
@@ -9,17 +8,13 @@ import type { PresenceStatus } from '@/types';
  */
 export function useSetPresenceStatus() {
     const queryClient = useQueryClient();
-    const updateUser = useAuthStore((state) => state.updateUser);
 
     return useMutation({
         mutationFn: async (status: PresenceStatus) => {
             const response = await setUserPresenceStatus(status);
             return { status, response };
         },
-        onSuccess: ({ status }) => {
-            // Update Zustand store with new presence status
-            updateUser({ presenceStatus: status });
-
+        onSuccess: () => {
             // Invalidate queries that might depend on user presence
             queryClient.invalidateQueries({ queryKey: ['currentUser'] });
         },

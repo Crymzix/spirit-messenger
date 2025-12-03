@@ -3,7 +3,7 @@
  * Handles all write operations to the backend
  */
 
-import { useAuthStore } from './store/auth-store';
+import { supabase } from './supabase';
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:6666';
 
@@ -27,7 +27,7 @@ export async function apiRequest<T>(
   endpoint: string,
   options: ApiRequestOptions = {}
 ): Promise<ApiResponse<T>> {
-  const { method = 'GET', headers = {}, body, token } = options;
+  const { method = 'GET', headers = {}, body } = options;
 
   const url = `${API_BASE_URL}${endpoint}`;
 
@@ -40,11 +40,9 @@ export async function apiRequest<T>(
     requestHeaders['Content-Type'] = 'application/json';
   }
 
-  // Auto-retrieve token from store if not provided
-  const authToken = token || useAuthStore.getState().token;
-
-  if (authToken) {
-    requestHeaders['Authorization'] = `Bearer ${authToken}`;
+  const { data: { session } } = await supabase.auth.getSession()
+  if (session?.access_token) {
+    requestHeaders['Authorization'] = `Bearer ${session?.access_token}`;
   }
 
   try {
@@ -77,12 +75,12 @@ export async function apiRequest<T>(
  * Create auth headers for direct fetch calls (e.g., file uploads)
  * Auto-retrieves token from store if not provided
  */
-export function createAuthHeaders(token?: string): Record<string, string> {
-  const authToken = token || useAuthStore.getState().token;
+export async function createAuthHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession()
 
-  if (authToken) {
+  if (session?.access_token) {
     return {
-      'Authorization': `Bearer ${authToken}`,
+      'Authorization': `Bearer ${session?.access_token}`,
     };
   }
 

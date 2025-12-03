@@ -30,7 +30,7 @@ export function MessageContent({ content, messageType, metadata, caller, convers
     const isCallMessage = messageType === 'system' && metadata?.callId && metadata?.callType;
 
     // Get current user for determining message visibility
-    const currentUser = useUser();
+    const { data: currentUser } = useUser();
 
     // Render call history message
     const callHistoryContent = useMemo(() => {

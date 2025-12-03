@@ -37,7 +37,7 @@ export function ChatAvatar({
 }) {
     const activeCall = useCallStore((state) => state.activeCall);
     const callState = useCallStore((state) => state.callState)
-    const currentUser = useUser()
+    const { data: currentUser } = useUser()
     const localStream = useCallStore((state) => state.localStream)
     const remoteStream = useCallStore((state) => state.remoteStream)
     const isAudioCall = !!activeCall && activeCall.callType === 'voice' && user

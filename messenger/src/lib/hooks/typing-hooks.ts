@@ -7,7 +7,7 @@ import { useUser } from '../index';
  */
 export function useTypingIndicator(conversationId: string | null) {
     const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
-    const currentUser = useUser();
+    const { data: currentUser } = useUser();
 
     // Subscribe to typing updates
     useEffect(() => {

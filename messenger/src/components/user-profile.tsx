@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { useUser } from '../lib/store/auth-store';
 import { useSetPresenceStatus } from '../lib/hooks/presence-hooks';
 import { createWindow } from '@/lib/utils/window-utils';
 import { PresenceStatus } from '@/types';
+import { useUser } from '@/lib';
 
 interface UserProfileProps {
     presenceStatus: PresenceStatus;
@@ -20,7 +20,7 @@ const statusOptions: { value: PresenceStatus; label: string; color: string }[] =
 ];
 
 export function UserProfile({ presenceStatus, onStatusChange }: UserProfileProps) {
-    const user = useUser();
+    const { data: user } = useUser();
     const setPresenceStatus = useSetPresenceStatus();
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);

@@ -46,7 +46,7 @@ export function ChatWindow() {
         error: conversationError,
     } = useConversation(contactUserId);
 
-    const user = useUser()
+    const { data: user } = useUser();
     const [messageInput, setMessageInput] = useState("");
     const [activeTab, setActiveTab] = useState<"type" | "handwrite">('type');
     const [isTyping, setIsTyping] = useState(false);

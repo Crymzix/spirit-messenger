@@ -35,7 +35,7 @@ export function OptionsWindow() {
     const params = new URLSearchParams(window.location.search);
     const option = params.get('option')
 
-    const user = useUser();
+    const { data: user } = useUser();
     const updateProfileMutation = useUpdateProfile();
     const resetSettings = useSettingsStore((state) => state.resetSettings);
 

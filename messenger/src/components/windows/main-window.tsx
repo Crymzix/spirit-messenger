@@ -2,12 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { SignInScreen } from "../screens/sign-in-screen";
 import { RegistrationScreen } from "../screens/registration-screen";
 import {
+    useUser,
     useSignIn,
     useSignUp,
-    useIsAuthenticated,
-    useAuthLoading,
-    useAuthInitialized,
-    useUser,
 } from "@/lib/hooks/auth-hooks";
 import { useGlobalMessageUpdates } from "@/lib/hooks/message-hooks";
 import { ContactsScreen } from "../screens/contacts-screen";
@@ -15,8 +12,8 @@ import { Loading } from "../loading";
 import { useFileUploadStore } from "@/lib/store/file-upload-store";
 import { initPresenceLifecycle, startActivityTracking, initPresenceChannel } from "@/lib/services/presence-service";
 import { useCallUpdates } from "@/lib/hooks/call-hooks";
-import { useAuthStore } from "@/lib/store/auth-store";
 import { PresenceStatus } from "@/types";
+import { useAuthStore } from "@/lib";
 
 type AuthView = 'signin' | 'register' | 'main';
 
@@ -24,14 +21,14 @@ export function MainWindow() {
     const [currentView, setCurrentView] = useState<AuthView>('signin');
     const presenceInitialized = useRef(false);
 
-    const isAuthenticated = useIsAuthenticated();
-    const isAuthLoading = useAuthLoading();
-    const isAuthInitialized = useAuthInitialized();
-    const user = useUser();
+    const { data: user } = useUser()
+    const isAuthInitialized = useAuthStore(state => state.isAuthInitialized)
+    const isAuthenticated = useAuthStore(state => state.isAuthenticated)
+    const isAuthLoading = useAuthStore(state => state.isAuthLoading)
+
     const signInMutation = useSignIn();
     const signUpMutation = useSignUp();
     const initializeMainWindow = useFileUploadStore((state) => state.initializeMainWindow);
-    const updateUser = useAuthStore((state) => state.updateUser);
 
     // Global message listener for all conversations
     useGlobalMessageUpdates();
@@ -72,7 +69,7 @@ export function MainWindow() {
             startActivityTracking(initialStatus);
             // No need to update user here - status is already set from login
         }
-    }, [isAuthInitialized, isAuthenticated, user?.id, updateUser]);
+    }, [isAuthInitialized, isAuthenticated, user?.id]);
 
     // Initialize file upload manager for main window
     useEffect(() => {

@@ -376,7 +376,7 @@ const usersRoutes: FastifyPluginAsync = async (fastify) => {
                             displayName: updatedUser.displayName,
                             personalMessage: updatedUser.personalMessage,
                             displayPictureUrl: updatedUser.displayPictureUrl,
-                            presenceStatus: updatedUser.presenceStatus as 'online' | 'away' | 'busy' | 'appear_offline' | 'offline',
+                            presenceStatus: updatedUser.presenceStatus as PresenceStatus,
                             lastSeen: updatedUser.lastSeen,
                             createdAt: updatedUser.createdAt!,
                             updatedAt: updatedUser.updatedAt!

@@ -24,9 +24,9 @@ import {
 } from '../services/message-service';
 import { soundService } from '../services/sound-service';
 import { showNotificationWindow } from '../utils/window-utils';
-import { useAuthStore } from '../store/auth-store';
 import type { User, Contact, Bot, MessageType } from '@/types';
 import { WINDOW_EVENTS } from '../utils/constants';
+import { useUser } from './auth-hooks';
 
 /**
  * Query key factory for message-related queries
@@ -45,7 +45,7 @@ export const messageKeys = {
  */
 export function useSendMessage(conversationId: string) {
     const queryClient = useQueryClient();
-    const currentUser = useAuthStore((state) => state.user);
+    const { data: currentUser } = useUser()
 
     return useMutation({
         mutationFn: (data: SendMessageData) => {
@@ -253,7 +253,6 @@ export function useConversation(conversationId: string) {
  * Hook for fetching all conversations for the current user
  */
 export function useConversations() {
-    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
     return useQuery({
         queryKey: messageKeys.conversations(),
@@ -266,7 +265,6 @@ export function useConversations() {
         },
         staleTime: 1000 * 60, // 1 minute
         gcTime: 1000 * 60 * 10, // 10 minutes
-        enabled: isAuthenticated,
     });
 }
 
@@ -399,7 +397,7 @@ export function useGlobalMessageUpdates(
     }) => void
 ) {
     const queryClient = useQueryClient();
-    const currentUser = useAuthStore((state) => state.user);
+    const { data: currentUser } = useUser()
 
     useEffect(() => {
         if (!currentUser?.id) return;
@@ -500,8 +498,7 @@ export function useGlobalMessageUpdates(
  * Includes realtime subscription for incremental updates
  */
 export function useUnreadCounts() {
-    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-    const currentUser = useAuthStore((state) => state.user);
+    const { data: currentUser } = useUser()
     const queryClient = useQueryClient();
 
     // Set up realtime subscription for incremental updates
@@ -579,7 +576,6 @@ export function useUnreadCounts() {
         },
         staleTime: Infinity, // Don't refetch automatically, we update via realtime
         gcTime: 1000 * 60 * 30, // 30 minutes
-        enabled: isAuthenticated,
     });
 }
 

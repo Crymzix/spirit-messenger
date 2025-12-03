@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { useAuthStore } from '../store/auth-store';
 import {
     updateProfile,
     uploadDisplayPicture,
@@ -11,13 +10,13 @@ import {
     unsubscribeFromProfileChanges,
     type UpdateProfileData,
 } from '../services/profile-service';
+import { useUser } from './auth-hooks';
 
 /**
  * Hook for updating user profile (display name and/or personal message)
  */
 export function useUpdateProfile() {
     const queryClient = useQueryClient();
-    const updateUser = useAuthStore((state) => state.updateUser);
 
     return useMutation({
         mutationFn: async (data: UpdateProfileData) => {
@@ -25,9 +24,6 @@ export function useUpdateProfile() {
             return response;
         },
         onSuccess: (data) => {
-            // Update Zustand store
-            updateUser(data.user);
-
             // Update query cache
             queryClient.setQueryData(['currentUser'], data.user);
         },
@@ -39,19 +35,13 @@ export function useUpdateProfile() {
  */
 export function useUploadDisplayPicture() {
     const queryClient = useQueryClient();
-    const updateUser = useAuthStore((state) => state.updateUser);
 
     return useMutation({
         mutationFn: async (file: File) => {
             const response = await uploadDisplayPicture(file);
             return response;
         },
-        onSuccess: (data) => {
-            // Update Zustand store with new display picture URL
-            updateUser({
-                displayPictureUrl: data.displayPictureUrl,
-            });
-
+        onSuccess: () => {
             // Invalidate profile pictures to refetch the updated list
             queryClient.invalidateQueries({ queryKey: ['profilePictures'] });
             queryClient.invalidateQueries({ queryKey: ['currentUser'] });
@@ -63,7 +53,6 @@ export function useUploadDisplayPicture() {
  * Hook for fetching user's profile pictures
  */
 export function useProfilePictures() {
-    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
     return useQuery({
         queryKey: ['profilePictures'],
@@ -71,7 +60,6 @@ export function useProfilePictures() {
             const response = await getProfilePictures();
             return response.pictures;
         },
-        enabled: isAuthenticated,
         staleTime: 5 * 60 * 1000, // 5 minutes
     });
 }
@@ -81,7 +69,6 @@ export function useProfilePictures() {
  */
 export function useSetDisplayPicture() {
     const queryClient = useQueryClient();
-    const updateUser = useAuthStore((state) => state.updateUser);
 
     return useMutation({
         mutationFn: async (displayPictureUrl: string) => {
@@ -89,9 +76,6 @@ export function useSetDisplayPicture() {
             return response;
         },
         onSuccess: (data) => {
-            // Update Zustand store with new display picture URL
-            updateUser(data.user);
-
             // Update query cache
             queryClient.setQueryData(['currentUser'], data.user);
             queryClient.invalidateQueries({ queryKey: ['currentUser'] });
@@ -104,7 +88,6 @@ export function useSetDisplayPicture() {
  */
 export function useRemoveDisplayPicture() {
     const queryClient = useQueryClient();
-    const updateUser = useAuthStore((state) => state.updateUser);
 
     return useMutation({
         mutationFn: async () => {
@@ -112,9 +95,6 @@ export function useRemoveDisplayPicture() {
             return response;
         },
         onSuccess: (data) => {
-            // Update Zustand store with cleared display picture URL
-            updateUser(data.user);
-
             // Update query cache
             queryClient.setQueryData(['currentUser'], data.user);
             queryClient.invalidateQueries({ queryKey: ['currentUser'] });
@@ -138,8 +118,7 @@ export function useRemoveDisplayPicture() {
  * 5. All components using useUser() automatically re-render with new data
  */
 export function useProfileSubscription() {
-    const user = useAuthStore((state) => state.user);
-    const updateUser = useAuthStore((state) => state.updateUser);
+    const { data: user } = useUser();
     const queryClient = useQueryClient();
 
     useEffect(() => {
@@ -151,11 +130,6 @@ export function useProfileSubscription() {
 
         // Subscribe to profile changes
         const channel = subscribeToProfileChanges(user.id, (updatedData) => {
-            console.log('Profile updated via real-time subscription:', updatedData);
-
-            // Update Zustand store with the new profile data
-            updateUser(updatedData);
-
             // Update React Query cache
             queryClient.setQueryData(['currentUser'], (oldData: any) => {
                 return oldData ? { ...oldData, ...updatedData } : updatedData;
@@ -170,5 +144,5 @@ export function useProfileSubscription() {
             console.log('Cleaning up profile subscription');
             unsubscribeFromProfileChanges(channel);
         };
-    }, [user?.id, updateUser, queryClient]);
+    }, [user?.id, queryClient]);
 }

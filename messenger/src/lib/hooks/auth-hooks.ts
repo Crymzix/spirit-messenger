@@ -1,30 +1,39 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiPost } from '../api-client';
-import { useAuthStore } from '../store/auth-store';
+import { apiGet, apiPost } from '../api-client';
 import {
     type RegisterData,
     type LoginData,
     type AuthResponse,
+    AuthUser,
 } from '../services/auth-service';
+import { supabase } from '../supabase';
 
 /**
  * Hook to get current user from Zustand store
  */
-export function useCurrentUser() {
-    const user = useAuthStore((state) => state.user);
-    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+export function useUser() {
 
     return useQuery({
         queryKey: ['currentUser'],
-        queryFn: () => {
-            if (!user) {
-                throw new Error('No authenticated user');
+        queryFn: async () => {
+            const { data: profile } = await apiGet<AuthResponse>('/api/auth/me')
+            if (!profile || !profile.user) {
+                return null
             }
-            return user;
+
+            const currentUser = profile.user
+            const user: AuthUser = {
+                id: currentUser.id,
+                email: currentUser.email || '',
+                username: currentUser.username || '',
+                displayName: currentUser?.displayName || '',
+                personalMessage: currentUser?.personalMessage,
+                displayPictureUrl: currentUser?.displayPictureUrl,
+                presenceStatus: currentUser?.presenceStatus,
+            };
+            return user || null;
         },
-        enabled: isAuthenticated,
-        staleTime: Infinity, // User data doesn't change unless we update it
-        initialData: user || undefined,
+        staleTime: Infinity,
     });
 }
 
@@ -45,8 +54,10 @@ export function useSignUp() {
             return response.data;
         },
         onSuccess: (data) => {
-            // Update Zustand store
-            useAuthStore.getState().setAuth(data.user, data.token, data.refreshToken);
+            supabase.auth.setSession({
+                access_token: data.token,
+                refresh_token: data.refreshToken,
+            });
 
             // Update query cache
             queryClient.setQueryData(['currentUser'], data.user);
@@ -71,8 +82,10 @@ export function useSignIn() {
             return response.data;
         },
         onSuccess: (data) => {
-            // Update Zustand store
-            useAuthStore.getState().setAuth(data.user, data.token, data.refreshToken);
+            supabase.auth.setSession({
+                access_token: data.token,
+                refresh_token: data.refreshToken,
+            });
 
             // Update query cache
             queryClient.setQueryData(['currentUser'], data.user);
@@ -85,42 +98,25 @@ export function useSignIn() {
  */
 export function useSignOut() {
     const queryClient = useQueryClient();
-    const { token } = useAuthStore()
 
     return useMutation({
         mutationFn: async () => {
-            if (token) {
-                // Call backend logout endpoint
-                const response = await apiPost<{ message: string }>(
-                    '/api/auth/logout',
-                    {},
-                    token
-                );
-
-                if (!response.success) {
-                    console.error('Backend logout failed:', response.error);
-                }
+            const { error } = await supabase.auth.signOut()
+            if (error) {
+                console.error('Backend logout failed:', error);
+                throw error
             }
 
             return { success: true };
         },
         onSuccess: () => {
-            // Clear Zustand store
-            useAuthStore.getState().clearAuth();
-
             // Clear query cache
             queryClient.setQueryData(['currentUser'], null);
             queryClient.clear();
         },
+        onError: (error) => {
+            console.error(error)
+        }
     });
 }
 
-
-export { isAuthenticated, getStoredToken, getStoredUser, clearAuthData } from '../services/auth-service';
-export {
-    useIsAuthenticated,
-    useUser,
-    useAuthLoading,
-    useAuthInitialized,
-    useProtectedRoute,
-} from '../store/auth-store';

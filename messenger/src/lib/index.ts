@@ -3,15 +3,10 @@ export * from './services/auth-service';
 export * from './services/presence-service';
 export * from './emoticons';
 export {
-    useCurrentUser,
+    useUser,
     useSignIn,
     useSignUp,
     useSignOut,
-    useIsAuthenticated,
-    useUser,
-    useAuthLoading,
-    useAuthInitialized,
-    useProtectedRoute,
 } from './hooks/auth-hooks';
 export {
     useUpdateProfile,

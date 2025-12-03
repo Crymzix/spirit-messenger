@@ -41,7 +41,7 @@ export async function sendVoiceClip(
   formData.append('duration', request.duration.toString());
   formData.append('file', request.audioFile, request.audioFile.name);
 
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     const xhr = new XMLHttpRequest();
 
     xhr.addEventListener('load', () => {
@@ -73,7 +73,7 @@ export async function sendVoiceClip(
     xhr.open('POST', `${API_BASE_URL}/api/messages/voice-clip`);
 
     // Add auth headers
-    const headers = createAuthHeaders();
+    const headers = await createAuthHeaders();
     Object.entries(headers).forEach(([key, value]) => {
       xhr.setRequestHeader(key, value);
     });

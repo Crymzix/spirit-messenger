@@ -50,7 +50,9 @@
             "notification:allow-is-permission-granted",
             "notification:default",
             "opener:allow-open-url",
-            "opener:default"
+            "opener:default",
+            "store:allow-load", 
+            "store:default"
           ]
         },
         {
@@ -69,7 +71,9 @@
             "core:event:allow-listen",
             "core:event:default",
             "notification:allow-is-permission-granted",
-            "notification:default"
+            "notification:default",
+            "store:allow-load", 
+            "store:default"
           ]
         },
         {
@@ -92,7 +96,9 @@
             "dialog:allow-open",
             "dialog:default",
             "core:path:allow-resolve-directory",
-            "core:path:default"
+            "core:path:default",
+            "store:allow-load", 
+            "store:default"
           ]
         },
         {
@@ -111,7 +117,9 @@
             "core:event:allow-listen",
             "core:event:default",
             "notification:allow-is-permission-granted",
-            "notification:default"
+            "notification:default",
+            "store:allow-load", 
+            "store:default"
           ]
         },
         {
@@ -130,7 +138,9 @@
             "core:event:allow-listen",
             "core:event:default",
             "notification:allow-is-permission-granted",
-            "notification:default"
+            "notification:default",
+            "store:allow-load", 
+            "store:default"
           ]
         },
         {
@@ -155,7 +165,9 @@
             "opener:allow-open-url",
             "opener:default",
             "mic-recorder:default",
-            "core:webview:allow-create-webview-window"
+            "core:webview:allow-create-webview-window",
+            "store:allow-load", 
+            "store:default"
           ]
         },
         {
@@ -174,7 +186,9 @@
             "core:event:allow-listen",
             "core:event:default",
             "notification:allow-is-permission-granted",
-            "notification:default"
+            "notification:default",
+            "store:allow-load", 
+            "store:default"
           ]
         },
         {
@@ -193,7 +207,9 @@
             "core:event:allow-listen",
             "core:event:default",
             "notification:allow-is-permission-granted",
-            "notification:default"
+            "notification:default",
+            "store:allow-load", 
+            "store:default"
           ]
         },
         {
@@ -212,7 +228,9 @@
             "core:event:allow-listen",
             "core:event:default",
             "notification:allow-is-permission-granted",
-            "notification:default"
+            "notification:default",
+            "store:allow-load", 
+            "store:default"
           ]
         },
         {
@@ -225,7 +243,9 @@
             "core:event:allow-listen",
             "core:event:default",
             "positioner:default",
-            "os:default"
+            "os:default",
+            "store:allow-load", 
+            "store:default"
           ]
         }
       ]

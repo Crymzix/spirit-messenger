@@ -21,7 +21,6 @@ import {
     removeContactFromGroup,
     bulkUpdateContactGroupMemberships,
 } from '../services/contact-group-service';
-import { useAuthStore } from '../store/auth-store';
 import type { ContactGroup, ContactGroupMembership } from '@/types';
 import { apiGet } from '../api-client';
 import type {
@@ -29,6 +28,7 @@ import type {
     UpdateContactGroupData,
     ReorderGroupData,
 } from '../services/contact-group-service';
+import { useUser } from './auth-hooks';
 
 /**
  * Query key factory for contact groups
@@ -46,15 +46,12 @@ export const contactGroupKeys = {
  * Returns contact groups ordered by displayOrder
  */
 export function useContactGroups() {
-    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-
     return useQuery({
         queryKey: contactGroupKeys.lists(),
         queryFn: async () => {
             const response = await getContactGroups();
             return response.groups;
         },
-        enabled: isAuthenticated,
         staleTime: 1000 * 60 * 5, // 5 minutes
     });
 }
@@ -321,7 +318,7 @@ export function useRemoveContactFromGroup() {
  */
 export function useContactGroupRealtimeUpdates() {
     const queryClient = useQueryClient();
-    const user = useAuthStore((state) => state.user);
+    const { data: user } = useUser()
 
     useEffect(() => {
         if (!user) {
@@ -393,8 +390,6 @@ export function useContactGroupRealtimeUpdates() {
  * Returns a map of group IDs to arrays of contact IDs
  */
 export function useContactGroupMemberships() {
-    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-
     return useQuery({
         queryKey: ['contact-group-memberships'],
         queryFn: async () => {
@@ -416,7 +411,6 @@ export function useContactGroupMemberships() {
 
             return membershipMap;
         },
-        enabled: isAuthenticated,
         staleTime: 1000 * 60 * 5, // 5 minutes
     });
 }

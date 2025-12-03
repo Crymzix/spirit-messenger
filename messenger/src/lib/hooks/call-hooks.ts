@@ -24,11 +24,11 @@ import {
 } from '../services/call-service';
 import type { CallType } from '@/types';
 import { supabase } from '../supabase';
-import { useAuthStore, useUser } from '../store/auth-store';
 import { useCallStore } from '../store/call-store';
 import { soundService } from '../services/sound-service';
 import { emit } from '@tauri-apps/api/event';
 import { WINDOW_EVENTS } from '../utils/constants';
+import { useUser } from './auth-hooks';
 
 export interface CallRingingPayload {
     callId: string;
@@ -333,7 +333,7 @@ export function useCallSignalUpdates(
     callId: string | undefined,
     onSignal: (signalData: any, fromUserId: string) => void
 ) {
-    const user = useUser()
+    const { data: user } = useUser();
 
     useEffect(() => {
         if (!callId) {
@@ -394,7 +394,7 @@ export function useCallSignalUpdates(
  * useCallUpdates(); // Call in MainWindow
  */
 export function useCallUpdates() {
-    const user = useAuthStore((state) => state.user);
+    const { data: user } = useUser()
     const queryClient = useQueryClient();
 
     useEffect(() => {

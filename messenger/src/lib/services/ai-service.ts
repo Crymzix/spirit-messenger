@@ -1,9 +1,9 @@
-import { apiGet } from '../api-client';
-import { useAuthStore } from '../store/auth-store';
+import { apiDelete, apiGet } from '../api-client';
 import type {
     AIMessage,
     AIConversation,
 } from '@/types/ai';
+import { supabase } from '../supabase';
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:6666';
 
@@ -35,15 +35,9 @@ export async function getAIConversationMessages(
 }
 
 export async function deleteAIConversation(conversationId: string): Promise<void> {
-    const token = useAuthStore.getState().token;
-    const response = await fetch(`${API_BASE_URL}/api/ai/conversations/${conversationId}`, {
-        method: 'DELETE',
-        headers: {
-            ...(token && { 'Authorization': `Bearer ${token}` }),
-        },
-    });
+    const response = await apiDelete(`${API_BASE_URL}/api/ai/conversations/${conversationId}`);
 
-    if (!response.ok) {
+    if (!response.success) {
         throw new Error('Failed to delete conversation');
     }
 }
@@ -68,7 +62,11 @@ export async function sendAIMessageStream(
     },
     callbacks: StreamCallbacks
 ): Promise<void> {
-    const token = useAuthStore.getState().token;
+    const { data: {
+        session
+    } } = await supabase.auth.getSession()
+
+    const token = session?.access_token
 
     const response = await fetch(`${API_BASE_URL}/api/ai/messages`, {
         method: 'POST',

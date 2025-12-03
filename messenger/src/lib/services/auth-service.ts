@@ -1,12 +1,12 @@
 /**
  * Authentication service for user sign-up, sign-in, and sign-out
- * Handles JWT token storage and persistence
+ * Token and session persistence is handled entirely by Supabase with Tauri Store backend
  * Integrates with Zustand auth store for global state management
  */
 
 import { PresenceStatus } from '@/types';
 import { apiPost } from '../api-client';
-import { useAuthStore } from '../store/auth-store';
+import { supabase } from '../supabase';
 
 export interface RegisterData {
   email: string;
@@ -49,8 +49,11 @@ export async function signUp(data: RegisterData): Promise<{
   const response = await apiPost<AuthResponse>('/api/auth/register', data);
 
   if (response.success && response.data) {
-    // Update Zustand store (which also handles Tauri backend storage)
-    await useAuthStore.getState().setAuth(response.data.user, response.data.token, response.data.refreshToken);
+    // Set Supabase session (auto-persisted via Tauri Store)
+    await supabase.auth.setSession({
+      access_token: response.data.token,
+      refresh_token: response.data.refreshToken,
+    });
 
     return {
       success: true,
@@ -77,8 +80,11 @@ export async function signIn(data: LoginData): Promise<{
   const response = await apiPost<AuthResponse>('/api/auth/login', data);
 
   if (response.success && response.data) {
-    // Update Zustand store (which also handles Tauri backend storage)
-    await useAuthStore.getState().setAuth(response.data.user, response.data.token, response.data.refreshToken);
+    // Set Supabase session (auto-persisted via Tauri Store)
+    await supabase.auth.setSession({
+      access_token: response.data.token,
+      refresh_token: response.data.refreshToken,
+    });
 
     return {
       success: true,
@@ -102,64 +108,19 @@ export async function signOut(): Promise<{
   success: boolean;
   error?: string;
 }> {
-  const token = useAuthStore.getState().token;
+  const response = await apiPost<{ message: string }>(
+    '/api/auth/logout',
+    {}
+  );
 
-  if (token) {
-    // Call backend logout endpoint
-    const response = await apiPost<{ message: string }>(
-      '/api/auth/logout',
-      {}
-    );
-
-    if (!response.success) {
-      console.error('Backend logout failed:', response.error);
-    }
+  if (!response.success) {
+    console.error('Backend logout failed:', response.error);
   }
 
-  // Clear auth data but preserve preferences (true = preserve preferences)
-  await useAuthStore.getState().clearAuth();
+  // Sign out from Supabase (clears persisted session)
+  await supabase.auth.signOut();
 
   return {
     success: true,
   };
-}
-
-/**
- * Get the stored authentication token
- * @deprecated Use useAuthStore().token instead
- */
-export function getStoredToken(): string | null {
-  return useAuthStore.getState().token;
-}
-
-/**
- * Get the stored user data
- * @deprecated Use useAuthStore().user instead
- */
-export function getStoredUser(): AuthUser | null {
-  return useAuthStore.getState().user;
-}
-
-/**
- * Check if user is authenticated
- * @deprecated Use useAuthStore().isAuthenticated instead
- */
-export function isAuthenticated(): boolean {
-  return useAuthStore.getState().isAuthenticated;
-}
-
-/**
- * Clear all authentication data
- * @deprecated Use signOut() instead
- */
-export async function clearAuthData(): Promise<void> {
-  await useAuthStore.getState().clearAuth();
-}
-
-/**
- * Update stored user data
- * @deprecated Use useAuthStore().updateUser() instead
- */
-export async function updateStoredUser(user: Partial<AuthUser>): Promise<void> {
-  await useAuthStore.getState().updateUser(user);
 }

@@ -18,7 +18,7 @@ const DEFAULT_PICTURES = [
 ];
 
 export function ProfilePictureUploadWindow() {
-    const user = useUser();
+    const { data: user } = useUser();
     const uploadDisplayPictureMutation = useUploadDisplayPicture();
     const setDisplayPictureMutation = useSetDisplayPicture();
     const removeDisplayPictureMutation = useRemoveDisplayPicture();

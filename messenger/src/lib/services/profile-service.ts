@@ -97,7 +97,7 @@ export async function uploadDisplayPicture(
     try {
         const response = await fetch(url, {
             method: 'POST',
-            headers: createAuthHeaders(),
+            headers: await createAuthHeaders(),
             body: formData,
         });
 
@@ -159,11 +159,13 @@ export async function removeDisplayPicture(): Promise<UpdateProfileResponse> {
     const API_BASE_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:6666';
     const url = `${API_BASE_URL}/api/users/display-picture`;
 
+    const headers = await createAuthHeaders()
+
     try {
         const response = await fetch(url, {
             method: 'DELETE',
             headers: {
-                ...createAuthHeaders(),
+                ...headers,
                 'Content-Type': 'application/json',
             },
         });

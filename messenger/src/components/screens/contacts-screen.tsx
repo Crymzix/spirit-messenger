@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useUser } from '../../lib/store/auth-store';
 import { useProfileSubscription } from '../../lib/hooks/profile-hooks';
 import { Layout } from '../layout';
 import { UserProfile } from '../user-profile';
@@ -8,6 +7,7 @@ import { PresenceStatus } from '@/types';
 import { ContactsTabs } from '../contacts-tabs';
 import { createWindow } from '@/lib/utils/window-utils';
 import { AIChat } from '../ai-chat';
+import { useUser } from '@/lib';
 
 const tabs = [
     { icon: '/msn-person.png', color: 'fill-blue-400', label: 'Contacts' },
@@ -15,7 +15,7 @@ const tabs = [
 ];
 
 export function ContactsScreen() {
-    const user = useUser();
+    const { data: user } = useUser();
     const [presenceStatus, setPresenceStatus] = useState<PresenceStatus>(user?.presenceStatus || 'online');
     const [activeTab, setActiveTab] = useState(0);
 

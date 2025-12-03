@@ -156,7 +156,7 @@ export async function uploadFile(
     formData.append('transfer_id', request.transferId);
     formData.append('file', request.file);
 
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
         const xhr = new XMLHttpRequest();
 
         // Track upload progress
@@ -202,7 +202,7 @@ export async function uploadFile(
         xhr.open('POST', `${API_BASE_URL}/api/files/upload`);
 
         // Add auth headers
-        const headers = createAuthHeaders();
+        const headers = await createAuthHeaders();
         Object.entries(headers).forEach(([key, value]) => {
             xhr.setRequestHeader(key, value);
         });
@@ -252,7 +252,7 @@ export async function downloadFile(
     transferId: string,
     filename: string
 ): Promise<void> {
-    const headers = createAuthHeaders();
+    const headers = await createAuthHeaders();
 
     const response = await fetch(`${API_BASE_URL}/api/files/transfer/${transferId}/download`, {
         headers,

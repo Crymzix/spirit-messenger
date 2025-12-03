@@ -1,7 +1,6 @@
 export { SignInScreen } from './screens/sign-in-screen';
 export { RegistrationScreen } from './screens/registration-screen';
 export { ContactsScreen } from './screens/contacts-screen'
-export { ProtectedRoute } from './protected-route';
 export { TitleBar } from './title-bar';
 export { Layout } from './layout';
 export { MainWindow } from './windows/main-window';

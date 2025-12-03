@@ -22,7 +22,7 @@ type TransferDisplayStatus =
 export function FileTransferRequestMessage({
     message,
 }: FileTransferRequestProps) {
-    const user = useUser()
+    const { data: user } = useUser()
 
     const {
         data: transferRequest,

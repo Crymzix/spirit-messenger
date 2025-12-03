@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase.js';
 import { db } from '../db/client.js';
 import { users } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
-import type { RegisterRequest, LoginRequest, AuthResponse, ApiResponse } from '../types/index.js';
+import type { RegisterRequest, LoginRequest, AuthResponse, ApiResponse, UserProfile, PresenceStatus } from '../types/index.js';
 
 const authRoutes: FastifyPluginAsync = async (fastify) => {
     // POST /api/auth/register
@@ -200,6 +200,58 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
             }
         }
     );
+
+    // GET /api/auth/me
+    fastify.get<{
+        Body: LoginRequest;
+        Reply: ApiResponse<{ user: UserProfile }>;
+    }>(
+        '/me',
+        {
+            preHandler: fastify.authenticate
+        },
+        async (request, reply) => {
+            if (!request.user) {
+                return reply.status(401).send({
+                    success: false,
+                    error: 'Unauthorized'
+                });
+            }
+
+            const userId = request.user.id;
+            // Get user profile from database
+            const [userProfile] = await db
+                .select()
+                .from(users)
+                .where(eq(users.id, userId))
+                .limit(1);
+
+            if (!userProfile) {
+                return reply.status(404).send({
+                    success: false,
+                    error: 'User profile not found'
+                });
+            }
+
+            return reply.status(200).send({
+                success: true,
+                data: {
+                    user: {
+                        id: userProfile.id,
+                        email: userProfile.email,
+                        username: userProfile.username,
+                        displayName: userProfile.displayName,
+                        personalMessage: userProfile.personalMessage,
+                        displayPictureUrl: userProfile.displayPictureUrl,
+                        presenceStatus: userProfile.presenceStatus as PresenceStatus,
+                        lastSeen: userProfile.lastSeen,
+                        createdAt: userProfile.createdAt!,
+                        updatedAt: userProfile.updatedAt!
+                    }
+                }
+            });
+        }
+    )
 
     // POST /api/auth/logout
     fastify.post<{

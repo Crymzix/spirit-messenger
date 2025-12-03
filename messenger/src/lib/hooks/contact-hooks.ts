@@ -16,10 +16,10 @@ import {
     blockContact,
     unblockContact,
 } from '../services/contact-service';
-import { useAuthStore } from '../store/auth-store';
 import type { Contact } from '@/types';
 import { emit } from '@tauri-apps/api/event';
 import { WINDOW_EVENTS } from '../utils/constants';
+import { useUser } from './auth-hooks';
 
 /**
  * Hook to fetch and subscribe to pending contact requests
@@ -29,7 +29,7 @@ export function usePendingContactRequests() {
     const [pendingRequests, setPendingRequests] = useState<Contact[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const user = useAuthStore((state) => state.user);
+    const { data: user } = useUser()
 
     useEffect(() => {
         if (!user) {
@@ -199,7 +199,6 @@ export function useDeclineContactRequest() {
  * Hook for fetching contacts with optional status filter
  */
 export function useContacts(status?: 'pending' | 'accepted' | 'blocked') {
-    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
     return useQuery({
         queryKey: ['contacts', status],
@@ -207,7 +206,6 @@ export function useContacts(status?: 'pending' | 'accepted' | 'blocked') {
             const response = await getContacts(status);
             return response.contacts;
         },
-        enabled: isAuthenticated,
     });
 }
 
@@ -271,7 +269,7 @@ export function useUnblockContact() {
  */
 export function useContactRealtimeUpdates() {
     const queryClient = useQueryClient();
-    const user = useAuthStore((state) => state.user);
+    const { data: user } = useUser()
 
     useEffect(() => {
         if (!user) {

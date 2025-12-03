@@ -22,7 +22,7 @@ export function IncomingCallMessage({
     initiatorId,
     callStatus = 'ringing',
 }: IncomingCallMessageProps) {
-    const currentUser = useUser();
+    const { data: currentUser } = useUser()
     const endCallMutation = useCallEnd();
     const { handleAnswer, handleDecline, isAnswering, isDeclining } =
         useIncomingCallHandler({
