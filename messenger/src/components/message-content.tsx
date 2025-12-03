@@ -6,7 +6,7 @@ import { useUser } from '@/lib';
 
 interface MessageContentProps {
     content: string;
-    messageType?: 'text' | 'file' | 'system' | 'image' | 'voice';
+    messageType?: 'text' | 'file' | 'system' | 'image' | 'voice' | 'wink';
     metadata?: {
         emoticons?: Array<{ position: number; code: string }>;
         formatting?: { bold?: boolean; italic?: boolean; color?: string };

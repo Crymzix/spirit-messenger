@@ -10,7 +10,7 @@ export type PresenceStatus =
   'appear_offline' |
   'offline'
 
-export type MessageType = 'text' | 'file' | 'system' | 'image' | 'voice';
+export type MessageType = 'text' | 'file' | 'system' | 'image' | 'voice' | 'wink';
 
 export type ConversationType = 'one_on_one' | 'group';
 
@@ -70,6 +70,8 @@ export interface Message {
     imageData?: string; // base64 encoded image data
     voiceClipUrl?: string; // Public URL to voice clip
     duration?: number; // Duration in seconds
+    winkUrl?: string; // URL to GIF/sticker/meme
+    winkType?: 'gif' | 'sticker' | 'meme'; // Type of wink media
     // Call metadata for system messages
     callId?: string;
     callType?: CallType;

@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiPost } from '../api-client';
 import { useAuthStore } from '../store/auth-store';
 import {
-    getStoredToken,
     type RegisterData,
     type LoginData,
     type AuthResponse,

@@ -4,7 +4,7 @@ import { TitleBar } from "../title-bar";
 import { useUser } from "@/lib";
 import { useSendMessage, useConversationMessagesInfinite, useConversationRealtimeUpdates, useSendNudge, useMarkMessagesAsRead } from "@/lib/hooks/message-hooks";
 import { getCurrentWindow, PhysicalPosition } from '@tauri-apps/api/window';
-import { Event, listen } from '@tauri-apps/api/event';
+import { emit, Event, listen } from '@tauri-apps/api/event';
 import { useTypingIndicator } from "@/lib/hooks/typing-hooks";
 import { useConversation, useParticipantRealtimeUpdates } from "@/lib/hooks/conversation-hooks";
 import { TypingIndicator } from "../typing-indicator";
@@ -29,6 +29,9 @@ import { simplePeerService } from "@/lib/services/simple-peer-service";
 import { endCall, sendSignal } from "@/lib/services/call-service";
 import { ChatAvatar } from "../chat-avatar";
 import { createWindow } from "@/lib/utils/window-utils";
+import { WinksPicker } from "../winks-picker";
+import { WinkOverlay } from "../wink-overlay";
+import { useWinkStore } from "@/lib/store/wink-store";
 
 export function ChatWindow() {
     // Extract contactUserId and contactName from URL query parameters
@@ -49,8 +52,10 @@ export function ChatWindow() {
     const [isTyping, setIsTyping] = useState(false);
     const [showEmoticonPicker, setShowEmoticonPicker] = useState(false);
     const [showFontPicker, setShowFontPicker] = useState(false)
+    const [showWinksPicker, setShowWinksPicker] = useState(false);
     const [formatting, setFormatting] = useState<{ bold?: boolean; italic?: boolean; color?: string }>({});
     const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+    const addWink = useWinkStore((state) => state.addWink);
     const messageHistoryRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const prevMessageCountRef = useRef<number>(0);
@@ -157,7 +162,19 @@ export function ChatWindow() {
         }, shakeInterval);
     }, []);
 
-    useConversationRealtimeUpdates(conversation?.id);
+    useConversationRealtimeUpdates(
+        conversation?.id,
+        (insertedMessage) => {
+            if (insertedMessage.message_type === 'wink' && insertedMessage.metadata?.winkUrl) {
+                // Add wink to queue for display
+                addWink({
+                    id: insertedMessage.id,
+                    url: insertedMessage.metadata.winkUrl,
+                    type: insertedMessage.metadata.winkType || 'gif',
+                });
+            }
+        }
+    );
 
     // Listen for nudge events from the global message listener
     useEffect(() => {
@@ -320,11 +337,17 @@ export function ChatWindow() {
             const isNewMessageAtEnd = newCount > prevCount && !isLoadingOlderMessagesRef.current;
 
             if (isInitialLoad || isNewMessageAtEnd) {
-                requestAnimationFrame(() => {
+                const scrollToBottom = () => {
                     if (messageHistoryRef.current) {
                         messageHistoryRef.current.scrollTop = messageHistoryRef.current.scrollHeight;
                     }
-                });
+                };
+
+                // Scroll immediately
+                scrollToBottom();
+
+                // Scroll again after a delay to account for images loading
+                setTimeout(scrollToBottom, 200);
             }
 
             prevMessageCountRef.current = newCount;
@@ -716,6 +739,26 @@ export function ChatWindow() {
         }
     };
 
+    const handleWinkSelect = async (mediaUrl: string, mediaType: 'gif' | 'sticker' | 'meme') => {
+        if (!conversation?.id) return;
+
+        try {
+            await sendMessageMutation.mutateAsync({
+                conversationId: conversation.id,
+                content: `Sent a ${mediaType}`,
+                messageType: 'wink',
+                metadata: {
+                    winkUrl: mediaUrl,
+                    winkType: mediaType,
+                },
+            });
+
+            setShowWinksPicker(false);
+        } catch (error) {
+            console.error('Failed to send wink:', error);
+        }
+    };
+
     const handleVoiceCallClick = async () => {
         if (!conversation?.id || !canInitiateCall || !user) {
             return
@@ -873,6 +916,7 @@ export function ChatWindow() {
                     contactId: participant.contactId,
                     userId: participant.id
                 });
+                await emit(WINDOW_EVENTS.BLOCK_UPDATED, { userId: participant.id })
             });
         } catch (error) {
             console.error('Failed to block contact:', error);
@@ -1150,6 +1194,7 @@ export function ChatWindow() {
                                             const isFileTransfer = message.messageType === 'file';
                                             const isImage = message.messageType === 'image';
                                             const isVoice = message.messageType === 'voice';
+                                            const isWink = message.messageType === 'wink';
                                             const isSystem = message.messageType === 'system'
 
                                             return (
@@ -1162,7 +1207,7 @@ export function ChatWindow() {
                                                                     fontFamily: 'Pixelated MS Sans Serif'
                                                                 }}
                                                             >
-                                                                {`${sender?.displayName || 'Unknown'} ${isFileTransfer || isVoice || isImage ? 'sends' : 'says'}`}:
+                                                                {`${sender?.displayName || 'Unknown'} ${isFileTransfer || isVoice || isImage || isWink ? 'sends' : 'says'}`}:
                                                             </div>
                                                         }
                                                         <div className="font-verdana text-black ml-4">
@@ -1183,14 +1228,20 @@ export function ChatWindow() {
                                                                                 alt="Handwriting"
                                                                                 className="max-w-full h-auto"
                                                                             /> :
-                                                                            <MessageContent
-                                                                                content={message.content}
-                                                                                messageType={message.messageType}
-                                                                                metadata={message.metadata}
-                                                                                caller={sender}
-                                                                                conversationId={conversation?.id}
-                                                                                initiatorId={message.senderId}
-                                                                            />
+                                                                            isWink && message.metadata?.winkUrl ?
+                                                                                <img
+                                                                                    src={message.metadata.winkUrl}
+                                                                                    alt={`${message.metadata.winkType || 'wink'}`}
+                                                                                    className="max-w-[200px] h-auto rounded"
+                                                                                /> :
+                                                                                <MessageContent
+                                                                                    content={message.content}
+                                                                                    messageType={message.messageType}
+                                                                                    metadata={message.metadata}
+                                                                                    caller={sender}
+                                                                                    conversationId={conversation?.id}
+                                                                                    initiatorId={message.senderId}
+                                                                                />
                                                             }
                                                         </div>
                                                     </div>
@@ -1278,11 +1329,21 @@ export function ChatWindow() {
                                             Voice Clip
                                         </div>
                                         <div
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShowWinksPicker(!showWinksPicker);
+                                            }}
                                             style={{ fontFamily: 'Pixelated MS Sans Serif' }}
-                                            className="flex items-center gap-0.5 cursor-pointer"
+                                            className="flex items-center gap-0.5 cursor-pointer relative"
                                         >
                                             <img src="/wink.png" className="size-8" />
                                             Winks
+                                            {showWinksPicker && (
+                                                <WinksPicker
+                                                    onSelect={handleWinkSelect}
+                                                    onClose={() => setShowWinksPicker(false)}
+                                                />
+                                            )}
                                         </div>
                                         <div
                                             style={{ fontFamily: 'Pixelated MS Sans Serif' }}
@@ -1427,6 +1488,9 @@ export function ChatWindow() {
                             </div>
                         </div>
                     )}
+
+                    {/* Wink Overlay - shows received winks */}
+                    <WinkOverlay />
                 </div>
             </div>
         </div>

@@ -28,7 +28,7 @@ import { isBlocked } from './contact-service.js';
 export interface CreateMessageData {
     conversationId: string;
     content: string;
-    messageType?: 'text' | 'file' | 'system' | 'image' | 'voice';
+    messageType?: 'text' | 'file' | 'system' | 'image' | 'voice' | 'wink';
     metadata?: Record<string, any>;
 }
 
@@ -91,7 +91,7 @@ export async function createMessage(
         }
 
         // Validate message type
-        const validMessageTypes = ['text', 'file', 'system', 'image', 'voice'];
+        const validMessageTypes = ['text', 'file', 'system', 'image', 'voice', 'wink'];
         const messageType = data.messageType || 'text';
         if (!validMessageTypes.includes(messageType)) {
             throw new MessageServiceError(

@@ -25,7 +25,7 @@ import {
 import { soundService } from '../services/sound-service';
 import { showNotificationWindow } from '../utils/window-utils';
 import { useAuthStore } from '../store/auth-store';
-import type { User, Contact, Bot } from '@/types';
+import type { User, Contact, Bot, MessageType } from '@/types';
 import { WINDOW_EVENTS } from '../utils/constants';
 
 /**
@@ -294,12 +294,30 @@ export function useLeaveConversation() {
     });
 }
 
+export interface MessagePayload {
+    content: string
+    conversation_id: string
+    created_at: string
+    delivered_at: string | null
+    id: string
+    message_type: MessageType
+    metadata?: {
+        winkUrl?: string
+        winkType?: 'gif' | 'sticker' | 'meme'
+    }
+    read_at: string | null
+    sender_id: string
+}
+
 /**
  * Hook to set up real-time message updates for a specific conversation
  * Subscribes to messages table changes and invalidates React Query cache
  * Works with both regular and infinite query hooks
  */
-export function useConversationRealtimeUpdates(conversationId: string | undefined) {
+export function useConversationRealtimeUpdates(
+    conversationId: string | undefined,
+    onMessageInserted?: (message: MessagePayload) => void
+) {
     const queryClient = useQueryClient();
 
     useEffect(() => {
@@ -315,7 +333,10 @@ export function useConversationRealtimeUpdates(conversationId: string | undefine
                     table: 'messages',
                     filter: `conversation_id=eq.${conversationId}`,
                 },
-                () => {
+                (payload) => {
+                    if (payload.eventType === 'INSERT') {
+                        onMessageInserted?.(payload.new as MessagePayload)
+                    }
                     // Invalidate both regular and infinite queries to refetch and show the new message
                     // This ensures we get the complete message with sender info
                     queryClient.invalidateQueries({

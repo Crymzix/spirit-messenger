@@ -51,7 +51,7 @@ export interface Message {
     conversationId: string;
     senderId: string;
     content: string;
-    messageType: 'text' | 'file' | 'system' | 'image' | 'voice';
+    messageType: 'text' | 'file' | 'system' | 'image' | 'voice' | 'wink';
     metadata: MessageMetadata | null;
     createdAt: Date;
     deliveredAt: Date | null;

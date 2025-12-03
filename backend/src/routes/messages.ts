@@ -30,7 +30,7 @@ import { supabase } from '../lib/supabase.js';
 interface CreateMessageBody {
     conversationId: string;
     content: string;
-    messageType?: 'text' | 'file' | 'system' | 'image' | 'voice';
+    messageType?: 'text' | 'file' | 'system' | 'image' | 'voice' | 'wink';
     metadata?: Record<string, any>;
 }
 
@@ -74,7 +74,7 @@ const messagesRoutes: FastifyPluginAsync = async (fastify) => {
                         },
                         messageType: {
                             type: 'string',
-                            enum: ['text', 'file', 'system', 'image', 'voice'],
+                            enum: ['text', 'file', 'system', 'image', 'voice', 'wink'],
                         },
                         metadata: {
                             type: 'object',
