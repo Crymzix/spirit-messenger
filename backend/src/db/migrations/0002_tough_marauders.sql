@@ -4,7 +4,6 @@ ALTER TABLE "conversations" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE "files" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE "messages" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE "users" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
-ALTER TABLE "ai_conversations" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
 DROP TABLE "ai_conversations" CASCADE;--> statement-breakpoint
 ALTER TABLE "contacts" ADD COLUMN "updated_at" timestamp DEFAULT now();--> statement-breakpoint
 CREATE POLICY "users_can_view_own_contacts" ON "contacts" AS PERMISSIVE FOR SELECT TO public USING (user_id = auth.uid() OR contact_user_id = auth.uid());--> statement-breakpoint
