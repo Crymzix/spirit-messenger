@@ -59,6 +59,7 @@ export async function sendAIMessageStream(
         conversationId?: string;
         content: string;
         webSearchEnabled: boolean;
+        model: string;
     },
     callbacks: StreamCallbacks
 ): Promise<void> {

@@ -19,6 +19,7 @@ interface SendMessageBody {
     conversationId?: string; // Optional - if not provided, create new conversation
     content: string;
     webSearchEnabled: boolean;
+    model: string;
 }
 
 const aiRoutes: FastifyPluginAsync = async (fastify) => {
@@ -157,11 +158,12 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
             schema: {
                 body: {
                     type: 'object',
-                    required: ['content', 'webSearchEnabled'],
+                    required: ['content', 'webSearchEnabled', 'model'],
                     properties: {
                         conversationId: { type: 'string', format: 'uuid' },
                         content: { type: 'string', minLength: 1 },
                         webSearchEnabled: { type: 'boolean' },
+                        model: { type: 'string', minLength: 1 },
                     },
                 },
             },
@@ -175,7 +177,7 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
                     });
                 }
 
-                const { content, webSearchEnabled } = request.body;
+                const { content, webSearchEnabled, model } = request.body;
                 let { conversationId } = request.body;
                 let conversation: SelectAIConversation | undefined;
                 let isNewConversation = false;
@@ -200,7 +202,8 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
                 // Generate AI response (streaming)
                 const result = await generateAIResponse(
                     conversationId,
-                    webSearchEnabled
+                    webSearchEnabled,
+                    model
                 );
 
                 // Set headers for streaming (include CORS headers since we're bypassing Fastify)
@@ -247,7 +250,7 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
                 const assistantMessage = await saveAssistantMessage(
                     conversationId,
                     fullResponse,
-                    { model: 'tngtech/deepseek-r1t2-chimera:free', webSearchEnabled }
+                    { model, webSearchEnabled }
                 );
 
                 // Generate title for first message using cheap model

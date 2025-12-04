@@ -189,7 +189,8 @@ export async function saveAssistantMessage(
 
 export async function generateAIResponse(
     conversationId: string,
-    webSearchEnabled: boolean
+    webSearchEnabled: boolean,
+    model: string
 ) {
     // Get conversation history
     const messages = await db
@@ -210,9 +211,9 @@ export async function generateAIResponse(
         : 'You are a helpful AI assistant. Provide accurate and helpful responses.';
 
     // Stream response from OpenRouter
-    console.log('Generating AI response with', conversationHistory.length, 'messages');
+    console.log('Generating AI response with', conversationHistory.length, 'messages using model:', model);
     const result = streamText({
-        model: openrouter('tngtech/deepseek-r1t2-chimera::online'),
+        model: openrouter(model),
         system: systemMessage,
         messages: conversationHistory,
     });
