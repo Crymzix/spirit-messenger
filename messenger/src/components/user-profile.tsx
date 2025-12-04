@@ -25,7 +25,7 @@ export function UserProfile({ presenceStatus, onStatusChange }: UserProfileProps
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const currentStatus = statusOptions.find(s => s.value === presenceStatus) || statusOptions[3];
+    const currentStatus = statusOptions.find(s => s.value === presenceStatus) || statusOptions[6];
 
     // Close dropdown when clicking outside
     useEffect(() => {

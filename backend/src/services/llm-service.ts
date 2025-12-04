@@ -152,7 +152,7 @@ export async function generateAutonomousMessage(options: {
     userName?: string;
     currentTime: Date;
     model?: string;
-}): Promise<string> {
+}): Promise<string | null> {
     const {
         personality,
         conversationHistory,
@@ -202,14 +202,7 @@ Keep it natural and conversational. Don't be too eager or overwhelming. Just one
         return cleanResponse(response.text);
     } catch (error) {
         console.error('Autonomous message generation error:', error);
-        // Fallback messages based on time
-        const fallbacks = {
-            morning: 'Good morning! Hope you slept well 😊',
-            afternoon: 'Hey! How\'s your day going?',
-            evening: 'Hey there! How was your day?',
-            night: 'Still up? What\'s on your mind?',
-        };
-        return fallbacks[timeOfDay];
+        return null
     }
 }
 

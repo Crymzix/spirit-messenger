@@ -340,19 +340,27 @@ export async function setOfflineOnExit(): Promise<void> {
 
 /**
  * Initialize Tauri lifecycle listeners for presence management
- * Call this once when the app starts and user is authenticated
  *
- * Note: Offline status on app quit/crash is handled by the backend's presence
- * listener which detects Supabase Presence disconnects. This onCloseRequested
- * handler provides a graceful fallback for normal window close operations.
+ * NOTE: This function is kept for backward compatibility but does not currently
+ * register any handlers because:
+ *
+ * 1. Window close events (clicking X button) should NOT set user offline
+ *    - Main window minimizes to tray (not actually closing)
+ *    - Chat windows should just close without affecting presence
+ *
+ * 2. Offline status on app quit is handled by the backend's presence listener
+ *    which automatically detects when the Supabase connection drops and sets
+ *    the user offline after a 3-second grace period.
+ *
+ * 3. Explicit logout is handled separately via setUserPresenceStatus('offline')
+ *
+ * This approach is more reliable because:
+ * - It handles crashes and force-quits automatically
+ * - It doesn't rely on frontend code completing before window closes
+ * - Multiple windows don't interfere with each other's presence status
  */
 export async function initPresenceLifecycle(): Promise<void> {
     const appWindow = getCurrentWindow();
-
-    // Handle window close request (graceful fallback)
-    await appWindow.onCloseRequested(async () => {
-        await setOfflineOnExit();
-    });
-
-    console.log('Presence lifecycle listeners initialized');
+    const windowLabel = appWindow.label;
+    console.log(`initPresenceLifecycle called for window: ${windowLabel} - no handlers registered (handled by backend)`);
 }

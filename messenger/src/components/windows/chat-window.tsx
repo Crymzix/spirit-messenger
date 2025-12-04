@@ -1090,7 +1090,7 @@ export function ChatWindow() {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="whitespace-nowrap box-border hidden min-[470px]:block cursor-pointer hover:opacity-80">
+                                    <div className="opacity-50 cursor-not-allowed whitespace-nowrap box-border hidden min-[470px]:block">
                                         <div className="flex flex-col items-center">
                                             <img src="/toolbar/games.png" alt="" />
                                             <div className="text">
