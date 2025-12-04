@@ -64,7 +64,7 @@ export async function generateResponse(options: LLMResponseOptions): Promise<LLM
         userName,
         currentTime,
         enableWebSearch = false,
-        model = 'x-ai/grok-4.1-fast:free',
+        model = 'tngtech/deepseek-r1t2-chimera:free',
     } = options;
 
     // Append :online suffix for web search capability
@@ -159,7 +159,7 @@ export async function generateAutonomousMessage(options: {
         botName,
         userName,
         currentTime,
-        model = 'x-ai/grok-4.1-fast:free',
+        model = 'tngtech/deepseek-r1t2-chimera:free',
     } = options;
 
     const systemPrompt = buildSystemPrompt(personality, {

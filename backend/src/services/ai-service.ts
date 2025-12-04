@@ -212,7 +212,7 @@ export async function generateAIResponse(
     // Stream response from OpenRouter
     console.log('Generating AI response with', conversationHistory.length, 'messages');
     const result = streamText({
-        model: openrouter('x-ai/grok-4.1-fast:free:online'),
+        model: openrouter('tngtech/deepseek-r1t2-chimera::online'),
         system: systemMessage,
         messages: conversationHistory,
     });

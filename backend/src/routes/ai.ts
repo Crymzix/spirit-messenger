@@ -247,7 +247,7 @@ const aiRoutes: FastifyPluginAsync = async (fastify) => {
                 const assistantMessage = await saveAssistantMessage(
                     conversationId,
                     fullResponse,
-                    { model: 'x-ai/grok-4.1-fast:free', webSearchEnabled }
+                    { model: 'tngtech/deepseek-r1t2-chimera:free', webSearchEnabled }
                 );
 
                 // Generate title for first message using cheap model

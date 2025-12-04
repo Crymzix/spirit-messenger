@@ -98,7 +98,7 @@ export async function makeOrchestratorDecision(
     } = {}
 ): Promise<OrchestratorDecision> {
     const {
-        orchestratorModel = 'x-ai/grok-4.1-fast:free',
+        orchestratorModel = 'tngtech/deepseek-r1t2-chimera:free',
         enableOrchestrator = true,
     } = config;
 

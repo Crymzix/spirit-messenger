@@ -441,7 +441,7 @@ export async function generatePersonalMessage(
         const prompt = buildPersonalMessagePrompt(personality, mood, context);
 
         const response = await generateText({
-            model: getOpenRouter()('x-ai/grok-4.1-fast:free'),
+            model: getOpenRouter()('tngtech/deepseek-r1t2-chimera:free'),
             prompt,
             maxTokens: 50,
             temperature: 0.8,
