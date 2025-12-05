@@ -9,6 +9,7 @@ declare module 'fastify' {
 
     interface FastifyInstance {
         authenticate: (request: import('fastify').FastifyRequest, reply: FastifyReply) => Promise<void>;
+        authenticateAdmin: (request: import('fastify').FastifyRequest, reply: FastifyReply) => Promise<void>;
     }
 }
 

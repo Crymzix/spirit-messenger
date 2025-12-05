@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import fastifyEnv from '@fastify/env';
 import authPlugin from './plugins/auth.js';
+import adminAuthPlugin from './plugins/admin-auth.js';
 import corsPlugin from './plugins/cors.js';
 import rateLimitPlugin from './plugins/rate-limit.js';
 import multipartPlugin from './plugins/multipart.js';
@@ -17,7 +18,7 @@ const fastify = Fastify({
 // Environment variables schema
 const schema = {
     type: 'object',
-    required: ['PORT', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'DATABASE_URL'],
+    required: ['PORT', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'DATABASE_URL', 'ADMIN_API_KEY'],
     properties: {
         PORT: {
             type: 'number',
@@ -42,6 +43,9 @@ const schema = {
         },
         DATABASE_URL: {
             type: 'string'
+        },
+        ADMIN_API_KEY: {
+            type: 'string'
         }
     }
 };
@@ -57,6 +61,7 @@ await fastify.register(corsPlugin);
 await fastify.register(rateLimitPlugin);
 await fastify.register(multipartPlugin);
 await fastify.register(authPlugin);
+await fastify.register(adminAuthPlugin);
 
 // Register routes
 const authRoutes = await import('./routes/auth.js');
@@ -82,6 +87,9 @@ await fastify.register(aiRoutes.default, { prefix: '/api/ai' });
 
 const botRoutes = await import('./routes/bot.js');
 await fastify.register(botRoutes.default, { prefix: '/api' });
+
+const adminRoutes = await import('./routes/admin.js');
+await fastify.register(adminRoutes.default, { prefix: '/api/admin' });
 
 const newsRoutes = await import('./routes/news.js');
 await fastify.register(newsRoutes.default, { prefix: '/api/news' });
