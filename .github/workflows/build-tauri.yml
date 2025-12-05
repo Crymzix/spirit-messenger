@@ -94,5 +94,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tauri-builds-${{ matrix.platform.os }}-${{ matrix.platform.rust-target || (matrix.platform.args == '--target aarch64-apple-darwin' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin') }}
-          path: messenger/src-tauri/target/release/bundle/
+          path: messenger/src-tauri/target/*/release/bundle/
           if-no-files-found: warn
