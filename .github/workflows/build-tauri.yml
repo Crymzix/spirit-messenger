@@ -70,7 +70,9 @@ jobs:
             libssl-dev \
             libgtk-3-dev \
             libayatana-appindicator3-dev \
-            librsvg2-dev
+            librsvg2-dev \
+            libasound2-dev \
+            libclang-dev
 
       - name: Install dependencies
         working-directory: ./messenger
