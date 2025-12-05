@@ -810,7 +810,7 @@ export async function endCall(
         }
 
         // Verify call is in active state
-        if (call.status !== 'active') {
+        if (call.status !== 'active' && call.status !== 'ringing') {
             throw new CallServiceError(
                 `Cannot end call with status: ${call.status}`,
                 'INVALID_CALL_STATUS',

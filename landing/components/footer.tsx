@@ -59,59 +59,6 @@ export default function Footer() {
             </p>
           </motion.div>
 
-          {/* Product links */}
-          <motion.div variants={itemVariants}>
-            <h4 className="font-bold text-foreground mb-4">Product</h4>
-            <ul className="space-y-3 text-sm">
-              <li>
-                <a href="#features" className="text-foreground/70 hover:text-accent transition-colors duration-200">
-                  Features
-                </a>
-              </li>
-              <li>
-                <a href="#chat" className="text-foreground/70 hover:text-accent transition-colors duration-200">
-                  Demo
-                </a>
-              </li>
-              <li>
-                <a href="#download" className="text-foreground/70 hover:text-accent transition-colors duration-200">
-                  Downloads
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-foreground/70 hover:text-accent transition-colors duration-200">
-                  Changelog
-                </a>
-              </li>
-            </ul>
-          </motion.div>
-
-          {/* Help & Support */}
-          <motion.div variants={itemVariants}>
-            <h4 className="font-bold text-foreground mb-4">Help</h4>
-            <ul className="space-y-3 text-sm">
-              <li>
-                <a href="#" className="text-foreground/70 hover:text-accent transition-colors duration-200">
-                  Setup Guide
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-foreground/70 hover:text-accent transition-colors duration-200">
-                  FAQ
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-foreground/70 hover:text-accent transition-colors duration-200">
-                  Support
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-foreground/70 hover:text-accent transition-colors duration-200">
-                  Contact
-                </a>
-              </li>
-            </ul>
-          </motion.div>
         </motion.div>
 
         {/* Divider */}

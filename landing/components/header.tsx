@@ -21,15 +21,15 @@ export default function Header() {
           <span className="text-lg font-black bg-gradient-to-r from-[#11207e] to-[#0088d9] bg-clip-text text-transparent">Messenger</span>
         </Link>
         <nav className="hidden md:flex items-center gap-8">
-          <a href="#features" className="text-sm font-medium text-foreground/80 hover:text-accent transition-colors duration-200">
+          <a href="/#features" className="text-sm font-medium text-foreground/80 hover:text-accent transition-colors duration-200">
             Features
           </a>
-          <a href="#chat" className="text-sm font-medium text-foreground/80 hover:text-accent transition-colors duration-200">
-            Demo
-          </a>
-          <a href="#download" className="text-sm font-medium text-foreground/80 hover:text-accent transition-colors duration-200">
+          <a href="/#download" className="text-sm font-medium text-foreground/80 hover:text-accent transition-colors duration-200">
             Download
           </a>
+          <Link href="/setup-guide" className="text-sm font-medium text-foreground/80 hover:text-accent transition-colors duration-200">
+            Setup Guide
+          </Link>
         </nav>
         <a href="#download" className="hidden md:block">
           <Button size="sm" className="bg-accent hover:bg-accent/90 text-accent-foreground font-medium">

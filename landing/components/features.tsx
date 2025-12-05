@@ -1,12 +1,15 @@
 "use client"
 
 import { motion } from "framer-motion"
+import { useState } from "react"
 
 const features = [
   {
     title: "Classic Contacts",
     description: "Organize and manage your contacts just like the original. Add, block, and stay connected with ease.",
     icon: "/people.png",
+    video: "/features/contacts.mp4",
+    videoStyles: "object-cover",
     iconColor: "from-blue-400/50 to-blue-500/35",
     color: "from-blue-400/15 to-blue-500/5",
     borderColor: "border-blue-400/40",
@@ -16,6 +19,8 @@ const features = [
     title: "Instant Messaging",
     description: "Lightning-fast messaging with real-time conversations and presence indicators for all friends.",
     icon: "/desktop-notification.png",
+    video: "/features/messaging.mp4",
+    videoStyles: "object-cover",
     iconColor: "from-accent/50 to-accent/35",
     color: "from-accent/15 to-accent/5",
     borderColor: "border-accent/40",
@@ -25,15 +30,19 @@ const features = [
     title: "Status Updates",
     description: "Show your mood and availability with customizable status messages and expressive emoji support.",
     icon: "/desktop-art.png",
+    video: "/features/status.mp4",
+    videoStyles: "object-cover",
     iconColor: "from-secondary/50 to-secondary/35",
     color: "from-secondary/15 to-secondary/5",
     borderColor: "border-secondary/40",
     accentColor: "text-secondary",
   },
   {
-    title: "Group Chat",
-    description: "Join group conversations and connect with multiple friends simultaneously in dedicated chat rooms.",
+    title: "Video/Voice Call",
+    description: "Make video and voice calls for a more immersive experience.",
     icon: "/desktop-chat.png",
+    video: "/features/video-call.mp4",
+    videoStyles: "object-cover",
     iconColor: "from-purple-400/50 to-purple-500/35",
     color: "from-purple-400/15 to-purple-500/5",
     borderColor: "border-purple-400/40",
@@ -43,6 +52,8 @@ const features = [
     title: "File Sharing",
     description: "Effortlessly send and receive files from your contacts with secure, real-time file transfers.",
     icon: "/folder.png",
+    video: "/features/files.mp4",
+    videoStyles: "object-cover",
     iconColor: "from-orange-400/50 to-orange-500/35",
     color: "from-orange-400/15 to-orange-500/5",
     borderColor: "border-orange-400/40",
@@ -52,12 +63,36 @@ const features = [
     title: "Smart Notifications",
     description: "Stay updated with intelligent notifications so you never miss an important message from friends.",
     icon: "/sound.png",
+    video: "/features/notification.mp4",
+    videoStyles: "object-cover",
     iconColor: "from-pink-400/50 to-pink-500/35",
     color: "from-pink-400/15 to-pink-500/5",
     borderColor: "border-pink-400/40",
     accentColor: "text-pink-500",
   },
 ]
+
+interface VideoPlayerProps {
+  src: string
+  className?: string
+}
+
+function VideoPlayer({ src, className = "" }: VideoPlayerProps) {
+  const [isLoaded, setIsLoaded] = useState(false)
+
+  return (
+    <video
+      autoPlay
+      muted
+      loop
+      playsInline
+      onCanPlayThrough={() => setIsLoaded(true)}
+      className={`transition-opacity duration-300 ${isLoaded ? "opacity-100" : "opacity-0"} ${className}`}
+    >
+      <source src={src} type="video/mp4" />
+    </video>
+  )
+}
 
 export default function Features() {
   const containerVariants = {
@@ -77,15 +112,6 @@ export default function Features() {
       opacity: 1,
       y: 0,
       transition: { duration: 0.6 },
-    },
-  }
-
-  const headerVariants = {
-    hidden: { opacity: 0, y: -20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.6, delay: 0.1 },
     },
   }
 
@@ -129,16 +155,26 @@ export default function Features() {
           {features.map((feature, index) => (
             <motion.div
               key={index}
-              className={`group relative p-8 rounded-2xl border ${feature.borderColor} bg-gradient-to-br ${feature.color} backdrop-blur-sm hover:border-accent/60 transition-all duration-300 hover:shadow-xl hover:shadow-accent/10 hover:-translate-y-1`}
+              className={`group relative overflow-hidden rounded-2xl border ${feature.borderColor} bg-gradient-to-br ${feature.color} backdrop-blur-sm hover:border-accent/60 transition-all duration-300 hover:shadow-xl hover:shadow-accent/10 hover:-translate-y-1`}
               variants={itemVariants}
               whileHover={{ y: -8 }}
             >
               {/* Glow effect on hover */}
-              <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{
+              <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-0" style={{
                 background: `radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), ${feature.borderColor.split('-')[1]}15 0%, transparent 80%)`,
               }}></div>
 
-              <div className="relative z-10 flex flex-col h-full space-y-4">
+              {/* Video Container */}
+              <div className="relative w-full h-48 bg-foreground/5 overflow-hidden">
+                <VideoPlayer
+                  src={feature.video}
+                  className={`w-full h-full ${feature.videoStyles}`}
+                />
+                {/* Fading edge gradient */}
+                <div className={`absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t ${feature.color} to-transparent pointer-events-none`}></div>
+              </div>
+
+              <div className="relative z-10 p-8 flex flex-col h-full space-y-4">
                 {/* Icon */}
                 <div className={`size-18 rounded-xl bg-gradient-to-br ${feature.iconColor} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
                   <img src={feature.icon} alt={feature.title} className="w-full h-full object-contain" />

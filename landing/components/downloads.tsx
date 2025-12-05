@@ -12,6 +12,7 @@ const downloads = [
     color: "from-blue-500/15 to-blue-600/5",
     borderColor: "border-blue-500/40",
     bgColor: "bg-blue-500",
+    url: "https://8woabjnesqmxa09t.public.blob.vercel-storage.com/Spirit%20Messenger_0.1.0_x64-setup.exe",
   },
   {
     platform: "macOS",
@@ -21,6 +22,10 @@ const downloads = [
     color: "from-accent/15 to-accent/5",
     borderColor: "border-accent/40",
     bgColor: "bg-accent",
+    variants: [
+      { label: "Apple Silicon", architecture: "arm64", url: "https://8woabjnesqmxa09t.public.blob.vercel-storage.com/Spirit%20Messenger_0.1.0_aarch64.dmg" },
+      { label: "Intel", architecture: "x64", url: "https://8woabjnesqmxa09t.public.blob.vercel-storage.com/Spirit%20Messenger_0.1.0_x64.dmg" },
+    ],
   },
   {
     platform: "Linux",
@@ -30,6 +35,7 @@ const downloads = [
     color: "from-orange-500/15 to-orange-600/5",
     borderColor: "border-orange-500/40",
     bgColor: "bg-orange-500",
+    url: "https://8woabjnesqmxa09t.public.blob.vercel-storage.com/Spirit%20Messenger_0.1.0_amd64.AppImage",
   },
 ]
 
@@ -88,7 +94,7 @@ export default function Downloads() {
               Download Spirit Messenger
             </h2>
             <p className="text-xl text-foreground/70 leading-relaxed">
-              Choose your platform and start chatting with friends today. All versions include full features, updates, and support.
+              Choose your platform and start chatting with friends today.
             </p>
           </motion.div>
           <div className="w-32 h-32 flex-shrink-0" />
@@ -126,10 +132,29 @@ export default function Downloads() {
                   <p className="text-sm text-foreground/70">{download.description}</p>
                 </div>
 
-                {/* Download button */}
-                <Button size="lg" className={`w-full ${download.bgColor} hover:opacity-90 text-white font-semibold text-base h-12 rounded-lg transition-all shadow-lg group-hover:shadow-xl`}>
-                  Download {download.extension}
-                </Button>
+                {/* Download button(s) */}
+                {download.variants ? (
+                  <div className="flex gap-3 flex-col sm:flex-row w-full">
+                    {download.variants.map((variant: any) => (
+                      <a
+                        key={variant.architecture}
+                        href={variant.url}
+                        download
+                        className={`flex-1 flex items-center justify-center ${download.bgColor} hover:opacity-90 text-white font-semibold text-base h-12 rounded-lg transition-all shadow-lg group-hover:shadow-xl`}
+                      >
+                        {variant.label}
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <a
+                    href={download.url}
+                    download
+                    className={`w-full flex items-center justify-center ${download.bgColor} hover:opacity-90 text-white font-semibold text-base h-12 rounded-lg transition-all shadow-lg group-hover:shadow-xl`}
+                  >
+                    Download
+                  </a>
+                )}
               </div>
             </motion.div>
           ))}
@@ -152,27 +177,15 @@ export default function Downloads() {
                 </p>
               </div>
               <div className="flex gap-4 md:justify-end">
-                <a href="#" className="inline-block">
-                  <Button variant="outline" className="border-2 font-semibold">
+                <a href="/setup-guide" className="inline-block">
+                  <Button variant="secondary" className="font-semibold">
                     Setup Guide
-                  </Button>
-                </a>
-                <a href="#" className="inline-block">
-                  <Button variant="outline" className="border-2 font-semibold">
-                    FAQ
                   </Button>
                 </a>
               </div>
             </div>
           </div>
         </motion.div>
-
-        {/* System requirements notice */}
-        <div className="mt-12 text-center">
-          <p className="text-sm text-foreground/50">
-            Minimum system requirements: 1GB RAM, 50MB disk space. All platforms include automatic updates and cloud sync.
-          </p>
-        </div>
       </div>
     </section>
   )

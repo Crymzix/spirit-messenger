@@ -24,10 +24,10 @@ export default function Hero() {
   }
 
   const imageVariants = {
-    hidden: { opacity: 0, scale: 0.8 },
+    hidden: { opacity: 0, y: 100 },
     visible: {
       opacity: 1,
-      scale: 1,
+      y: 0,
       transition: { duration: 0.8 },
     },
   }
@@ -80,7 +80,7 @@ export default function Hero() {
               </Button>
             </a>
             <a href="#features" className="inline-block">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto font-semibold text-base px-8 h-12 rounded-lg border-2 hover:bg-foreground/5 transition-all">
+              <Button size="lg" variant="secondary" className="w-full sm:w-auto font-semibold text-base px-8 h-12 rounded-lg transition-all">
                 Learn More
               </Button>
             </a>
@@ -88,21 +88,21 @@ export default function Hero() {
 
           {/* Stats/Benefits */}
           <motion.div className="grid grid-cols-2 gap-6 pt-8" variants={containerVariants}>
-            <motion.div className="p-4 rounded-xl bg-gradient-to-br from-orange-500/10 to-transparent border border-orange-500/30 hover:border-orange-500/50 transition-colors" variants={itemVariants}>
-              <p className="font-bold text-foreground text-lg">Nostalgia</p>
-              <p className="text-sm text-foreground/60">Classic MSN experience modernized</p>
+            <motion.div className="p-4 rounded-xl bg-orange-500 border border-orange-500/30 hover:border-orange-500/50 transition-colors" variants={itemVariants}>
+              <p className="font-bold text-accent-foreground text-lg">Nostalgia</p>
+              <p className="text-sm text-accent-foreground/90">Classic MSN experience modernized</p>
             </motion.div>
-            <motion.div className="p-4 rounded-xl bg-gradient-to-br from-accent/10 to-transparent border border-accent/30 hover:border-accent/50 transition-colors" variants={itemVariants}>
-              <p className="font-bold text-foreground text-lg">AI Bots</p>
-              <p className="text-sm text-foreground/60">Chat with smart companions</p>
+            <motion.div className="p-4 rounded-xl bg-accent border border-accent/30 hover:border-accent/50 transition-colors" variants={itemVariants}>
+              <p className="font-bold text-accent-foreground text-lg">AI Bots</p>
+              <p className="text-sm text-accent-foreground/90">Chat with smart companions</p>
             </motion.div>
-            <motion.div className="p-4 rounded-xl bg-gradient-to-br from-secondary/10 to-transparent border border-secondary/30 hover:border-secondary/50 transition-colors" variants={itemVariants}>
-              <p className="font-bold text-foreground text-lg">Real-Time</p>
-              <p className="text-sm text-foreground/60">Instant messaging at light speed</p>
+            <motion.div className="p-4 rounded-xl bg-secondary border border-secondary/30 hover:border-secondary/50 transition-colors" variants={itemVariants}>
+              <p className="font-bold text-accent-foreground text-lg">Real-Time</p>
+              <p className="text-sm text-accent-foreground/90">Instant messaging at light speed</p>
             </motion.div>
-            <motion.div className="p-4 rounded-xl bg-gradient-to-br from-blue-400/10 to-transparent border border-blue-400/30 hover:border-blue-400/50 transition-colors" variants={itemVariants}>
-              <p className="font-bold text-foreground text-lg">Cross-Platform</p>
-              <p className="text-sm text-foreground/60">Windows, Mac, Linux ready</p>
+            <motion.div className="p-4 rounded-xl bg-blue-400 border border-blue-400/30 hover:border-blue-400/50 transition-colors" variants={itemVariants}>
+              <p className="font-bold text-accent-foreground text-lg">Cross-Platform</p>
+              <p className="text-sm text-accent-foreground/90">Windows, Mac, Linux ready</p>
             </motion.div>
           </motion.div>
         </motion.div>

@@ -21,6 +21,41 @@ export default function Chat() {
       transition: { duration: 0.6 },
     },
   }
+
+  const nudgeVariants = {
+    animate: {
+      x: [
+        0,
+        Math.random() * 20 - 10,
+        Math.random() * 20 - 10,
+        Math.random() * 20 - 10,
+        Math.random() * 20 - 10,
+        Math.random() * 20 - 10,
+        Math.random() * 20 - 10,
+        Math.random() * 20 - 10,
+        Math.random() * 20 - 10,
+        0,
+      ],
+      y: [
+        0,
+        Math.random() * 20 - 10,
+        Math.random() * 20 - 10,
+        Math.random() * 20 - 10,
+        Math.random() * 20 - 10,
+        Math.random() * 20 - 10,
+        Math.random() * 20 - 10,
+        Math.random() * 20 - 10,
+        Math.random() * 20 - 10,
+        0,
+      ],
+      transition: {
+        duration: 0.5,
+        repeat: Infinity,
+        repeatDelay: 4,
+      },
+    },
+  }
+
   return (
     <section id="chat" className="py-32 relative">
       {/* Background elements */}
@@ -120,7 +155,11 @@ export default function Chat() {
           </motion.div>
 
           {/* Right: Screenshot */}
-          <div className="relative h-96 md:h-full flex items-center justify-center">
+          <motion.div
+            className="relative h-96 md:h-full flex items-center justify-center"
+            variants={nudgeVariants}
+            animate="animate"
+          >
             <div className="absolute inset-0 bg-gradient-to-br from-accent/25 via-secondary/15 to-transparent rounded-3xl blur-3xl opacity-60"></div>
             <div className="relative w-[400px] md:w-[480px] overflow-hidden rounded-t-[5px] shadow-2xl">
               <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none z-20"></div>
@@ -135,7 +174,7 @@ export default function Chat() {
             </div>
             {/* Decorative element */}
             <div className="absolute -top-20 -right-20 w-40 h-40 bg-accent/10 rounded-full blur-2xl opacity-50"></div>
-          </div>
+          </motion.div>
         </motion.div>
       </div>
     </section>
