@@ -31,9 +31,6 @@ jobs:
           - { os: macos-latest, rust-target: aarch64-apple-darwin }
 
     runs-on: ${{ matrix.platform.os }}
-    defaults:
-      run:
-        working-directory: ./messenger
 
     steps:
       - name: Checkout code
@@ -76,13 +73,17 @@ jobs:
             librsvg2-dev
 
       - name: Install dependencies
+        working-directory: ./messenger
         run: pnpm install --frozen-lockfile
 
       - name: Build frontend
+        working-directory: ./messenger
         run: pnpm build
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
+        with:
+          projectPath: ./messenger
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
