@@ -27,8 +27,8 @@ jobs:
         platform:
           - { os: ubuntu-latest, rust-target: x86_64-unknown-linux-gnu }
           - { os: windows-latest, rust-target: x86_64-pc-windows-msvc }
-          - { os: macos-latest, rust-target: x86_64-apple-darwin }
-          - { os: macos-latest, rust-target: aarch64-apple-darwin }
+          - { os: macos-latest, args: '--target aarch64-apple-darwin' }
+          - { os: macos-latest, args: '--target x86_64-apple-darwin' }
 
     runs-on: ${{ matrix.platform.os }}
 
@@ -51,7 +51,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform.rust-target }}
+          targets: ${{ matrix.platform.rust-target || 'aarch64-apple-darwin,x86_64-apple-darwin' }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -86,12 +86,13 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         with:
           projectPath: ./messenger
+          args: ${{ matrix.platform.args || '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: tauri-builds-${{ matrix.platform.os }}-${{ matrix.platform.rust-target }}
+          name: tauri-builds-${{ matrix.platform.os }}-${{ matrix.platform.rust-target || (matrix.platform.args == '--target aarch64-apple-darwin' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin') }}
           path: messenger/src-tauri/target/release/bundle/
           if-no-files-found: warn
